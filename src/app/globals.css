@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =====================================================
+   1️⃣ Base CSS Variables (Design Tokens)
+===================================================== */
+@layer base {
+  :root {
+    /* ================================
+       Core Theme Tokens (HSL)
+    ================================= */
+
+    --primary: 149 74% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 38 94% 56%;
+    --secondary-foreground: 0 0% 10%;
+
+    --background: 0 0% 100%;
+    --foreground: 150 10% 15%;
+    --bluer-background: 210 90% 98%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 10% 15%;
+
+    --muted: 150 10% 96%;
+    --muted-text: 150 12% 45%;
+    --muted-foreground: 150 5% 45%;
+
+    --accent: 149 20% 95%;
+    --accent-foreground: 149 74% 25%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 10% 90%;
+    --input: 150 10% 90%;
+    --ring: 149 74% 25%;
+
+    --success: 149 74% 30%;
+    --warning: 38 94% 56%;
+    --info: 210 90% 55%;
+
+    --radius: 1rem;
+
+    /* ================================
+       Effects & Special Tokens
+    ================================= */
+
+    --hero-gradient: linear-gradient(
+      135deg,
+      hsl(149 74% 25%) 0%,
+      hsl(149 74% 20%) 100%
+    );
+
+    --gold-glow: 0 8px 32px hsl(38 94% 56% / 0.25);
+    --green-glow: 0 8px 32px hsl(149 74% 25% / 0.2);
+
+    --card-shadow: 0 4px 24px hsl(150 10% 15% / 0.06);
+    --card-shadow-hover: 0 8px 40px hsl(150 10% 15% / 0.12);
+
+    /* ================================
+       Sidebar Tokens
+    ================================= */
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 150 10% 15%;
+    --sidebar-primary: 149 74% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 149 20% 95%;
+    --sidebar-accent-foreground: 149 74% 25%;
+    --sidebar-border: 150 10% 90%;
+    --sidebar-ring: 149 74% 25%;
+  }
+
+  /* ================================
+     Dark Mode Tokens
+  ================================= */
+  .dark {
+    --primary: 149 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 38 94% 56%;
+    --secondary-foreground: 0 0% 10%;
+
+    /* ⬅ adjusted to avoid “pure black” */
+    --background: 150 18% 10%;
+    --foreground: 150 10% 95%;
+
+    --card: 150 16% 14%;
+    --card-foreground: 150 10% 95%;
+
+    --popover: 150 15% 12%;
+    --popover-foreground: 150 10% 95%;
+
+    --muted: 150 15% 18%;
+    --muted-text: 150 12% 45%;
+    --muted-foreground: 150 10% 60%;
+
+    --accent: 149 30% 20%;
+    --accent-foreground: 149 60% 70%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 15% 20%;
+    --input: 150 15% 20%;
+    --ring: 149 60% 45%;
+
+    --success: 149 60% 45%;
+    --warning: 38 94% 56%;
+    --info: 210 90% 65%;
+
+    --hero-gradient: linear-gradient(
+      135deg,
+      hsl(150 18% 10%) 0%,
+      hsl(149 30% 14%) 100%
+    );
+
+    --gold-glow: 0 8px 32px hsl(38 94% 56% / 0.15);
+    --green-glow: 0 8px 32px hsl(149 60% 45% / 0.15);
+
+    --card-shadow: 0 4px 24px hsl(0 0% 0% / 0.3);
+    --card-shadow-hover: 0 8px 40px hsl(0 0% 0% / 0.4);
+
+    --sidebar-background: 150 15% 10%;
+    --sidebar-foreground: 150 10% 95%;
+    --sidebar-primary: 149 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 149 30% 20%;
+    --sidebar-accent-foreground: 149 60% 70%;
+    --sidebar-border: 150 15% 20%;
+    --sidebar-ring: 149 60% 45%;
+  }
+
+  /* ================================
+     Subtle global scrollbar styling
+     Uses --muted-foreground so it adapts to light/dark themes.
+  ================================= */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+/* =====================================================
+   2️⃣ Tailwind v4 Theme Mapping (REQUIRED)
+===================================================== */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+
+  --color-success-foreground: hsl(var(--primary-foreground));
+  --color-warning-foreground: hsl(var(--secondary-foreground));
+  --color-info-foreground: hsl(var(--primary-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --shadow-card: var(--card-shadow);
+  --shadow-card-hover: var(--card-shadow-hover);
+
+  /* Sidebar */
+  --color-sidebar-background: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* Radius */
+  --radius: var(--radius);
+  --radius-lg: var(--radius);
+  /* --radius-xl: calc(var(--radius) * 1.5); */
+  --radius-2xl: calc(var(--radius) * 2);
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .radius {
+    border-radius: var(--radius);
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-in-out;
+  }
+}
+
+/* =====================================================
+   Number inputs — remove the up/down spinner arrows app-wide
+===================================================== */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
