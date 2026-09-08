@@ -59,6 +59,7 @@ const navGroups: NavGroup[] = [
     items: [
       { labelKey: "approvals", href: "/dashboard/approvals", icon: ClipboardCheck, permission: "application:read" },
       { labelKey: "tiers", href: "/dashboard/tiers", icon: Layers, permission: "tier:read" },
+      { labelKey: "members", href: "/dashboard/members", icon: UsersRound, permission: ["application:read", "penalty:read"] },
       { labelKey: "payments", href: "/dashboard/payments", icon: Wallet, permission: "payment:read" },
       { labelKey: "draws", href: "/dashboard/draws", icon: Ticket, permission: "draw:read" },
       { labelKey: "payouts", href: "/dashboard/payouts", icon: HandCoins, permission: "payout:read" },
@@ -69,7 +70,7 @@ const navGroups: NavGroup[] = [
     items: [
       { labelKey: "penalties", href: "/dashboard/penalties", icon: ShieldAlert, permission: "penalty:read" },
       { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale, permission: "dispute:read" },
-      { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank, soon: true },
+      { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank, permission: ["payout:read", "tier:read"] },
     ],
   },
   {

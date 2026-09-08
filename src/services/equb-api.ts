@@ -14,11 +14,13 @@ import type {
   EqubDrawPreviewResponse,
   EqubSchemeResponse,
   EqubTakafulTransactionResponse,
+  EqubTakafulClaimResponse,
   EqubWinnerResponse,
   LoginRequest,
   LoginResponse,
   MemberRegistrationRequestResponse,
   UpdateEqubSchemeRequest,
+  UserResponse,
 } from "@/types/equb-api";
 
 // Thin, fully-typed wrappers over the real Equb admin endpoints. Every call
@@ -40,8 +42,14 @@ export const equbApi = {
   async createScheme(body: CreateEqubSchemeRequest): Promise<EqubSchemeResponse> {
     return unwrap<EqubSchemeResponse>(api.post(EQUB_ENDPOINTS.SCHEMES.CREATE, body));
   },
+  async getScheme(id: string): Promise<EqubSchemeResponse> {
+    return unwrap<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.SCHEMES.DETAIL(id)));
+  },
   async updateScheme(id: string, body: UpdateEqubSchemeRequest): Promise<EqubSchemeResponse> {
     return unwrap<EqubSchemeResponse>(api.put(EQUB_ENDPOINTS.SCHEMES.UPDATE(id), body));
+  },
+  async deleteScheme(id: string): Promise<unknown> {
+    return unwrap(api.delete(EQUB_ENDPOINTS.SCHEMES.DELETE(id)));
   },
 
   // ---- Groups (cycles) ----
@@ -54,11 +62,32 @@ export const equbApi = {
   async createGroup(body: CreateEqubGroupRequest): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.CREATE, body));
   },
+  async updateGroup(id: string, body: Partial<CreateEqubGroupRequest>): Promise<EqubGroupResponse> {
+    return unwrap<EqubGroupResponse>(api.put(EQUB_ENDPOINTS.GROUPS.UPDATE(id), body));
+  },
+  async deleteGroup(id: string): Promise<unknown> {
+    return unwrap(api.delete(EQUB_ENDPOINTS.GROUPS.DELETE(id)));
+  },
   async activateGroup(id: string, startDate: string): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.ACTIVATE(id), { start_date: startDate }));
   },
   async cancelGroup(id: string, reason: string): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.CANCEL(id), { reason }));
+  },
+  async extendGroup(id: string, additionalRounds: number, reason: string): Promise<EqubGroupResponse> {
+    return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.EXTEND(id), { additional_rounds: additionalRounds, reason }));
+  },
+  async autoCancel(): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.AUTO_CANCEL, {}));
+  },
+  async addMember(groupId: string, memberId: string): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { member_id: memberId }));
+  },
+  async removeMember(groupId: string, memberId: string): Promise<unknown> {
+    return unwrap(api.delete(EQUB_ENDPOINTS.GROUPS.MEMBER(groupId, memberId)));
+  },
+  async swapPositions(groupId: string, memberId1: string, memberId2: string): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.SWAP_POSITIONS(groupId), { member_id_1: memberId1, member_id_2: memberId2 }));
   },
   async dashboard(groupId: string): Promise<EqubAdminDashboardResponse> {
     return unwrap<EqubAdminDashboardResponse>(api.get(EQUB_ENDPOINTS.DASHBOARD(groupId)));
@@ -89,6 +118,9 @@ export const equbApi = {
   async listWinners(roundId: string): Promise<EqubWinnerResponse[]> {
     return unwrap<EqubWinnerResponse[]>(api.get(EQUB_ENDPOINTS.ROUNDS.WINNERS(roundId)));
   },
+  async drawCandidates(drawId: string): Promise<EqubDrawPreviewResponse> {
+    return unwrap<EqubDrawPreviewResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DRAW_CANDIDATES(drawId)));
+  },
 
   // ---- Payout / guarantor ----
   async createGuarantee(winnerId: string, body: CreateEqubGuaranteeRequest): Promise<EqubGuaranteeResponse> {
@@ -108,6 +140,11 @@ export const equbApi = {
   async listEmergencyDraws(groupId: string): Promise<EqubEmergencyDrawResponse[]> {
     return unwrap<EqubEmergencyDrawResponse[]>(api.get(EQUB_ENDPOINTS.EMERGENCY_DRAWS.LIST(groupId)));
   },
+  async submitEmergencyDraw(groupId: string, memberId: string, reason: string, evidence?: string): Promise<EqubEmergencyDrawResponse> {
+    return unwrap<EqubEmergencyDrawResponse>(
+      api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.SUBMIT(groupId), { equb_group_id: groupId, member_id: memberId, reason, evidence })
+    );
+  },
   async approveEmergencyDraw(requestId: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.APPROVE(requestId), {}));
   },
@@ -125,6 +162,14 @@ export const equbApi = {
   async distributeSurplus(groupId: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.TAKAFUL.DISTRIBUTE_SURPLUS(groupId), {}));
   },
+  async submitTakafulClaim(groupId: string, memberId: string, amount: number, reason: string): Promise<EqubTakafulClaimResponse> {
+    return unwrap<EqubTakafulClaimResponse>(
+      api.post(EQUB_ENDPOINTS.TAKAFUL.CLAIMS(groupId), { equb_group_id: groupId, member_id: memberId, amount, reason })
+    );
+  },
+  async refundTakaful(groupId: string, reason: string): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.TAKAFUL.REFUND(groupId), { reason }));
+  },
 
   // ---- Contributions / penalties ----
   async markOverdue(): Promise<unknown> {
@@ -140,5 +185,24 @@ export const equbApi = {
   },
   async rejectRegistration(id: string, reason: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.REGISTRATION_REQUESTS.REJECT(id), { reason }));
+  },
+
+  // ---- Staff & roles ----
+  async listUsers(params?: Record<string, unknown>): Promise<UserResponse[]> {
+    return unwrap<UserResponse[]>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }));
+  },
+  async listRoles(): Promise<Array<{ id: string; name: string; permissions?: Array<{ name?: string; slug?: string }> }>> {
+    return unwrap(api.get(EQUB_ENDPOINTS.USERS.ROLES));
+  },
+
+  // ---- Manager (portfolio role) ----
+  async managerGroups(): Promise<EqubGroupResponse[]> {
+    return unwrap<EqubGroupResponse[]>(api.get(EQUB_ENDPOINTS.MANAGER.MY_GROUPS));
+  },
+  async managerSchemes(): Promise<EqubSchemeResponse[]> {
+    return unwrap<EqubSchemeResponse[]>(api.get(EQUB_ENDPOINTS.MANAGER.MY_SCHEMES));
+  },
+  async catchUpAmount(groupId: string, memberId: string): Promise<unknown> {
+    return unwrap(api.get(EQUB_ENDPOINTS.MANAGER.CATCH_UP(groupId, memberId)));
   },
 };

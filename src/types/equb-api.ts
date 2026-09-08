@@ -248,6 +248,16 @@ export interface EqubTakafulTransactionResponse {
   created_at: string;
 }
 
+export interface EqubTakafulClaimResponse {
+  id: string;
+  equb_group_id: string;
+  member_id: string;
+  amount: number;
+  reason: string;
+  status: string;
+  created_at: string;
+}
+
 // ---- Emergency (hardship early-turn) ----
 export interface EqubEmergencyDrawResponse {
   id: string;

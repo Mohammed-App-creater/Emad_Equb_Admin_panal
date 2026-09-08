@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Eye, Check, HandCoins, Upload, ShieldAlert, Heart, Info } from "lucide-react";
+import { Eye, Check, X, HandCoins, Upload, ShieldAlert, Heart, Info, FileSignature, ThumbsUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +25,10 @@ import {
   useApprovePackage,
   useReleasePayout,
   useAttachTitle,
+  useCreateGuarantee,
+  useApproveGuarantee,
+  useRejectGuarantee,
+  useDecideHardship,
 } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
@@ -40,8 +53,16 @@ function PayoutsInner() {
   const approve = useApprovePackage();
   const release = useReleasePayout();
   const attach = useAttachTitle();
+  const createGuarantee = useCreateGuarantee();
+  const approveGuarantee = useApproveGuarantee();
+  const rejectGuarantee = useRejectGuarantee();
+  const decideHardship = useDecideHardship();
 
   const [selected, setSelected] = useState<Payout | null>(null);
+  // Guarantee ids returned this session, keyed by payout/winner id.
+  const [guaranteeIds, setGuaranteeIds] = useState<Record<string, string>>({});
+  const [guaranteeFor, setGuaranteeFor] = useState<Payout | null>(null);
+  const [gForm, setGForm] = useState({ guaranteeType: "personal", guarantorName: "", collateralType: "check", collateralReference: "", collateralValue: 0 });
 
   const statusLabel = (s: PayoutStatus) =>
     s === "pending" ? t("statusPending") : s === "approved" ? t("statusApproved") : t("statusReleased");
@@ -86,11 +107,28 @@ function PayoutsInner() {
         actions={[{ label: tc("view"), icon: Eye, onClick: (r) => setSelected(r) }]}
         renderLeadingActions={(r) => {
           if (!canApprove) return null;
+          const gid = guaranteeIds[r.id];
           if (r.status === "pending")
             return (
-              <Button size="sm" onClick={() => approve.mutate(r.id, { onSuccess: () => toast({ title: t("statusApproved") }), onError: err })}>
-                <Check size={14} className="mr-1" /> {t("approvePackage")}
-              </Button>
+              <div className="flex flex-wrap gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => { setGuaranteeFor(r); setGForm({ guaranteeType: "personal", guarantorName: "", collateralType: r.requiresProperty ? "house_title" : "check", collateralReference: "", collateralValue: 0 }); }}>
+                  <FileSignature size={14} className="mr-1" /> {t("submitGuarantee")}
+                </Button>
+                {gid && (
+                  <>
+                    <Button size="sm" onClick={() => approveGuarantee.mutate(gid, { onSuccess: () => toast({ title: t("statusApproved") }), onError: err })}>
+                      <ThumbsUp size={14} className="mr-1" /> {t("approveGuarantee")}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => rejectGuarantee.mutate({ guaranteeId: gid, note: "rejected" }, { onSuccess: () => toast({ title: tc("reject") }), onError: err })}>
+                      <X size={14} />
+                    </Button>
+                  </>
+                )}
+                {/* Mock convenience: single-step package approve when no guarantee flow is used */}
+                <Button size="sm" onClick={() => approve.mutate(r.id, { onSuccess: () => toast({ title: t("statusApproved") }), onError: err })}>
+                  <Check size={14} className="mr-1" /> {t("approvePackage")}
+                </Button>
+              </div>
             );
           if (r.status === "approved")
             return (
@@ -117,12 +155,24 @@ function PayoutsInner() {
             const pct = Math.round((h.consentReceived / h.consentRequired) * 100);
             return (
               <div key={h.id} className="rounded-2xl border border-border p-4">
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="font-medium text-foreground">{h.memberHandle}</p>
                     <p className="text-xs capitalize text-muted-foreground">{h.reason.replace("_", " ")} · {h.ekubNumber}</p>
                   </div>
-                  <Badge className="bg-info/15 text-info capitalize">{h.status}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge className="bg-info/15 text-info capitalize">{h.status}</Badge>
+                    {canApprove && (h.status === "requested" || h.status === "proposed") && (
+                      <>
+                        <Button size="sm" onClick={() => decideHardship.mutate({ id: h.id, decision: "approve" }, { onSuccess: () => toast({ title: tc("approve") }), onError: err })}>
+                          <Check size={13} />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => decideHardship.mutate({ id: h.id, decision: "reject", note: "rejected" }, { onSuccess: () => toast({ title: tc("reject") }), onError: err })}>
+                          <X size={13} />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <p className="mb-1 text-xs text-muted-foreground">
                   {t("consentProgress")}: {h.consentReceived}/{h.consentRequired}
@@ -135,6 +185,57 @@ function PayoutsInner() {
           })}
         </CardContent>
       </Card>
+
+      {/* Submit guarantee */}
+      <Modal open={!!guaranteeFor} onOpenChange={(o) => !o && setGuaranteeFor(null)} title={t("submitGuarantee")} className="max-w-md">
+        {guaranteeFor && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>{t("guaranteeType")}</Label>
+              <Select value={gForm.guaranteeType} onValueChange={(v) => setGForm({ ...gForm, guaranteeType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">personal</SelectItem>
+                  <SelectItem value="collateral">collateral</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>{t("guarantorName")}</Label><Input value={gForm.guarantorName} onChange={(e) => setGForm({ ...gForm, guarantorName: e.target.value })} /></div>
+            <div className="space-y-1.5">
+              <Label>{t("collateralType")}</Label>
+              <Select value={gForm.collateralType} onValueChange={(v) => setGForm({ ...gForm, collateralType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="check">check</SelectItem>
+                  <SelectItem value="vehicle">vehicle</SelectItem>
+                  <SelectItem value="house_title">house_title</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>{t("collateralRef")}</Label><Input value={gForm.collateralReference} onChange={(e) => setGForm({ ...gForm, collateralReference: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("collateralValue")}</Label><Input type="number" value={gForm.collateralValue} onChange={(e) => setGForm({ ...gForm, collateralValue: Number(e.target.value) || 0 })} /></div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setGuaranteeFor(null)}>{tc("cancel")}</Button>
+              <Button
+                disabled={!gForm.guarantorName || createGuarantee.isPending}
+                onClick={() =>
+                  createGuarantee.mutate(
+                    { winnerId: guaranteeFor.id, ...gForm },
+                    {
+                      onSuccess: (id) => { setGuaranteeIds((m) => ({ ...m, [guaranteeFor.id]: String(id) })); toast({ title: t("submitGuarantee") }); setGuaranteeFor(null); },
+                      onError: err,
+                    }
+                  )
+                }
+              >
+                {tc("submit")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Detail modal */}
       <Modal open={!!selected} onOpenChange={(o) => !o && setSelected(null)} title={selected?.winnerHandle} className="max-w-2xl">

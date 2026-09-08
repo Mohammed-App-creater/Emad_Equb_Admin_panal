@@ -315,6 +315,50 @@ export const roles: RoleDef[] = [
   { id: "r4", name: "Board Chair", permissions: ["dispute:resolve", "payout:read", "draw:read"] },
 ];
 
+export interface MockMember {
+  id: string;
+  memberId: string;
+  handle: string;
+  ekubNumber: string;
+  position: number;
+  status: string;
+}
+
+// Roster is keyed by group id so the Members page reflects the active cycle.
+export const groupMembers: Record<string, MockMember[]> = {
+  g1: [
+    { id: "gm1", memberId: "m-201", handle: "hanan_a", ekubNumber: "EK-000201", position: 1, status: "active" },
+    { id: "gm2", memberId: "m-123", handle: "nuru_a", ekubNumber: "EK-000123", position: 2, status: "active" },
+    { id: "gm3", memberId: "m-087", handle: "mus_k", ekubNumber: "EK-000087", position: 3, status: "suspended" },
+    { id: "gm4", memberId: "m-255", handle: "leyla_h", ekubNumber: "EK-000255", position: 4, status: "active" },
+    { id: "gm5", memberId: "m-412", handle: "worku_b", ekubNumber: "EK-000412", position: 5, status: "at_risk" },
+  ],
+  g2: [
+    { id: "gm6", memberId: "m-342", handle: "bilal_y", ekubNumber: "EK-000342", position: 1, status: "at_risk" },
+    { id: "gm7", memberId: "m-144", handle: "fatima_z", ekubNumber: "EK-000144", position: 2, status: "active" },
+  ],
+  g3: [],
+};
+
+export interface MockTakafulTxn {
+  id: string;
+  groupId: string;
+  memberHandle: string;
+  type: string;
+  amount: number;
+  reference: string;
+  createdAt: string;
+}
+
+export const takafulTxns: MockTakafulTxn[] = [
+  { id: "tk1", groupId: "g1", memberHandle: "hanan_a", type: "contribution", amount: 40, reference: "R-42", createdAt: "2026-09-06T08:40:00+03:00" },
+  { id: "tk2", groupId: "g1", memberHandle: "nuru_a", type: "contribution", amount: 40, reference: "R-42", createdAt: "2026-09-06T07:12:00+03:00" },
+  { id: "tk3", groupId: "g1", memberHandle: "leyla_h", type: "claim", amount: 15000, reference: "CLAIM-7", createdAt: "2026-09-05T10:00:00+03:00" },
+  { id: "tk4", groupId: "g2", memberHandle: "fatima_z", type: "contribution", amount: 400, reference: "R-42", createdAt: "2026-09-06T09:00:00+03:00" },
+];
+
+export const takafulBalances: Record<string, number> = { g1: 3820000, g2: 1240000, g3: 0 };
+
 export const overview: OverviewStats = {
   activeMembers: 1184,
   collectionRate: 96.4,

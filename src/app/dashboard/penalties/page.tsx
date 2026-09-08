@@ -1,13 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { RotateCcw, Info } from "lucide-react";
+import { RotateCcw, Info, AlarmClockOff } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { usePenalties, useLiftSuspension } from "@/hooks/ekub";
+import { usePenalties, useLiftSuspension, useMarkOverdue } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
@@ -28,6 +28,7 @@ function PenaltiesInner() {
 
   const { data, isLoading } = usePenalties();
   const lift = useLiftSuspension();
+  const markOverdue = useMarkOverdue();
 
   const statusLabel = (s: PenaltyStatus) =>
     s === "at_risk" ? t("statusAtRisk") : s === "suspended" ? t("statusSuspended") : t("statusTerminated");
@@ -50,7 +51,20 @@ function PenaltiesInner() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={
+          canManage ? (
+            <Button
+              variant="outline"
+              onClick={() => markOverdue.mutate(undefined, { onSuccess: () => toast({ title: t("markOverdue") }), onError: (e) => toast({ title: "Error", description: (e as Error).message, variant: "destructive" }) })}
+            >
+              <AlarmClockOff size={15} className="mr-1" /> {t("markOverdue")}
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">

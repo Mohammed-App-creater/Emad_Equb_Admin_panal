@@ -115,6 +115,46 @@ export interface Tier {
   requiresProperty: boolean; // FR-5.5 (tiers 2/3)
 }
 
+// ---- Group members (per-cycle roster) --------------------------------------
+export interface GroupMember {
+  id: string; // equb member record id
+  memberId: string; // underlying member id
+  handle: string;
+  ekubNumber: string;
+  position: number;
+  status: string; // active | suspended | at_risk | ...
+}
+
+// ---- Draw eligibility preview ----------------------------------------------
+export interface EligibilityMember {
+  memberId: string;
+  handle: string;
+  position: number;
+  contributionPaid: boolean;
+  previouslyWon: boolean;
+  eligible: boolean;
+  reason?: string;
+}
+export interface EligibilityPreview {
+  canExecute: boolean;
+  reason: string;
+  eligibleCount: number;
+  excludedCount: number;
+  totalMembers: number;
+  winnersPerRound: number;
+  members: EligibilityMember[];
+}
+
+// ---- Takaful ---------------------------------------------------------------
+export interface TakafulTxn {
+  id: string;
+  memberHandle: string;
+  type: string; // contribution | claim | surplus | refund
+  amount: number;
+  reference: string;
+  createdAt: string;
+}
+
 // ---- Payments --------------------------------------------------------------
 export type PaymentMethod = "mobile_money" | "bank_transfer" | "gateway" | "cash";
 export type PaymentTiming = "on_time" | "late" | "outage_grace";

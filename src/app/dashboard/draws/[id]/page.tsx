@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { useDraw, useRunDraw } from "@/hooks/ekub";
+import { useDraw, useRunDraw, useDrawPreview } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/utils";
@@ -25,6 +25,7 @@ function DrawDetailInner({ id }: { id: string }) {
 
   const { data: draw, isLoading } = useDraw(id);
   const run = useRunDraw();
+  const { data: preview } = useDrawPreview(id, !!draw && draw.status !== "completed");
 
   if (isLoading || !draw) {
     return (
@@ -66,6 +67,25 @@ function DrawDetailInner({ id }: { id: string }) {
               <Stat label={t("winnersCount")} value={draw.winnersPerDraw} />
               <Stat label={tc("status")} value={draw.winners.length} />
             </div>
+
+            {!completed && preview && preview.members.length > 0 && (
+              <div className="rounded-xl border border-border p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("eligibleCount")} · {preview.eligibleCount}/{preview.totalMembers}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {preview.members.slice(0, 24).map((m) => (
+                    <span
+                      key={m.memberId}
+                      className={`rounded-md px-1.5 py-0.5 text-xs ${m.eligible ? "bg-success/15 text-success" : "bg-muted text-muted-foreground line-through"}`}
+                    >
+                      #{m.position} {m.handle}
+                    </span>
+                  ))}
+                  {preview.members.length > 24 && <span className="text-xs text-muted-foreground">+{preview.members.length - 24}</span>}
+                </div>
+              </div>
+            )}
 
             {draw.status === "postponed" && (
               <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
