@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   LayoutDashboard,
+  CircleDot,
   ClipboardCheck,
   Layers,
   Wallet,
@@ -48,7 +49,10 @@ type NavGroup = { titleKey: string; items: NavItem[] };
 const navGroups: NavGroup[] = [
   {
     titleKey: "groupOverview",
-    items: [{ labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard }],
+    items: [
+      { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { labelKey: "cycles", href: "/dashboard/cycles", icon: CircleDot, permission: ["tier:read", "application:read"] },
+    ],
   },
   {
     titleKey: "groupOperations",

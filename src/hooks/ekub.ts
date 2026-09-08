@@ -2,11 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ekubService } from "@/services/ekub";
+import { useEqubStore } from "@/store/equb.store";
 import type { ApplicationStatus, Tier } from "@/types/ekub";
 
+// ---- Groups / cycles ----
+export const useGroups = () =>
+  useQuery({ queryKey: ["groups"], queryFn: () => ekubService.listGroups() });
+
 // ---- Overview ----
-export const useOverview = () =>
-  useQuery({ queryKey: ["overview"], queryFn: () => ekubService.getOverview() });
+// Keyed by the active group so switching cycles refetches the dashboard.
+export const useOverview = () => {
+  const gid = useEqubStore((s) => s.activeGroupId);
+  return useQuery({ queryKey: ["overview", gid], queryFn: () => ekubService.getOverview() });
+};
 
 // ---- Tiers ----
 export const useTiers = () =>
@@ -60,8 +68,10 @@ export const useReconcile = () => {
 };
 
 // ---- Draws ----
-export const useDraws = () =>
-  useQuery({ queryKey: ["draws"], queryFn: () => ekubService.listDraws() });
+export const useDraws = () => {
+  const gid = useEqubStore((s) => s.activeGroupId);
+  return useQuery({ queryKey: ["draws", gid], queryFn: () => ekubService.listDraws() });
+};
 
 export const useDraw = (id: string) =>
   useQuery({ queryKey: ["draw", id], queryFn: () => ekubService.getDraw(id), enabled: !!id });
@@ -102,11 +112,15 @@ export const useRunDraw = () => {
 };
 
 // ---- Payouts ----
-export const usePayouts = () =>
-  useQuery({ queryKey: ["payouts"], queryFn: () => ekubService.listPayouts() });
+export const usePayouts = () => {
+  const gid = useEqubStore((s) => s.activeGroupId);
+  return useQuery({ queryKey: ["payouts", gid], queryFn: () => ekubService.listPayouts() });
+};
 
-export const useHardship = () =>
-  useQuery({ queryKey: ["hardship"], queryFn: () => ekubService.listHardship() });
+export const useHardship = () => {
+  const gid = useEqubStore((s) => s.activeGroupId);
+  return useQuery({ queryKey: ["hardship", gid], queryFn: () => ekubService.listHardship() });
+};
 
 export const useApprovePackage = () => {
   const qc = useQueryClient();
@@ -133,8 +147,10 @@ export const useAttachTitle = () => {
 };
 
 // ---- Penalties ----
-export const usePenalties = () =>
-  useQuery({ queryKey: ["penalties"], queryFn: () => ekubService.listPenalties() });
+export const usePenalties = () => {
+  const gid = useEqubStore((s) => s.activeGroupId);
+  return useQuery({ queryKey: ["penalties", gid], queryFn: () => ekubService.listPenalties() });
+};
 
 export const useLiftSuspension = () => {
   const qc = useQueryClient();

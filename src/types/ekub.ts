@@ -86,6 +86,19 @@ export interface Member {
   hasWonThisCycle: boolean;
 }
 
+// ---- Group / Cycle (a running instance of a Scheme/Tier) -------------------
+export interface Group {
+  id: string;
+  code: string;
+  name: string;
+  status: string; // draft | active | completed | cancelled
+  schemeId: string;
+  currentMembers: number;
+  maxMembers: number;
+  startDate: string;
+  expectedEndDate: string;
+}
+
 // ---- Tier / Cycle ----------------------------------------------------------
 export interface Tier {
   id: string;

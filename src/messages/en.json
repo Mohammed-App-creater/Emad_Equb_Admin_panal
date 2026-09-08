@@ -50,8 +50,9 @@
     "groupCompliance": "Compliance",
     "groupAdministration": "Administration",
     "dashboard": "Dashboard",
+    "cycles": "Cycles",
     "approvals": "Approvals",
-    "tiers": "Tiers & Cycles",
+    "tiers": "Schemes",
     "payments": "Payments",
     "draws": "Draws",
     "payouts": "Payouts",
@@ -83,6 +84,16 @@
     "totpCode": "Authentication code",
     "verify": "Verify",
     "redirecting": "Redirecting…"
+  },
+  "cycles": {
+    "title": "Cycles (Groups)",
+    "subtitle": "Running Equb group instances — pick the active cycle for the scoped views",
+    "name": "Cycle",
+    "members": "Members",
+    "start": "Start",
+    "end": "Expected end",
+    "active": "Active",
+    "setActive": "Set active"
   },
   "overview": {
     "title": "Dashboard",

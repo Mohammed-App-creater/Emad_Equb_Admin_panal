@@ -6,6 +6,7 @@ import { useUIStore } from "@/store/ui.store";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
 import { LocaleToggle } from "@/components/layout/locale-toggle";
+import { GroupSelector } from "@/components/dashboard/group-selector";
 
 // Maps a pathname to the nav translation key used as the page title.
 const routeTitleKey: { test: (p: string) => boolean; key: string }[] = [
@@ -45,6 +46,9 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <div className="hidden sm:block">
+          <GroupSelector />
+        </div>
         <LocaleToggle />
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}

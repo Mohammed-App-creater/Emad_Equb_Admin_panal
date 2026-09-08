@@ -61,6 +61,24 @@ export const tiers: Tier[] = [
   },
 ];
 
+export interface MockGroup {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  schemeId: string;
+  currentMembers: number;
+  maxMembers: number;
+  startDate: string;
+  expectedEndDate: string;
+}
+
+export const groups: MockGroup[] = [
+  { id: "g1", code: "MED-2026-01", name: "Medium · Cycle 01", status: "active", schemeId: "t1", currentMembers: 200, maxMembers: 200, startDate: "2026-01-05", expectedEndDate: "2026-07-20" },
+  { id: "g2", code: "HM-2026-01", name: "High Merchant · Cycle 01", status: "active", schemeId: "t2", currentMembers: 179, maxMembers: 200, startDate: "2026-02-01", expectedEndDate: "2026-08-15" },
+  { id: "g3", code: "VIP-2026-01", name: "VIP · Cycle 01", status: "draft", schemeId: "t3", currentMembers: 42, maxMembers: 200, startDate: "", expectedEndDate: "" },
+];
+
 export const applications: Application[] = [
   {
     id: "app-1001",

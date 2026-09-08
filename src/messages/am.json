@@ -50,8 +50,9 @@
     "groupCompliance": "ተገዢነት",
     "groupAdministration": "አስተዳደር",
     "dashboard": "ዳሽቦርድ",
+    "cycles": "ዑደቶች",
     "approvals": "ማጽደቆች",
-    "tiers": "ደረጃዎችና ዑደቶች",
+    "tiers": "ዕቅዶች",
     "payments": "ክፍያዎች",
     "draws": "እጣዎች",
     "payouts": "ክፍያ ማስተላለፍ",
@@ -83,6 +84,16 @@
     "totpCode": "የማረጋገጫ ኮድ",
     "verify": "አረጋግጥ",
     "redirecting": "በማዘዋወር ላይ…"
+  },
+  "cycles": {
+    "title": "ዑደቶች (ቡድኖች)",
+    "subtitle": "የሚንቀሳቀሱ የእቁብ ቡድኖች — ለተያያዥ እይታዎች ንቁ ዑደቱን ይምረጡ",
+    "name": "ዑደት",
+    "members": "አባላት",
+    "start": "መጀመሪያ",
+    "end": "የሚጠበቀው መጨረሻ",
+    "active": "ንቁ",
+    "setActive": "ንቁ አድርግ"
   },
   "overview": {
     "title": "ዳሽቦርድ",

@@ -10,9 +10,12 @@ import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { useAuthStore, type User } from "@/lib/auth/auth-store";
 import { MOCK_USERS, type MockRoleKey } from "@/lib/mock/mock-auth";
-import { cn } from "@/lib/utils";
+import { equbApi } from "@/services/equb-api";
+import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage, cn } from "@/lib/utils";
+import type { UserResponse } from "@/types/equb-api";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
@@ -22,10 +25,40 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+// Map the backend UserResponse onto the auth-store User shape.
+function toStoreUser(u: UserResponse): User {
+  return {
+    id: u.id,
+    full_name: u.full_name,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    email: u.email,
+    branch_id: u.branch_id,
+    branch: null,
+    roles: (u.roles ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.name.toLowerCase(),
+      created_at: "",
+      updated_at: "",
+      permissions: null,
+    })),
+    phone_number: u.phone,
+    gender: u.gender,
+    status: u.status,
+    totp_enabled: u.totp_enabled,
+    permissions: u.permissions,
+    job_title: u.job_title,
+    department: u.department,
+    profile_picture: u.profile_picture,
+  };
+}
+
 export function LoginForm() {
   const t = useTranslations("auth");
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [mockRole, setMockRole] = useState<MockRoleKey>("admin");
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +72,7 @@ export function LoginForm() {
     defaultValues: { identifier: "admin@emadekub.com", password: "demo" },
   });
 
-  const onSubmit = async (_values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
     if (USE_MOCK) {
       const { user, permissions } = MOCK_USERS[mockRole];
@@ -47,8 +80,19 @@ export function LoginForm() {
       router.push("/dashboard");
       return;
     }
-    // Real backend wiring goes here once the Equb API is available.
-    setSubmitting(false);
+    try {
+      const res = await equbApi.login({ identifier: values.identifier, password: values.password });
+      if (res.requires_totp) {
+        toast({ title: "Two-factor required", description: "TOTP login isn't enabled in this console yet." });
+        setSubmitting(false);
+        return;
+      }
+      setAuth(toStoreUser(res.user), res.user.permissions ?? [], res.token, res.refresh_token);
+      router.push("/dashboard");
+    } catch (e) {
+      toast({ title: "Sign in failed", description: getErrorMessage(e, "Invalid credentials"), variant: "destructive" });
+      setSubmitting(false);
+    }
   };
 
   return (
