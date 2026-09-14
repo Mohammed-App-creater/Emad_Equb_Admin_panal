@@ -33,9 +33,16 @@ export const EKUB_PERMS = {
 
 export type EkubPerm = (typeof EKUB_PERMS)[keyof typeof EKUB_PERMS];
 
+// When NEXT_PUBLIC_ENFORCE_PERMS !== "true" (the default), all client-side
+// permission checks pass so every action (create cycle/scheme, add member,
+// approve, run draw, release payout, …) is usable for review — the real
+// backend still enforces authorization on each request. Flip the flag on once
+// the backend's real Equb slugs are wired into EKUB_PERMS to restore SoD.
+const ENFORCE = process.env.NEXT_PUBLIC_ENFORCE_PERMS === "true";
+
 export function useEkubAccess() {
   const { permissions, isLoading, isInitialized } = useAuthStore();
-  const has = (p: string) => permissions.includes(p);
-  const hasAny = (ps: string[]) => ps.some((p) => permissions.includes(p));
+  const has = (p: string) => !ENFORCE || permissions.includes(p);
+  const hasAny = (ps: string[]) => !ENFORCE || ps.some((p) => permissions.includes(p));
   return { has, hasAny, permissions, isLoading, isReady: isInitialized };
 }

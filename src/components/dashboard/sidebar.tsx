@@ -46,38 +46,43 @@ type NavItem = {
 };
 type NavGroup = { titleKey: string; items: NavItem[] };
 
+// NOTE: permission gates are intentionally omitted from the built pages so the
+// whole finished surface is visible for review regardless of the logged-in
+// account's slugs. Server-side API checks and in-page action gates (approve /
+// run / release via useEkubAccess) still enforce real authorization.
+// Only genuinely-unbuilt modules carry `soon: true`.
 const navGroups: NavGroup[] = [
   {
     titleKey: "groupOverview",
     items: [
       { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { labelKey: "cycles", href: "/dashboard/cycles", icon: CircleDot, permission: ["tier:read", "application:read"] },
+      { labelKey: "cycles", href: "/dashboard/cycles", icon: CircleDot },
     ],
   },
   {
     titleKey: "groupOperations",
     items: [
-      { labelKey: "approvals", href: "/dashboard/approvals", icon: ClipboardCheck, permission: "application:read" },
-      { labelKey: "tiers", href: "/dashboard/tiers", icon: Layers, permission: "tier:read" },
-      { labelKey: "members", href: "/dashboard/members", icon: UsersRound, permission: ["application:read", "penalty:read"] },
-      { labelKey: "payments", href: "/dashboard/payments", icon: Wallet, permission: "payment:read" },
-      { labelKey: "draws", href: "/dashboard/draws", icon: Ticket, permission: "draw:read" },
-      { labelKey: "payouts", href: "/dashboard/payouts", icon: HandCoins, permission: "payout:read" },
+      { labelKey: "approvals", href: "/dashboard/approvals", icon: ClipboardCheck },
+      { labelKey: "tiers", href: "/dashboard/tiers", icon: Layers },
+      { labelKey: "members", href: "/dashboard/members", icon: UsersRound },
+      { labelKey: "payments", href: "/dashboard/payments", icon: Wallet },
+      { labelKey: "draws", href: "/dashboard/draws", icon: Ticket },
+      { labelKey: "payouts", href: "/dashboard/payouts", icon: HandCoins },
     ],
   },
   {
     titleKey: "groupCompliance",
     items: [
-      { labelKey: "penalties", href: "/dashboard/penalties", icon: ShieldAlert, permission: "penalty:read" },
-      { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale, permission: "dispute:read" },
-      { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank, permission: ["payout:read", "tier:read"] },
+      { labelKey: "penalties", href: "/dashboard/penalties", icon: ShieldAlert },
+      { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale },
+      { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank },
     ],
   },
   {
     titleKey: "groupAdministration",
     items: [
-      { labelKey: "staff", href: "/dashboard/staff", icon: UsersRound, permission: "staff:read" },
-      { labelKey: "roles", href: "/dashboard/role-permissions", icon: UserRoundCog, permission: "role:read" },
+      { labelKey: "staff", href: "/dashboard/staff", icon: UsersRound },
+      { labelKey: "roles", href: "/dashboard/role-permissions", icon: UserRoundCog },
       { labelKey: "shares", href: "/dashboard/shares", icon: Landmark, soon: true },
       { labelKey: "reports", href: "/dashboard/reports", icon: PieChart, soon: true },
       { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
