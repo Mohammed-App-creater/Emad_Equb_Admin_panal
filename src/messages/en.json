@@ -144,7 +144,20 @@
     "zeroInterestAmanah": "0% interest · Amanah",
     "cardWinners": "7 winners / draw",
     "cardRng": "provably fair RNG",
-    "cardZero": "0% interest"
+    "cardZero": "0% interest",
+    "downloadApp": "Download app",
+    "howTitle": "How it works",
+    "howSubtitle": "From sign-up to payout — three simple steps in the member app.",
+    "s1Title": "Join & track your savings",
+    "s1Body": "Sign up with your phone, get peer + admin approved, and watch your Ekub savings grow — 0% interest, Sharia-audited.",
+    "s2Title": "Contribute every round",
+    "s2Body": "Pay in one tap via mobile money, bank transfer or agent cash. Your schedule and ledger update in real time.",
+    "s3Title": "Attend the weekly draw",
+    "s3Body": "Check in during the live session. A provably-fair RNG selects 7 winners — no human touch, fully auditable.",
+    "dlTitle": "Get the member app",
+    "dlBody": "Contribute, follow the live draw, and track your Takaful protection — all from your phone.",
+    "dlBtn": "Download for Android",
+    "dlSoon": "iOS coming soon"
   },
   "members": {
     "title": "Members",
