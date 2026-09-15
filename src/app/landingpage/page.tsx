@@ -45,6 +45,16 @@ import {
 } from "lucide-react";
 import { locales, localeLabels, LOCALE_COOKIE, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/utils";
+import {
+  SectionHeading,
+  TrustMarquee,
+  MetricsBar,
+  TierPricing,
+  PaymentRails,
+  SecuritySection,
+  ComparisonSection,
+  FaqSection,
+} from "./fintech";
 
 // ============================================================================
 // Public marketing landing page — /landingpage (bilingual EN/AM)
@@ -161,25 +171,6 @@ function CountUp({ to, suffix = "", decimals = 0 }: { to: number; suffix?: strin
       {text}
       {suffix}
     </span>
-  );
-}
-
-function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      className="mx-auto max-w-2xl text-center"
-    >
-      <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(38_94%_56%)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[hsl(38_94%_56%)]" />
-        {eyebrow}
-      </span>
-      <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">{title}</h2>
-      {subtitle && <p className="mt-4 text-base text-white/60 sm:text-lg">{subtitle}</p>}
-      <div className="mx-auto mt-5 h-px w-24 bg-gradient-to-r from-transparent via-[hsl(38_94%_56%)] to-transparent" />
-    </motion.div>
   );
 }
 
@@ -801,6 +792,14 @@ export default function LandingPage() {
             </div>
             <span className="text-lg font-bold">{t("appName")}</span>
           </div>
+
+          {/* in-page product nav */}
+          <nav className="hidden items-center gap-7 text-sm font-medium text-white/60 lg:flex">
+            <a href="#features" className="transition hover:text-white">{t("eyebrowFeatures")}</a>
+            <a href="#pricing" className="transition hover:text-white">{t("tiersEyebrow")}</a>
+            <a href="#download" className="transition hover:text-white">{t("downloadApp")}</a>
+          </nav>
+
           <div className="flex items-center gap-3">
             <DarkLocaleToggle />
             <Link
@@ -931,6 +930,10 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* Trust marquee + headline metrics */}
+      <TrustMarquee />
+      <MetricsBar />
+
       {/* Sharia principles strip */}
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-8">
         <motion.p
@@ -1026,8 +1029,15 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Fintech core: pricing, rails, compliance, comparison, FAQ */}
+      <TierPricing />
+      <PaymentRails />
+      <SecuritySection />
+      <ComparisonSection />
+      <FaqSection />
+
       {/* Download band — animated conic border */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 py-10">
+      <section id="download" className="relative z-10 mx-auto max-w-7xl scroll-mt-24 px-6 py-10">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
