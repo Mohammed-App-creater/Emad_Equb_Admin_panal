@@ -157,7 +157,18 @@
     "dlTitle": "Get the member app",
     "dlBody": "Contribute, follow the live draw, and track your Takaful protection — all from your phone.",
     "dlBtn": "Download for Android",
-    "dlSoon": "iOS coming soon"
+    "dlSoon": "iOS coming soon",
+    "eyebrowFeatures": "Why Emad Halal Ekub",
+    "eyebrowHow": "The member journey",
+    "eyebrowDownload": "Take it with you",
+    "scrollHint": "Scroll to explore",
+    "principlesTitle": "Built on three Sharia principles",
+    "pQard": "Qard al-Hasan",
+    "pQardBody": "You get back exactly what you put in — a benevolent loan, never interest.",
+    "pUjrah": "Ujrah",
+    "pUjrahBody": "A flat, transparent service fee for administering the Ekub — not a return on money.",
+    "pAmanah": "Amanah",
+    "pAmanahBody": "Contributions are held in trust and paid to winners without diversion or delay."
   },
   "members": {
     "title": "Members",
