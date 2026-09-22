@@ -22,6 +22,9 @@ yarn-error.log*
 
 # env files
 .env*
+# ...but the documented template must be committed: `.env*` above would
+# otherwise swallow it.
+!.env.docker.example
 
 # vercel
 .vercel
@@ -29,3 +32,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pnpm store (CI keeps it inside the project so the runner can cache it)
+.pnpm-store

@@ -1,0 +1,13 @@
+# Normalise text files in the repository, and let Git decide the working-copy
+# ending per platform.
+* text=auto
+
+# These are executed BY LINUX, always: the GitLab runner, the staging box and
+# the production box. A CRLF checkout makes the shebang line read
+# `/usr/bin/env bash\r`, which fails with a bare "not found" that says nothing
+# about line endings. Pin them to LF regardless of core.autocrlf.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+.dockerignore   text eol=lf

@@ -1,0 +1,419 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  EMAD EQUB ADMIN PANEL — one repository, two environments
+#
+#      dev  ──▶ test ──▶ build ──▶ DEPLOY STAGING     (root@213.199.41.202, :4100)
+#      main ──▶ test ──▶ build ──▶ DEPLOY PRODUCTION  (golang_user@196.188.249.99, :4100)
+#
+#  Modelled on the EMAD Sacco frontend pipeline, with three deliberate
+#  differences:
+#    • port 4100, not 4000 — the Sacco frontend already owns 4000 on both boxes
+#    • a different NEXT_PUBLIC_* set (see .build_image)
+#    • BACKEND_API_BASE_URL is passed at DEPLOY time, not build time: this app
+#      proxies through src/app/api/backend/[...path]/route.ts, which reads it
+#      per request. It is optional; unset falls back to the baked public URL.
+#
+#  Branch isolation is enforced three times over:
+#    1. `workflow.rules` — only dev and main create a pipeline at all
+#    2. per-job `rules`  — each build/deploy job matches exactly one branch
+#    3. a runtime guard  — the deploy job aborts if $CI_COMMIT_BRANCH is not
+#                          the branch that environment belongs to (see .deploy)
+#
+#  The frontend is built TWICE — once per environment — because Next.js inlines
+#  NEXT_PUBLIC_* values at BUILD time. Each build job is scoped to an
+#  `environment:`, so those values live ONLY as environment-scoped CI/CD
+#  variables and a `dev` pipeline can never read the production ones.
+#
+#  Images are immutable: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA is what gets
+#  deployed, always. The moving :staging / :production tags exist only as a
+#  BuildKit cache source and a manual-recovery fallback.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Runner routing ──────────────────────────────────────────────────────────
+# tags: ["emad-selfhosted"] targets the self-hosted runner on the staging box.
+# That runner was registered as a PROJECT runner on the Sacco frontend, so it
+# will NOT pick up jobs here until it is made available to this project
+# (convert it to a group runner under simbatech06, or register a new runner
+# with the same tag). Until then a tagged job sits "pending" forever.
+#
+# To fall back to GitLab's shared runners, delete the `tags:` lines below. The
+# tag exists because shared-runner compute minutes on this account are scarce
+# and a Next.js build is not cheap.
+#
+# build_production_image and deploy_production are deliberately LEFT UNTAGGED.
+# deploy_production writes PRODUCTION_SSH_PRIVATE_KEY to disk inside the job;
+# running that on the staging box would turn "staging is compromised" into
+# "production is compromised".
+
+stages:
+  - test
+  - build
+  - deploy
+  - notify
+
+variables:
+  # The registry path of THIS project, never hardcoded, so a rename or transfer
+  # cannot leave the pipeline pushing to one place and the servers pulling from
+  # another. Resolves to registry.gitlab.com/simbatech06/equb_admin.
+  IMAGE_SHA: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  DOCKER_BUILDKIT: "1"
+
+  # Non-secret deployment targets. Overridable in Settings → CI/CD → Variables
+  # without touching this file; the secrets below have no defaults on purpose.
+  STAGING_HOST: "213.199.41.202"
+  STAGING_USER: "root"
+  STAGING_DEPLOY_PATH: "/root/emad-staging/equb-admin"
+
+  PRODUCTION_HOST: "196.188.249.99"
+  PRODUCTION_USER: "golang_user"
+  PRODUCTION_DEPLOY_PATH: "/opt/emad-equb-admin"
+
+  # Official registry for pnpm inside the Docker build.
+  PNPM_REGISTRY: "https://registry.npmjs.org"
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ═══════════════════════════ TEST ════════════════════════════════════════════
+# A failure here stops the pipeline before any image is built or pushed, so a
+# broken commit can never reach a server. `next build` runs the type-checker,
+# so this also gates on TypeScript.
+.node:
+  image: node:24-alpine
+  variables:
+    # pnpm's default store lives in $HOME, OUTSIDE the project directory, and a
+    # GitLab runner can only cache paths inside $CI_PROJECT_DIR — a store under
+    # /root would be silently uncached and every pipeline would re-download the
+    # whole dependency tree.
+    PNPM_STORE: "$CI_PROJECT_DIR/.pnpm-store"
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@10.29.1 --activate
+    - pnpm config set store-dir "$PNPM_STORE"
+    - pnpm install --frozen-lockfile
+  cache:
+    key: pnpm-$CI_COMMIT_REF_SLUG
+    paths:
+      - .pnpm-store
+      - .next/cache
+
+test:
+  tags: ["emad-selfhosted"]
+  extends: .node
+  stage: test
+  script:
+    - pnpm run build
+
+# Advisory only, so pre-existing lint debt cannot wedge every deploy. Next 16
+# does not run ESLint during `next build`, so the gate above is unaffected.
+# Drop `allow_failure` once the tree is clean.
+lint:
+  tags: ["emad-selfhosted"]
+  extends: .node
+  stage: test
+  allow_failure: true
+  script:
+    - pnpm lint
+
+# ═══════════════════════════ BUILD ═══════════════════════════════════════════
+# Two jobs, one per environment. Each tags the immutable SHA and its
+# environment's moving tag (BuildKit cache + manual-recovery fallback).
+.build_image:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  needs: ["test"]
+  before_script:
+    # GitLab's own short-lived job credentials — no secret of ours is involved
+    # in pushing. CI_REGISTRY_USER/PASSWORD are injected automatically.
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    # The one build-time value that always matters. Fail loudly, mirroring the
+    # deploy's own guard, so a misconfigured environment cannot silently bake an
+    # empty API base into the client bundle.
+    - |
+      if [ -z "${NEXT_PUBLIC_API_BASE_URL:-}" ]; then
+        echo "NEXT_PUBLIC_API_BASE_URL is empty for '$MOVING_TAG'."
+        echo "  Add it as a CI/CD variable with environment scope '$DEPLOY_ENV'."
+        exit 1
+      fi
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE:$MOVING_TAG" 2>/dev/null || true
+    - >
+      docker build
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      --build-arg PNPM_REGISTRY="$PNPM_REGISTRY"
+      --build-arg NEXT_PUBLIC_API_BASE_URL="$NEXT_PUBLIC_API_BASE_URL"
+      --build-arg NEXT_PUBLIC_USE_MOCK="${NEXT_PUBLIC_USE_MOCK:-false}"
+      --build-arg NEXT_PUBLIC_ENFORCE_PERMS="${NEXT_PUBLIC_ENFORCE_PERMS:-}"
+      --cache-from "$CI_REGISTRY_IMAGE:$MOVING_TAG"
+      -t "$IMAGE_SHA"
+      -t "$CI_REGISTRY_IMAGE:$MOVING_TAG"
+      -f docker/Dockerfile .
+    # The SHA tag is the deployable artifact; the moving tag is cache + fallback.
+    - docker push "$IMAGE_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:$MOVING_TAG"
+    - echo "Built and pushed $IMAGE_SHA"
+
+build_staging_image:
+  tags: ["emad-selfhosted"]
+  extends: .build_image
+  environment: staging
+  variables:
+    MOVING_TAG: staging
+    DEPLOY_ENV: staging
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+
+build_production_image:
+  extends: .build_image
+  environment: production
+  variables:
+    MOVING_TAG: production
+    DEPLOY_ENV: production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ═══════════════════════════ DEPLOY ══════════════════════════════════════════
+.deploy:
+  stage: deploy
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client tar
+
+    # ── Guard 1: this job may only ever run on its own branch ──────────────
+    # rules: can be edited by mistake; this cannot be bypassed silently.
+    - |
+      if [ "$CI_COMMIT_BRANCH" != "$REQUIRED_BRANCH" ]; then
+        echo "REFUSING TO DEPLOY."
+        echo "  This job deploys '$DEPLOY_ENV', which is owned by branch '$REQUIRED_BRANCH'."
+        echo "  The pipeline is running on branch '$CI_COMMIT_BRANCH'."
+        exit 1
+      fi
+      echo "branch '$CI_COMMIT_BRANCH' is authorised to deploy '$DEPLOY_ENV'"
+
+    # ── Guard 2: fail loudly on unset secrets ─────────────────────────────
+    # An empty SSH key nearly always means the variable exists but its
+    # "Protected"/"Environment scope" flags do not match this branch/job.
+    - |
+      for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS REGISTRY_USER REGISTRY_TOKEN TARGET_HOST TARGET_USER DEPLOY_PATH; do
+        eval "val=\${$v:-}"
+        if [ -z "$val" ]; then
+          echo "$v is empty for the '$DEPLOY_ENV' deploy."
+          echo "  Check Settings -> CI/CD -> Variables: the 'Protect variable' flag must"
+          echo "  match whether '$CI_COMMIT_BRANCH' is protected, and the environment"
+          echo "  scope must include '$DEPLOY_ENV'."
+          exit 1
+        fi
+      done
+
+    # ── SSH setup ─────────────────────────────────────────────────────────
+    # Accepts either a File-type variable (value is a path) or a plain variable
+    # holding the key material. File type is recommended: it avoids the newline
+    # mangling that masked multi-line variables are prone to.
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - |
+      if [ -f "$SSH_PRIVATE_KEY" ]; then
+        cp "$SSH_PRIVATE_KEY" ~/.ssh/id_deploy
+      else
+        printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+      fi
+      chmod 600 ~/.ssh/id_deploy
+      # A key without a trailing newline is rejected by OpenSSH.
+      tail -c1 ~/.ssh/id_deploy | od -An -c | grep -q '\\n' || echo >> ~/.ssh/id_deploy
+    # Host keys are PINNED, never auto-accepted: StrictHostKeyChecking stays on
+    # so a hijacked DNS/IP cannot be handed our deploy key.
+    - |
+      if [ -f "$SSH_KNOWN_HOSTS" ]; then
+        cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+      else
+        printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      fi
+      chmod 644 ~/.ssh/known_hosts
+    - |
+      cat > ~/.ssh/config <<SSHCFG
+      Host deploy-target
+        HostName $TARGET_HOST
+        User $TARGET_USER
+        IdentityFile ~/.ssh/id_deploy
+        IdentitiesOnly yes
+        StrictHostKeyChecking yes
+        UserKnownHostsFile ~/.ssh/known_hosts
+        BatchMode yes
+        ConnectTimeout 15
+        ServerAliveInterval 30
+        ServerAliveCountMax 10
+      SSHCFG
+
+    # ── ssh retry ─────────────────────────────────────────────────────────
+    # These hosts sit under continuous SSH brute-force and drop *random*
+    # connections while sshd throttles (kex_exchange_identification: read:
+    # Connection reset by peer). ssh exits 255 only for its own transport
+    # failures and the deploy script exits 0 or 1 and never 255, so retrying
+    # only 255 cannot dress up a real failure.
+    - |
+      retry_ssh() {
+        n=1; max=5; delay=10
+        while true; do
+          "$@"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then return 0; fi
+          if [ "$rc" -ne 255 ]; then return "$rc"; fi
+          if [ "$n" -ge "$max" ]; then
+            echo "ssh transport failed $max times - the host is dropping connections."
+            return 255
+          fi
+          echo "  ssh transport failure (exit 255), attempt $n/$max - retrying in ${delay}s"
+          n=$((n+1)); sleep "$delay"; delay=$((delay*2))
+        done
+      }
+    - |
+      retry_ssh ssh deploy-target 'echo "ssh ok on $(hostname)"; docker compose version'
+
+  script:
+    # ── Ship the runtime files the image cannot carry ─────────────────────
+    # The compose file is read by docker at run time, not baked into the image.
+    # Shipping it by tar-over-ssh means the server needs NO git checkout and no
+    # repo access.
+    - echo "Uploading runtime configuration to $DEPLOY_PATH"
+    - retry_ssh ssh deploy-target "mkdir -p '$DEPLOY_PATH'"
+    - |
+      upload() { tar -czf - $UPLOAD_PATHS | ssh deploy-target "tar -xzf - -C '$DEPLOY_PATH'"; }
+      retry_ssh upload
+
+    # ── Run the deploy, streamed from this very commit ────────────────────
+    # Secrets travel as ssh command environment, never as CLI arguments, so
+    # they do not appear in the remote process table.
+    - |
+      deploy() {
+        ssh deploy-target "
+        DEPLOY_ENV='$DEPLOY_ENV' \
+        APP_IMAGE='$IMAGE_SHA' \
+        DEPLOY_PATH='$DEPLOY_PATH' \
+        COMPOSE_FILE='$COMPOSE_FILE' \
+        BACKEND_API_BASE_URL='${BACKEND_API_BASE_URL:-}' \
+        REGISTRY='$CI_REGISTRY' \
+        REGISTRY_USER='$REGISTRY_USER' \
+        REGISTRY_TOKEN='$REGISTRY_TOKEN' \
+        bash '$DEPLOY_PATH/scripts/remote-deploy.sh'" < /dev/null
+      }
+      retry_ssh deploy
+  after_script:
+    - rm -f ~/.ssh/id_deploy
+
+deploy_staging:
+  tags: ["emad-selfhosted"]
+  extends: .deploy
+  needs: ["build_staging_image"]
+  variables:
+    DEPLOY_ENV: staging
+    REQUIRED_BRANCH: dev
+    TARGET_HOST: $STAGING_HOST
+    TARGET_USER: $STAGING_USER
+    DEPLOY_PATH: $STAGING_DEPLOY_PATH
+    SSH_PRIVATE_KEY: $STAGING_SSH_PRIVATE_KEY
+    SSH_KNOWN_HOSTS: $STAGING_SSH_KNOWN_HOSTS
+    COMPOSE_FILE: docker-compose.staging.yml
+    UPLOAD_PATHS: docker-compose.staging.yml scripts/remote-deploy.sh
+  resource_group: staging          # never two concurrent deploys to one box
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  environment:
+    name: staging
+    url: http://213.199.41.202:4100
+    deployment_tier: staging
+
+deploy_production:
+  extends: .deploy
+  needs: ["build_production_image"]
+  variables:
+    DEPLOY_ENV: production
+    REQUIRED_BRANCH: main
+    TARGET_HOST: $PRODUCTION_HOST
+    TARGET_USER: $PRODUCTION_USER
+    DEPLOY_PATH: $PRODUCTION_DEPLOY_PATH
+    SSH_PRIVATE_KEY: $PRODUCTION_SSH_PRIVATE_KEY
+    SSH_KNOWN_HOSTS: $PRODUCTION_SSH_KNOWN_HOSTS
+    COMPOSE_FILE: docker-compose.prod.yml
+    UPLOAD_PATHS: docker-compose.prod.yml scripts/remote-deploy.sh
+  resource_group: production
+  rules:
+    # Add `when: manual` here to require a click before production goes out.
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  environment:
+    name: production
+    url: http://196.188.249.99:4100
+    deployment_tier: production
+
+# ═══════════════════════════ NOTIFY ══════════════════════════════════════════
+.notify:
+  stage: notify
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+        echo "TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID unset - skipping notification"
+        exit 0
+      fi
+      esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+      TEXT="$(printf '<b>%s</b>\n<b>Project:</b> %s\n<b>Environment:</b> %s\n<b>Branch:</b> <code>%s</code>\n<b>Commit:</b> <code>%s</code> %s\n<b>Author:</b> %s\n<b>Pipeline:</b> #%s' \
+        "$HEADLINE" "$(esc "$CI_PROJECT_PATH")" "$ENV_LABEL" "$(esc "$CI_COMMIT_BRANCH")" "$CI_COMMIT_SHORT_SHA" \
+        "$(esc "$CI_COMMIT_TITLE")" "$(esc "$CI_COMMIT_AUTHOR")" "$CI_PIPELINE_ID")"
+      if [ -n "${TARGET_URL:-}" ]; then
+        TEXT="$(printf '%s\n<b>URL:</b> %s' "$TEXT" "$TARGET_URL")"
+      fi
+      TEXT="$(printf '%s\n\n%s' "$TEXT" "$CI_PIPELINE_URL")"
+      code=$(curl -sS -o /tmp/tg.out -w '%{http_code}' -X POST \
+        "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+        --data-urlencode "parse_mode=HTML" \
+        --data-urlencode "disable_web_page_preview=true" \
+        --data-urlencode "text=${TEXT}")
+      if [ "$code" = "200" ]; then echo "telegram: sent"; else echo "telegram: FAILED (HTTP $code)"; head -c 300 /tmp/tg.out; echo; fi
+
+notify:staging:success:
+  tags: ["emad-selfhosted"]
+  extends: .notify
+  variables:
+    HEADLINE: "EQUB ADMIN - STAGING DEPLOYED"
+    ENV_LABEL: "equb admin staging - 213.199.41.202"
+    TARGET_URL: "http://213.199.41.202:4100"
+  needs: ["deploy_staging"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+
+notify:production:success:
+  extends: .notify
+  variables:
+    HEADLINE: "EQUB ADMIN - PRODUCTION DEPLOYED"
+    ENV_LABEL: "equb admin production - 196.188.249.99"
+    TARGET_URL: "http://196.188.249.99:4100"
+  needs: ["deploy_production"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# No `needs`: a job whose needed job failed is SKIPPED, so a DAG edge would
+# guarantee these never fire. Stage ordering is what makes on_failure work.
+# `lint` is allow_failure:true; GitLab treats such a job as successful when
+# evaluating on_failure, so it raises no false alarm.
+notify:staging:failed:
+  tags: ["emad-selfhosted"]
+  extends: .notify
+  variables:
+    HEADLINE: "EQUB ADMIN - STAGING PIPELINE FAILED"
+    ENV_LABEL: "equb admin staging - 213.199.41.202"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      when: on_failure
+
+notify:production:failed:
+  extends: .notify
+  variables:
+    HEADLINE: "EQUB ADMIN - PRODUCTION PIPELINE FAILED"
+    ENV_LABEL: "equb admin production - 196.188.249.99"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_failure

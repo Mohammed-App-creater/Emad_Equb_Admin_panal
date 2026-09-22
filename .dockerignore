@@ -1,0 +1,35 @@
+# Build context hygiene. Anything listed here is invisible to `docker build`,
+# which keeps the context small AND keeps secrets out of the image.
+node_modules
+.next
+.git
+.gitignore
+.vscode
+.idea
+
+# Docker/CI assets are read from the host, never from inside the image.
+docker
+docker-compose*.yml
+scripts
+.gitlab-ci.yml
+.dockerignore
+
+# Env files are deliberately excluded: every NEXT_PUBLIC_* value is injected
+# as a --build-arg (Next inlines them at BUILD time) and BACKEND_API_BASE_URL
+# is injected as runtime env by compose. A baked .env would silently win over
+# both and ship a developer's local backend URL to production.
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Noise
+*.md
+!README.md
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+*.pem
+*.crt
+*.key

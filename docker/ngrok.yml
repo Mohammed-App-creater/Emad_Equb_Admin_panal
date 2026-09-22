@@ -1,0 +1,18 @@
+# ngrok agent config, mounted read-only into the ngrok container.
+#
+# The authtoken is intentionally absent: the agent reads NGROK_AUTHTOKEN from
+# the environment, so no credential is ever committed here.
+version: "2"
+
+# Bind the inspector to all interfaces INSIDE the container; without this it
+# listens on 127.0.0.1 and the published 4140 port answers nothing.
+web_addr: 0.0.0.0:4040
+
+tunnels:
+  admin:
+    proto: http
+    # Compose service name, not localhost — the agent is its own container.
+    addr: web:3000
+    # With a paid/reserved ngrok domain, uncomment to get a stable URL instead
+    # of a fresh random one on every restart:
+    # domain: emad-equb-admin.ngrok.app
