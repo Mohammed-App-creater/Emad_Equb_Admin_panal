@@ -1,0 +1,35 @@
+# ── EMAD Equb Admin Panel — PRODUCTION ──────────────────────────────────────
+# Isolated from every other stack on the box: its own compose project name,
+# its own container name, its own published port.
+#
+# Port 4100 (not 4000) because the Sacco frontend already owns 4000 on both
+# the staging and production hosts. 4100 is below the ephemeral range (32768+),
+# so an outbound connection cannot transiently steal it.
+#
+# The image is ${APP_IMAGE}, which scripts/remote-deploy.sh exports as the
+# exact immutable $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA the pipeline built. The
+# moving :production tag is only a fallback for a manual recovery.
+#
+# Usage: docker compose -f docker-compose.prod.yml up -d
+name: ${COMPOSE_PROJECT_NAME:-emad-equb-admin}
+
+services:
+  web:
+    container_name: emad_equb_admin
+    image: ${APP_IMAGE:-registry.gitlab.com/simbatech06/equb_admin:production}
+    environment:
+      # The only runtime value this app has: the server-side proxy route reads
+      # it per request. Optional — when unset the route falls back to the
+      # NEXT_PUBLIC_API_BASE_URL baked into the image at build time. Set it
+      # only to point the server hop somewhere the browser cannot reach
+      # (e.g. an internal backend address).
+      BACKEND_API_BASE_URL: ${BACKEND_API_BASE_URL:-}
+    ports:
+      - "4100:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "-T", "3", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

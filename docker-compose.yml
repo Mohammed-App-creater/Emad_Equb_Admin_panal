@@ -1,0 +1,75 @@
+# ── EMAD Equb Admin Panel — LOCAL ───────────────────────────────────────────
+# Builds from this working tree and runs the standalone server. This is the
+# only compose file that builds; staging/prod pull an immutable image.
+#
+#   docker compose up -d --build            app on http://localhost:4100
+#   docker compose --profile tunnel up -d   ...plus a public ngrok URL
+#
+# Compose auto-loads ./.env, so the NEXT_PUBLIC_* values a developer already
+# has there drive the build with no extra step. Every variable below has a
+# fallback, so a fresh clone with no .env still comes up.
+#
+# Host port 4100, not 4000: the Sacco frontend owns 4000 on these boxes and
+# this panel has to be able to sit beside it.
+name: emad-equb-admin
+
+services:
+  web:
+    container_name: emad_equb_admin
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        # BUILD time — Next inlines these into the client bundle.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.emadssl.com/api/v1/}
+        NEXT_PUBLIC_USE_MOCK: ${NEXT_PUBLIC_USE_MOCK:-false}
+        NEXT_PUBLIC_ENFORCE_PERMS: ${NEXT_PUBLIC_ENFORCE_PERMS:-}
+        PNPM_REGISTRY: ${PNPM_REGISTRY:-https://registry.npmjs.org}
+    environment:
+      # RUN time — read per-request by src/app/api/backend/[...path]/route.ts,
+      # which proxies the browser to the backend. Changing this needs a
+      # restart, not a rebuild. It falls back to NEXT_PUBLIC_API_BASE_URL and
+      # then to its own hardcoded default, so leaving it unset is safe.
+      BACKEND_API_BASE_URL: ${BACKEND_API_BASE_URL:-}
+    ports:
+      - "${WEB_PORT:-4100}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "-T", "3", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Public tunnel ─────────────────────────────────────────────────────
+  # Opt-in via `--profile tunnel`, so a plain `docker compose up` never
+  # exposes this panel to the internet by accident.
+  #
+  # It reaches the app over the compose network (web:3000), NOT through the
+  # published host port, so the tunnel works even if WEB_PORT is remapped.
+  #
+  # Read the public URL from the inspector on http://localhost:4140, or:
+  #   docker compose logs ngrok | grep -o 'https://.*ngrok[^ ]*'
+  ngrok:
+    image: ngrok/ngrok:3
+    container_name: emad_equb_admin_ngrok
+    profiles: ["tunnel"]
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      # The agent reads this automatically. Deliberately NOT ${VAR:?...}:
+      # compose interpolates every service in the file even when its profile is
+      # inactive, so a required-variable guard here would break a plain
+      # `docker compose build` for anyone who has no ngrok token. Left empty,
+      # the agent exits with its own ERR_NGROK_4018 and a signup link.
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    volumes:
+      - ./docker/ngrok.yml:/etc/ngrok.yml:ro
+    command: ["start", "--all", "--config", "/etc/ngrok.yml", "--log=stdout"]
+    ports:
+      # ngrok's local inspector (request replay + payload view). 4140 rather
+      # than the default 4040 so it does not collide with another project's
+      # agent already running on this machine.
+      - "${NGROK_INSPECT_PORT:-4140}:4040"
+    restart: unless-stopped
