@@ -6,6 +6,35 @@ import axios, {
 } from "axios";
 import { useAuthStore } from "../auth/auth-store";
 
+const PROXY_API_BASE_URL = "/api/backend";
+
+const normalizeApiBaseUrl = (url?: string) => {
+  if (!url) {
+    return undefined;
+  }
+
+  return url
+    .trim()
+    .replace(/\/docs\/index\.html\/?$/i, "")
+    .replace(/\/+$/, "");
+};
+
+const resolveApiBaseUrl = () => {
+  const configuredUrl = normalizeApiBaseUrl(
+    process.env.NEXT_PUBLIC_API_BASE_URL
+  );
+
+  if (
+    configuredUrl?.startsWith("http://") &&
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:"
+  ) {
+    return PROXY_API_BASE_URL;
+  }
+
+  return configuredUrl ?? PROXY_API_BASE_URL;
+};
+
 export const setupRequestInterceptor = (api: AxiosInstance) => {
   api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
@@ -64,7 +93,7 @@ export const setupResponseInterceptor = (api: AxiosInstance) => {
 };
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
