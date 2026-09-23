@@ -46,11 +46,16 @@ export function EqubOverview({ equb, dashboard, dashboardLoading }: Props) {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <Row label={t("code")} value={<span className="font-mono">{equb.code}</span>} />
               <Row label={t("category")} value={cat ? `${cat.name} · ${cat.code}` : equb.categoryId || "—"} />
-              <Row label={t("owner")} value={<span className="break-all font-mono text-xs">{equb.createdBy || "—"}</span>} />
+              <Row
+                label={t("manager")}
+                value={equb.manager ? <span title={[equb.manager.email, equb.manager.phone].filter(Boolean).join(" · ")}>{equb.manager.fullName}</span> : <span className="italic text-muted-foreground">{t("noManager")}</span>}
+              />
+              <Row label={t("createdBy")} value={<span className="break-all font-mono text-xs">{equb.createdBy || "—"}</span>} />
               <Row label={t("createdAt")} value={formatDate(equb.createdAt)} />
               <Row label={t("start")} value={formatDate(equb.startDate)} />
               <Row label={t("end")} value={formatDate(equb.expectedEndDate)} />
               <Row label={t("members")} value={t("membersOf", { current: equb.currentMembers, max: equb.maxMembers })} />
+              {equb.manager?.phone && <Row label={t("managerContact")} value={equb.manager.phone} />}
               <Row label={tc("status")} value={<StatusBadge status={equb.status} kind="lifecycle" />} />
             </dl>
           </CardContent>

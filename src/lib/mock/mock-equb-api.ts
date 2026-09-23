@@ -13,6 +13,7 @@ import type {
   EqubDrawEligibleMember,
   EqubDrawExcludedMember,
   EqubEmergencyDrawResponse,
+  EqubGroupManagerInfo,
   EqubGroupResponse,
   EqubGuaranteeResponse,
   EqubMemberResponse,
@@ -25,6 +26,7 @@ import type {
   EqubWinnerResponse,
   MemberInfo,
   MemberSummaryResponse,
+  UserResponse,
 } from "@/types/equb-api";
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,27 @@ const memberInfo = (id: string): MemberInfo => {
 };
 
 // ---------------------------------------------------------------------------
+// Staff users (who can be assigned as an Equb's manager)
+// ---------------------------------------------------------------------------
+const staffUser = (id: string, first: string, last: string, email: string, phone: string, role: string, active = true): UserResponse => ({
+  id, first_name: first, last_name: last, full_name: `${first} ${last}`, email, phone, branch_id: "hq", gender: "male", status: active, totp_enabled: false,
+  roles: [{ id: `role-${role.toLowerCase().replace(/\s+/g, "-")}`, name: role }],
+});
+const staffUsers: UserResponse[] = [
+  staffUser("u-admin", "Aisha", "Mohammed", "admin@emadekub.com", "+251900000001", "Administrator"),
+  staffUser("u-mgr-1", "Kedir", "Abdella", "kedir.a@emadekub.com", "+251900000011", "Equb Manager"),
+  staffUser("u-mgr-2", "Meron", "Tadesse", "meron.t@emadekub.com", "+251900000012", "Equb Manager"),
+  staffUser("u-mgr-3", "Hamza", "Seid", "hamza.s@emadekub.com", "+251900000013", "Equb Manager"),
+  staffUser("u-agent", "Yusuf", "Kedir", "agent@emadekub.com", "+251900000002", "Agent"),
+  staffUser("u-agent-2", "Mimi", "Tesfaye", "mimi@emadekub.com", "+251900000003", "Agent"),
+  staffUser("u-mgr-old", "Dawit", "Girma", "dawit.g@emadekub.com", "+251900000014", "Equb Manager", false),
+];
+const managerInfo = (userId?: string): EqubGroupManagerInfo | null => {
+  const u = staffUsers.find((x) => x.id === userId);
+  return u ? { user_id: u.id, full_name: u.full_name, email: u.email, phone_number: u.phone } : null;
+};
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 interface StoredMember { id: string; group_id: string; member_id: string; position: number; status: string; joined_at: string; suspend_reason?: string }
@@ -113,7 +136,7 @@ interface StoredWinner { id: string; round_id: string; group_id: string; member_
 
 const db = {
   schemes: [] as EqubSchemeResponse[],
-  groups: [] as Omit<EqubGroupResponse, "equb_scheme" | "current_members">[],
+  groups: [] as (Omit<EqubGroupResponse, "equb_scheme" | "current_members" | "manager"> & { manager_user_id?: string })[],
   members: [] as StoredMember[],
   rounds: [] as StoredRound[],
   winners: [] as StoredWinner[],
@@ -199,10 +222,12 @@ function seed() {
 
   // spec: [group, scheme, members, drawn rounds, paid ratio in open round]
   const plans = [
-    { id: "grp-med-01", code: "MED-2026-01", name: "Merkato Medium · 01", scheme: "sch-med", status: "active", members: 24, max: 30, drawn: 5, openPaid: 0.7 },
-    { id: "grp-hm-01", code: "HM-2026-01", name: "Bole High Merchant · 01", scheme: "sch-hm", status: "active", members: 12, max: 12, drawn: 3, openPaid: 0.5 },
-    { id: "grp-vip-01", code: "VIP-2026-01", name: "VIP Circle · 01", scheme: "sch-vip", status: "draft", members: 6, max: 10, drawn: 0, openPaid: 0 },
-    { id: "grp-med-00", code: "MED-2025-04", name: "Merkato Medium · 00 (closed)", scheme: "sch-med", status: "cancelled", members: 3, max: 30, drawn: 0, openPaid: 0 },
+    { id: "grp-med-01", code: "MED-2026-01", name: "Merkato Medium · 01", scheme: "sch-med", status: "active", members: 24, max: 30, drawn: 5, openPaid: 0.7, manager: "u-mgr-1" },
+    // Managed by someone who has since left — the reassignment case.
+    { id: "grp-hm-01", code: "HM-2026-01", name: "Bole High Merchant · 01", scheme: "sch-hm", status: "active", members: 12, max: 12, drawn: 3, openPaid: 0.5, manager: "u-mgr-old" },
+    // No manager yet.
+    { id: "grp-vip-01", code: "VIP-2026-01", name: "VIP Circle · 01", scheme: "sch-vip", status: "draft", members: 6, max: 10, drawn: 0, openPaid: 0, manager: undefined },
+    { id: "grp-med-00", code: "MED-2025-04", name: "Merkato Medium · 00 (closed)", scheme: "sch-med", status: "cancelled", members: 3, max: 30, drawn: 0, openPaid: 0, manager: "u-mgr-2" },
   ];
 
   let dirCursor = 0;
@@ -220,6 +245,7 @@ function seed() {
       start_date: start,
       expected_end_date: start ? addDays(start, s.total_rounds * step) : "",
       created_by: "u-admin",
+      manager_user_id: p.manager,
       created_at: created,
       updated_at: created,
     });
@@ -290,7 +316,8 @@ seed();
 // DTO builders
 // ---------------------------------------------------------------------------
 function groupDto(g: (typeof db.groups)[number]): EqubGroupResponse {
-  return { ...clone(g), equb_scheme: clone(scheme(g.equb_scheme_id)), current_members: groupMembers(g.id).length };
+  const { manager_user_id, ...rest } = clone(g);
+  return { ...rest, equb_scheme: clone(scheme(g.equb_scheme_id)), manager: managerInfo(manager_user_id), current_members: groupMembers(g.id).length };
 }
 
 function memberDto(m: StoredMember): EqubMemberResponse {
@@ -438,7 +465,8 @@ export const mockEqubApi: EqubApi = {
     const s = scheme(body.equb_scheme_id) ?? fail("Equb scheme not found");
     if (s.status === "cancelled") fail("Cannot create an Equb from a cancelled category");
     if (db.groups.some((g) => g.code === body.code)) fail(`An Equb with code ${body.code} already exists`);
-    const g = { id: uid("grp"), code: body.code, name: body.name, status: "draft", equb_scheme_id: s.id, max_members: body.max_members, start_date: body.start_date ?? "", expected_end_date: body.expected_end_date ?? "", created_by: "u-admin", created_at: now(), updated_at: now() };
+    // The creator manages the group until an admin reassigns it.
+    const g = { id: uid("grp"), code: body.code, name: body.name, status: "draft", equb_scheme_id: s.id, max_members: body.max_members, start_date: body.start_date ?? "", expected_end_date: body.expected_end_date ?? "", created_by: "u-admin", manager_user_id: "u-admin", created_at: now(), updated_at: now() };
     db.groups.push(g);
     return groupDto(g);
   },
@@ -490,6 +518,19 @@ export const mockEqubApi: EqubApi = {
     addRounds(id, last.round_number + 1, additionalRounds, g.start_date);
     g.expected_end_date = addDays(g.expected_end_date || now(), additionalRounds * step);
     return groupDto(g);
+  },
+  async assignManager(id, managerUserId) {
+    await delay();
+    const g = group(id);
+    const u = staffUsers.find((x) => x.id === managerUserId) ?? fail("User not found");
+    if (!u.status) fail("This user is inactive and cannot manage an Equb");
+    const previous = g.manager_user_id;
+    const changed = previous !== managerUserId;
+    if (changed) {
+      g.manager_user_id = managerUserId;
+      g.updated_at = now();
+    }
+    return { group_id: g.id, group_code: g.code, group_name: g.name, manager_user_id: managerUserId, previous_manager_user_id: previous, changed };
   },
   async autoCancel() {
     await delay();
@@ -763,7 +804,12 @@ export const mockEqubApi: EqubApi = {
   async listRegistrationRequests() { await delay(); return []; },
   async approveRegistration() { await delay(); return null; },
   async rejectRegistration() { await delay(); return null; },
-  async listUsers() { await delay(); return []; },
+  async listUsers(params) {
+    await delay(150);
+    const q = typeof params?.search === "string" ? params.search : undefined;
+    const onlyActive = params?.status === true || params?.status === "true";
+    return clone(staffUsers.filter((u) => (!onlyActive || u.status) && matches(q, u.full_name, u.email, u.phone)));
+  },
   async listRoles() { await delay(); return []; },
 
   // ---- Manager ----

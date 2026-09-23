@@ -90,6 +90,7 @@ function EqubDetailInner({ id }: { id: string }) {
             <span className="font-mono">{equb.code}</span>
             {cat && <> · {t("category")}: <span className="text-foreground">{cat.name}</span></>}
             {" · "}{t("membersOf", { current: equb.currentMembers, max: equb.maxMembers })}
+            {" · "}{t("manager")}: <span className={equb.manager ? "text-foreground" : "italic"}>{equb.manager?.fullName ?? t("noManager")}</span>
           </p>
         </div>
         {canManage && (

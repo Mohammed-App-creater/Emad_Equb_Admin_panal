@@ -43,6 +43,7 @@ export const EQUB_ENDPOINTS = {
     ACTIVATE: (id: string) => `/equb/admin/groups/${id}/activate`,
     CANCEL: (id: string) => `/equb/admin/groups/${id}/cancel`,
     EXTEND: (id: string) => `/equb/admin/groups/${id}/extend`,
+    MANAGER: (id: string) => `/equb/admin/groups/${id}/manager`, // PUT { manager_user_id } — admin-only
     MEMBERS: (id: string) => `/equb/admin/groups/${id}/members`,
     MEMBER: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}`,
     SUSPEND_MEMBER: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}/suspend`,

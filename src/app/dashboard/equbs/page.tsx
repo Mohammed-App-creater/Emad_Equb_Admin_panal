@@ -55,6 +55,9 @@ function EqubsInner() {
       </div>
     ) },
     { id: "category", header: t("category"), mobile: "detail", cell: (r) => <span className="text-sm">{categoryName(r)}</span> },
+    { id: "manager", header: t("manager"), mobile: "detail", cell: (r) => (
+      r.manager ? <span className="text-sm">{r.manager.fullName}</span> : <span className="text-sm text-muted-foreground">{t("noManager")}</span>
+    ) },
     { id: "members", header: t("members"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{r.currentMembers}/{r.maxMembers}</span> },
     { id: "start", header: t("start"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.startDate)}</span> },
     { id: "end", header: t("end"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.expectedEndDate)}</span> },

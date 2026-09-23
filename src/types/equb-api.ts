@@ -124,6 +124,26 @@ export type UpdateEqubSchemeRequest = Omit<CreateEqubSchemeRequest, "code"> & {
 };
 
 // ---- Group (= Equb) ----
+/** The user who runs the group (every /equb/manager/** ownership check). */
+export interface EqubGroupManagerInfo {
+  user_id: string;
+  full_name: string;
+  email: string;
+  phone_number: string;
+}
+export interface AssignEqubGroupManagerRequest {
+  manager_user_id: string;
+}
+export interface EqubGroupManagerResponse {
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  manager_user_id: string;
+  /** Absent when the group had no manager before. */
+  previous_manager_user_id?: string;
+  /** False when the user already managed the group (idempotent, nothing written). */
+  changed: boolean;
+}
 export interface EqubGroupResponse {
   id: string;
   code: string;
@@ -131,6 +151,7 @@ export interface EqubGroupResponse {
   status: string; // draft | active | completed | cancelled
   equb_scheme_id: string;
   equb_scheme?: EqubSchemeResponse;
+  manager?: EqubGroupManagerInfo | null;
   current_members: number;
   max_members: number;
   start_date: string;

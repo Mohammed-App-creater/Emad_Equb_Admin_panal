@@ -161,7 +161,16 @@
     "statusDraft": "ረቂቅ",
     "statusActive": "ንቁ",
     "statusCompleted": "ተጠናቋል",
-    "statusCancelled": "ተሰርዟል"
+    "statusCancelled": "ተሰርዟል",
+    "manager": "አስተዳዳሪ",
+    "noManager": "አስተዳዳሪ የለም",
+    "assignManager": "አስተዳዳሪ መድብ",
+    "currentManager": "የአሁኑ አስተዳዳሪ",
+    "searchUser": "ሠራተኛን በስም፣ በኢሜይል ወይም በስልክ ፈልግ",
+    "managerAssigned": "አስተዳዳሪ ተመድቧል",
+    "managerUnchanged": "አስቀድሞ አስተዳዳሪ ነው — ምንም አልተለወጠም",
+    "managerContact": "የአስተዳዳሪ ስልክ",
+    "assignManagerHint": "አስተዳዳሪው የዚህን እቁብ እጣዎችና ስብስቦች ከአስተዳዳሪ መተግበሪያው ያካሂዳል። በማንኛውም ሁኔታ ይሰራል፤ ለውጡ በኦዲት መዝገብ ይመዘገባል።"
   },
   "categories": {
     "title": "የእቁብ ምድቦች",

@@ -10,6 +10,7 @@ import type {
   EqubDrawCandidateResponse,
   EqubDrawPreviewResponse,
   EqubEmergencyDrawResponse,
+  EqubGroupManagerResponse,
   EqubGroupResponse,
   EqubGuaranteeResponse,
   EqubMemberResponse,
@@ -89,6 +90,9 @@ const realEqubApi = {
   },
   async extendGroup(id: string, additionalRounds: number, reason: string): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.EXTEND(id), { additional_rounds: additionalRounds, reason }));
+  },
+  async assignManager(id: string, managerUserId: string): Promise<EqubGroupManagerResponse> {
+    return unwrap<EqubGroupManagerResponse>(api.put(EQUB_ENDPOINTS.GROUPS.MANAGER(id), { manager_user_id: managerUserId }));
   },
   async autoCancel(): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.AUTO_CANCEL, {}));

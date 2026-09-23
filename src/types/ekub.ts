@@ -121,6 +121,26 @@ export interface EqubCategoryInput {
 }
 
 // ---- Equb (backend group: a running instance of a category) ----------------
+export interface EqubManager {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+}
+export interface ManagerAssignment {
+  changed: boolean;
+  managerUserId: string;
+  previousManagerUserId?: string;
+}
+/** A staff user as shown in the "assign manager" picker. */
+export interface StaffUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: string;
+}
+
 export interface Equb {
   id: string;
   code: string;
@@ -128,6 +148,7 @@ export interface Equb {
   status: string; // LifecycleStatus
   categoryId: string;
   category?: EqubCategory;
+  manager?: EqubManager;
   currentMembers: number;
   maxMembers: number;
   startDate: string;

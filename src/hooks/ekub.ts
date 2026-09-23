@@ -94,6 +94,13 @@ export const useDeleteEqub = () => {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => ekubService.deleteEqub(id), onSuccess: () => invEqub(qc) });
 };
+export const useAssignManager = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (v: { id: string; managerUserId: string }) => ekubService.assignManager(v.id, v.managerUserId), onSuccess: (_d, v) => invEqub(qc, v.id) });
+};
+export const useStaffUserSearch = (query: string, enabled = true) =>
+  useQuery({ queryKey: ["staff-user-search", query], queryFn: () => ekubService.searchStaffUsers(query), enabled });
+
 export const useAutoCancel = () => {
   const qc = useQueryClient();
   return useMutation({ mutationFn: () => ekubService.autoCancel(), onSuccess: () => invEqub(qc) });

@@ -161,7 +161,16 @@
     "statusDraft": "Draft",
     "statusActive": "Active",
     "statusCompleted": "Completed",
-    "statusCancelled": "Cancelled"
+    "statusCancelled": "Cancelled",
+    "manager": "Manager",
+    "noManager": "No manager",
+    "assignManager": "Assign manager",
+    "currentManager": "Current manager",
+    "searchUser": "Search staff by name, email or phone",
+    "managerAssigned": "Manager assigned",
+    "managerUnchanged": "Already the manager — nothing changed",
+    "managerContact": "Manager phone",
+    "assignManagerHint": "The manager runs this Equb's draws and collections from the manager app. Works at any status, and the change is recorded in the audit log."
   },
   "categories": {
     "title": "Equb Categories",

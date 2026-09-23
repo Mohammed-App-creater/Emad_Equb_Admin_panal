@@ -17,6 +17,7 @@ import type {
   Frequency,
   Guarantee,
   GuaranteeInput,
+  ManagerAssignment,
   MemberSummary,
   Payment,
   ReconciliationRow,
@@ -24,6 +25,7 @@ import type {
   Round,
   RoundStatus,
   StaffMember,
+  StaffUser,
   TakafulSettlement,
   TakafulTxn,
   Winner,
@@ -92,6 +94,9 @@ function groupToEqub(g: EqubGroupResponse): Equb {
     status: g.status,
     categoryId: g.equb_scheme_id,
     category: g.equb_scheme ? schemeToCategory(g.equb_scheme) : undefined,
+    manager: g.manager?.user_id
+      ? { userId: g.manager.user_id, fullName: g.manager.full_name || g.manager.email || g.manager.user_id, email: g.manager.email ?? "", phone: g.manager.phone_number ?? "" }
+      : undefined,
     currentMembers: g.current_members ?? 0,
     maxMembers: g.max_members,
     startDate: g.start_date,
@@ -451,6 +456,21 @@ export const ekubService = {
   },
   async autoCancel(): Promise<void> {
     await equbApi.autoCancel();
+  },
+  async assignManager(id: string, managerUserId: string): Promise<ManagerAssignment> {
+    const r = await equbApi.assignManager(id, managerUserId);
+    return { changed: r.changed, managerUserId: r.manager_user_id, previousManagerUserId: r.previous_manager_user_id || undefined };
+  },
+  /** Staff users for the manager picker (GET /users?search=). */
+  async searchStaffUsers(search: string): Promise<StaffUser[]> {
+    const users = await equbApi.listUsers({ search: search.trim() || undefined, status: true, per_page: 20 });
+    return users.map((u) => ({
+      id: u.id,
+      fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
+      email: u.email ?? "",
+      phone: u.phone ?? "",
+      role: u.roles?.map((r) => r.name).join(", ") ?? "",
+    }));
   },
 
   // ---- Equb members ----

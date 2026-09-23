@@ -2,18 +2,19 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Ban, CalendarPlus, Pencil, Play, Trash2 } from "lucide-react";
+import { Ban, CalendarPlus, Pencil, Play, Trash2, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { EqubFormModal, dateToIso } from "@/components/equb/equb-form-modal";
+import { AssignManagerModal } from "@/components/equb/assign-manager-modal";
 import { useActivateEqub, useCancelEqub, useDeleteEqub, useExtendEqub } from "@/hooks/ekub";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateForInput, getErrorMessage } from "@/lib/utils";
 import type { Equb } from "@/types/ekub";
 
-export type LifecycleKind = "edit" | "activate" | "extend" | "cancel" | "delete";
+export type LifecycleKind = "edit" | "manager" | "activate" | "extend" | "cancel" | "delete";
 
 export interface LifecycleAction {
   kind: LifecycleKind;
@@ -54,6 +55,8 @@ export function useEqubLifecycle(opts: { onDeleted?: (equb: Equb) => void } = {}
 
   const actions: LifecycleAction[] = [
     { kind: "edit", label: t("editEqub"), icon: Pencil, show: (e) => e.status === "draft" || e.status === "active" },
+    // Any status: reassigning mid-way is exactly when a manager leaves.
+    { kind: "manager", label: t("assignManager"), icon: UserCog, show: () => true },
     { kind: "activate", label: t("activate"), icon: Play, show: (e) => e.status === "draft" },
     { kind: "extend", label: t("extend"), icon: CalendarPlus, show: (e) => e.status === "active" },
     { kind: "cancel", label: t("cancel"), icon: Ban, destructive: true, show: (e) => e.status === "draft" || e.status === "active" },
@@ -77,6 +80,7 @@ export function useEqubLifecycle(opts: { onDeleted?: (equb: Equb) => void } = {}
 
   const titles: Record<LifecycleKind, string> = {
     edit: t("editEqub"),
+    manager: t("assignManager"),
     activate: t("activateTitle"),
     extend: t("extend"),
     cancel: t("cancel"),
@@ -87,8 +91,10 @@ export function useEqubLifecycle(opts: { onDeleted?: (equb: Equb) => void } = {}
     <>
       <EqubFormModal open={modal?.kind === "edit"} onOpenChange={(o) => !o && close()} equb={modal?.kind === "edit" ? modal.equb : null} />
 
-      <Modal open={!!modal && modal.kind !== "edit"} onOpenChange={(o) => !o && close()} title={modal ? titles[modal.kind] : ""} className="max-w-md">
-        {modal && modal.kind !== "edit" && (
+      <AssignManagerModal equb={modal?.kind === "manager" ? modal.equb : null} onOpenChange={(o) => !o && close()} />
+
+      <Modal open={!!modal && modal.kind !== "edit" && modal.kind !== "manager"} onOpenChange={(o) => !o && close()} title={modal ? titles[modal.kind] : ""} className="max-w-md">
+        {modal && modal.kind !== "edit" && modal.kind !== "manager" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{modal.equb.name}</span> · {modal.equb.code}
