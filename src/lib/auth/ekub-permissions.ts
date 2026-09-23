@@ -14,8 +14,10 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 export const EKUB_PERMS = {
   APPLICATION_READ: "application:read",
   APPLICATION_APPROVE: "application:approve",
-  TIER_READ: "tier:read",
-  TIER_MANAGE: "tier:manage",
+  CATEGORY_READ: "category:read",
+  CATEGORY_MANAGE: "category:manage",
+  EQUB_READ: "equb:read",
+  EQUB_MANAGE: "equb:manage",
   PAYMENT_READ: "payment:read",
   PAYMENT_RECONCILE: "payment:reconcile",
   DRAW_READ: "draw:read",
@@ -34,7 +36,7 @@ export const EKUB_PERMS = {
 export type EkubPerm = (typeof EKUB_PERMS)[keyof typeof EKUB_PERMS];
 
 // When NEXT_PUBLIC_ENFORCE_PERMS !== "true" (the default), all client-side
-// permission checks pass so every action (create cycle/scheme, add member,
+// permission checks pass so every action (create equb/category, add member,
 // approve, run draw, release payout, …) is usable for review — the real
 // backend still enforces authorization on each request. Flip the flag on once
 // the backend's real Equb slugs are wired into EKUB_PERMS to restore SoD.

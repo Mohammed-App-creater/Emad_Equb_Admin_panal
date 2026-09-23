@@ -11,9 +11,6 @@ import {
   ClipboardCheck,
   Layers,
   Wallet,
-  Ticket,
-  HandCoins,
-  ShieldAlert,
   Scale,
   UsersRound,
   UserRoundCog,
@@ -36,7 +33,8 @@ import { cn } from "@/lib/utils";
 
 // `labelKey` resolves against the `nav` message namespace. `permission` is the
 // slug required to see the link (any-of); items without one are always visible.
-// `soon` renders a disabled "coming soon" stub for deferred modules.
+// `soon` renders a disabled "coming soon" stub for deferred modules. Those
+// stubs only show in mock/demo mode; against the real backend they're hidden.
 type NavItem = {
   labelKey: string;
   href: string;
@@ -51,31 +49,33 @@ type NavGroup = { titleKey: string; items: NavItem[] };
 // account's slugs. Server-side API checks and in-page action gates (approve /
 // run / release via useEkubAccess) still enforce real authorization.
 // Only genuinely-unbuilt modules carry `soon: true`.
+//
+// Members, rounds/draws, winners & payouts, penalties and Takaful are all
+// scoped to one Equb, so they live as tabs inside /dashboard/equbs/[id]
+// rather than as top-level links.
+const SHOW_SOON = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
 const navGroups: NavGroup[] = [
   {
     titleKey: "groupOverview",
     items: [
       { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { labelKey: "cycles", href: "/dashboard/cycles", icon: CircleDot },
+      { labelKey: "equbs", href: "/dashboard/equbs", icon: CircleDot },
+      { labelKey: "categories", href: "/dashboard/categories", icon: Layers },
     ],
   },
   {
     titleKey: "groupOperations",
     items: [
       { labelKey: "approvals", href: "/dashboard/approvals", icon: ClipboardCheck },
-      { labelKey: "tiers", href: "/dashboard/tiers", icon: Layers },
-      { labelKey: "members", href: "/dashboard/members", icon: UsersRound },
       { labelKey: "payments", href: "/dashboard/payments", icon: Wallet },
-      { labelKey: "draws", href: "/dashboard/draws", icon: Ticket },
-      { labelKey: "payouts", href: "/dashboard/payouts", icon: HandCoins },
     ],
   },
   {
     titleKey: "groupCompliance",
     items: [
-      { labelKey: "penalties", href: "/dashboard/penalties", icon: ShieldAlert },
-      { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale },
       { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank },
+      { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale },
     ],
   },
   {
@@ -104,6 +104,7 @@ export default function Sidebar() {
     setCollapsed((prev) => ({ ...prev, [title]: !prev[title] }));
 
   const canSeeItem = (item: NavItem) => {
+    if (item.soon && !SHOW_SOON) return false;
     if (!item.permission) return true;
     const required = Array.isArray(item.permission) ? item.permission : [item.permission];
     return hasAny(required);
@@ -189,7 +190,7 @@ export default function Sidebar() {
                     )}
                   >
                     {group.items.map((item) => {
-                      const active = pathname === item.href;
+                      const active = item.href === "/dashboard" ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
                       const Icon = item.icon;
 
                       if (item.soon) {

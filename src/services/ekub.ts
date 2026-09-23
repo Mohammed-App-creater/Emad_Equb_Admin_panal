@@ -1,91 +1,327 @@
 import * as db from "@/lib/mock/mock-db";
 import { equbApi } from "@/services/equb-api";
-import { useEqubStore } from "@/store/equb.store";
 import type {
   Application,
   ApplicationStatus,
-  Cadence,
-  Draw,
   Dispute,
-  Group,
-  GroupMember,
-  EligibilityPreview,
+  DrawPreview,
+  EmergencyDrawRequest,
+  Equb,
+  EqubCategory,
+  EqubCategoryInput,
+  EqubDashboard,
+  EqubInput,
+  EqubListFilters,
+  EqubMember,
+  EqubUpdateInput,
+  Frequency,
+  Guarantee,
+  GuaranteeInput,
+  ManagerAssignment,
+  MemberSummary,
   Payment,
-  Payout,
-  Penalty,
-  Tier,
-  TakafulTxn,
-  HardshipRequest,
-  OverviewStats,
   ReconciliationRow,
-  StaffMember,
   RoleDef,
+  Round,
+  RoundStatus,
+  StaffMember,
+  StaffUser,
+  TakafulSettlement,
+  TakafulTxn,
+  Winner,
 } from "@/types/ekub";
 import type {
   EqubAdminDashboardResponse,
+  EqubDrawEligibleMember,
+  EqubDrawExcludedMember,
   EqubDrawPreviewResponse,
   EqubEmergencyDrawResponse,
   EqubGroupResponse,
+  EqubGuaranteeResponse,
   EqubMemberResponse,
   EqubRoundResponse,
   EqubSchemeResponse,
+  EqubTakafulSettlementResponse,
   EqubTakafulTransactionResponse,
   EqubWinnerResponse,
   MemberRegistrationRequestResponse,
+  MemberSummaryResponse,
   UserResponse,
 } from "@/types/equb-api";
+import { EQUB_FREQUENCIES } from "@/types/equb-api";
 
+// With NEXT_PUBLIC_USE_MOCK=true, `equbApi` is the seeded in-memory backend
+// (lib/mock/mock-equb-api.ts) for every Equb entity. The modules with no
+// backend endpoint yet (payments ledger, reconciliation, disputes) and the
+// demo data for applications / staff / roles read lib/mock/mock-db instead.
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
-const activeGroup = () => useEqubStore.getState().activeGroupId;
-
-function makeSeed(): string {
-  let s = "";
-  for (let i = 0; i < 16; i++) s += Math.floor(Math.random() * 16).toString(16);
-  return s;
-}
 
 // ============================================================================
 // DTO → view-model mappers (real API shape → the camelCase types pages render)
 // ============================================================================
-const cadence = (f: string): Cadence =>
-  f === "weekly" || f === "monthly" ? f : "daily";
+const frequency = (f: string): Frequency =>
+  (EQUB_FREQUENCIES as readonly string[]).includes(f) ? (f as Frequency) : "daily";
 
-function schemeToTier(s: EqubSchemeResponse): Tier {
+function schemeToCategory(s: EqubSchemeResponse): EqubCategory {
   return {
     id: s.id,
+    code: s.code,
     name: s.name,
+    description: s.description ?? "",
+    status: s.status,
+    frequency: frequency(s.frequency),
     contribution: s.contribution_amount,
-    serviceFee: s.admin_fee,
-    participationFee: 0, // backend folds participation into admin_fee
-    groupSize: s.members_per_group,
-    winnersPerDraw: s.winners_per_round,
-    fixedPayout: s.payout_amount,
-    contributionCadence: cadence(s.frequency),
-    drawCadence: cadence(s.frequency),
-    tabarruPercent: s.takaful_fee, // NOTE: backend stores an amount, shown as-is
-    requiresProperty: s.payout_amount >= 1_000_000,
+    adminFee: s.admin_fee ?? 0,
+    takafulFee: s.takaful_fee ?? 0,
+    payout: s.payout_amount,
+    membersPerEqub: s.members_per_group,
+    winnersPerRound: s.winners_per_round,
+    totalRounds: s.total_rounds,
+    createdBy: s.created_by ?? "",
+    createdAt: s.created_at,
+    updatedAt: s.updated_at,
   };
 }
 
-function groupToView(g: EqubGroupResponse): Group {
+function groupToEqub(g: EqubGroupResponse): Equb {
   return {
     id: g.id,
     code: g.code,
     name: g.name,
     status: g.status,
-    schemeId: g.equb_scheme_id,
-    currentMembers: g.current_members,
+    categoryId: g.equb_scheme_id,
+    category: g.equb_scheme ? schemeToCategory(g.equb_scheme) : undefined,
+    manager: g.manager?.user_id
+      ? { userId: g.manager.user_id, fullName: g.manager.full_name || g.manager.email || g.manager.user_id, email: g.manager.email ?? "", phone: g.manager.phone_number ?? "" }
+      : undefined,
+    currentMembers: g.current_members ?? 0,
     maxMembers: g.max_members,
     startDate: g.start_date,
     expectedEndDate: g.expected_end_date,
+    createdBy: g.created_by ?? "",
+    createdAt: g.created_at,
+    updatedAt: g.updated_at,
   };
 }
 
-function mockGroupToView(g: db.MockGroup): Group {
-  return { ...g };
+function dashboardToView(d: EqubAdminDashboardResponse): EqubDashboard {
+  return {
+    equbId: d.group_id,
+    equbCode: d.group_code,
+    equbName: d.group_name,
+    status: d.status,
+    currentRound: d.current_round,
+    totalRounds: d.total_rounds,
+    progressPercent: d.cycle_progress,
+    drawStatus: d.draw_status,
+    totalMembers: d.total_members,
+    activeMembers: d.active_members,
+    suspendedMembers: d.suspended_members,
+    eligibleForDraw: d.eligible_for_draw,
+    paidThisRound: d.paid_this_round,
+    unpaidThisRound: d.unpaid_this_round,
+    nextDueDate: d.next_due_date,
+    totalCollected: d.total_collected,
+    totalPayouts: d.total_payouts,
+    totalAdminFees: d.total_admin_fees,
+    totalTakafulFees: d.total_takaful_fees,
+    takafulBalance: d.takaful_balance,
+    winsDistributed: d.wins_distributed,
+  };
+}
+
+function memberToView(m: EqubMemberResponse): EqubMember {
+  return {
+    id: m.id,
+    memberId: m.member_id,
+    name: m.member?.display_name || m.member?.full_name || m.member_id,
+    membershipNumber: m.member?.membership_number || "—",
+    phone: m.member?.phone_number || "",
+    photo: m.member?.photo || undefined,
+    position: m.position,
+    status: m.status,
+    joinedAt: m.joined_at,
+  };
+}
+
+function saccoMemberToSummary(m: MemberSummaryResponse): MemberSummary {
+  return {
+    id: m.id,
+    fullName: m.full_name || `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim(),
+    membershipNumber: m.membership_number || "—",
+    phone: m.phone_number || "",
+    photo: m.photo || undefined,
+    status: m.status,
+  };
+}
+
+export const mapRoundStatus = (s: string): RoundStatus => {
+  const v = (s || "").toLowerCase();
+  if (v === "completed" || v === "closed" || v === "paid") return "completed";
+  if (v === "drawn") return "drawn";
+  if (v === "cancelled" || v === "canceled") return "cancelled";
+  if (v === "postponed") return "postponed";
+  if (v === "active" || v === "open" || v === "ongoing" || v === "in_progress" || v === "live") return "open";
+  return "scheduled";
+};
+
+const eligibleToView = (m: EqubDrawEligibleMember) => ({
+  memberId: m.member_id,
+  name: m.member_name,
+  phone: m.phone,
+  position: m.position,
+  contributionPaid: m.contribution_paid,
+  previouslyWon: m.previously_won,
+  eligible: m.eligible,
+});
+const excludedToView = (m: EqubDrawExcludedMember) => ({
+  memberId: m.member_id,
+  name: m.member_name,
+  phone: m.phone,
+  contributionPaid: m.contribution_paid,
+  previouslyWon: m.previously_won,
+  hasUnpaidCatchUp: m.has_unpaid_catch_up,
+  isBanned: m.is_banned,
+  reason: m.reason,
+});
+
+function roundToView(r: EqubRoundResponse): Round {
+  return {
+    id: r.id,
+    equbId: r.equb_group_id,
+    roundNumber: r.round_number,
+    status: mapRoundStatus(r.status),
+    rawStatus: r.status,
+    scheduledAt: r.scheduled_at,
+    drawnAt: r.drawn_at,
+    contributionDueDate: r.contribution_due_date,
+    createdAt: r.created_at,
+    totalMembers: r.total_members ?? 0,
+    paidCount: r.paid_count ?? 0,
+    unpaidCount: r.unpaid_count ?? 0,
+    paymentPercentage: r.payment_percentage ?? 0,
+    totalContribution: r.total_contribution ?? 0,
+    totalAdminFee: r.total_admin_fee ?? 0,
+    totalTakafulFee: r.total_takaful_fee ?? 0,
+    payoutAmount: r.payout_amount ?? 0,
+    memberPayments: (r.member_payments ?? []).map((p) => ({
+      memberId: p.member_id,
+      name: p.member_name,
+      phone: p.phone,
+      amount: p.amount,
+      status: p.status,
+      paidAt: p.paid_at,
+      isCatchUp: !!p.isCatchUp,
+    })),
+    canExecuteDraw: !!r.can_execute_draw,
+    eligibleCount: r.eligible_count ?? 0,
+    excludedCount: r.excluded_count ?? 0,
+    eligibleMembers: (r.eligible_members ?? []).map(eligibleToView),
+    excludedMembers: (r.excluded_members ?? []).map(excludedToView),
+    winners: (r.winners ?? []).map((w) => ({
+      memberId: w.member_id,
+      name: w.member_name,
+      phone: w.phone,
+      payoutAmount: w.payout_amount,
+      status: w.status,
+      position: w.winner_position,
+      paidAt: w.paid_at,
+    })),
+  };
+}
+
+function previewToView(p: EqubDrawPreviewResponse): DrawPreview {
+  return {
+    roundId: p.round_id,
+    roundNumber: p.round_number,
+    canExecute: !!p.can_execute_draw,
+    reason: p.reason ?? "",
+    eligibleCount: p.eligible_count ?? 0,
+    excludedCount: p.excluded_count ?? 0,
+    totalMembers: p.total_members ?? 0,
+    winnersPerRound: p.winners_per_round ?? 0,
+    eligible: (p.eligible_members ?? []).map(eligibleToView),
+    excluded: (p.excluded_members ?? []).map(excludedToView),
+  };
+}
+
+const mapWinnerStatus = (s: string): Winner["status"] => {
+  const v = (s || "").toLowerCase();
+  if (v === "paid" || v === "released" || v === "completed") return "paid";
+  if (v === "approved" || v === "guaranteed" || v === "ready") return "approved";
+  return "pending";
+};
+
+function winnerToView(w: EqubWinnerResponse, roundNumber?: number): Winner {
+  return {
+    id: w.id,
+    roundId: w.equb_round_id,
+    roundNumber,
+    memberId: w.member_id,
+    name: w.member?.display_name || w.member?.full_name || w.member_id,
+    membershipNumber: w.member?.membership_number || "—",
+    phone: w.member?.phone_number || "",
+    position: w.winner_position,
+    payoutAmount: w.payout_amount,
+    status: mapWinnerStatus(w.status),
+    rawStatus: w.status,
+    guaranteeStatus: w.guarantee_status || "none",
+    paidAt: w.paid_at,
+    createdAt: w.created_at,
+  };
+}
+
+function guaranteeToView(g: EqubGuaranteeResponse): Guarantee {
+  return {
+    id: g.id,
+    winnerId: g.equb_winner_id,
+    guaranteeType: g.guarantee_type,
+    guarantorName: g.guarantor_name,
+    guarantorMemberId: g.guarantor_member_id,
+    collateralType: g.collateral_type,
+    collateralReference: g.collateral_reference,
+    collateralValue: g.collateral_value,
+    status: g.status,
+    approvedAt: g.approved_at,
+  };
+}
+
+function emergencyToView(e: EqubEmergencyDrawResponse): EmergencyDrawRequest {
+  return {
+    id: e.id,
+    equbId: e.equb_group_id,
+    memberId: e.member_id,
+    reason: e.reason,
+    status: e.status,
+    reviewNote: e.review_note ?? "",
+    reviewedBy: e.reviewed_by ?? "",
+    createdAt: e.created_at,
+  };
+}
+
+function takafulToView(x: EqubTakafulTransactionResponse): TakafulTxn {
+  return {
+    id: x.id,
+    equbId: x.equb_group_id,
+    roundId: x.equb_round_id,
+    memberId: x.member_id,
+    type: x.type,
+    amount: x.amount,
+    reference: x.reference,
+    createdAt: x.created_at,
+  };
+}
+
+function settlementToView(s: EqubTakafulSettlementResponse): TakafulSettlement {
+  return {
+    type: s.type,
+    totalAmount: s.total_amount,
+    remainingBalance: s.remaining_balance,
+    items: (s.items ?? []).map((i) => ({ memberId: i.member_id, type: i.type, amount: i.amount })),
+  };
 }
 
 const mapAppStatus = (s: string): ApplicationStatus =>
@@ -107,7 +343,7 @@ function regToApplication(r: MemberRegistrationRequestResponse): Application {
     phone: r.phone_number,
     occupation: str("occupation") || "—",
     estimatedMonthlyIncome: num("estimated_monthly_income"),
-    tierId: str("scheme_id") || str("tier_id") || "",
+    categoryId: str("scheme_id") || str("equb_scheme_id") || str("tier_id") || "",
     status: mapAppStatus(r.status),
     submittedAt: r.created_at,
     peerVotesFor: num("peer_votes_for"),
@@ -128,337 +364,232 @@ function regToApplication(r: MemberRegistrationRequestResponse): Application {
   };
 }
 
-function dashboardToOverview(d: EqubAdminDashboardResponse): OverviewStats {
-  const denom = d.paid_this_round + d.unpaid_this_round;
-  const rate = denom > 0 ? Math.round((d.paid_this_round / denom) * 1000) / 10 : 0;
-  return {
-    activeMembers: d.active_members,
-    collectionRate: rate,
-    upcomingDraws: d.draw_status === "scheduled" || d.draw_status === "ready" ? 1 : 0,
-    flaggedDisputes: 0,
-    guarantorExposure: d.total_payouts,
-    pendingApprovals: 0,
-    takafulBalance: d.takaful_balance,
-    collectionsTrend: [],
-    membersByTier: [],
-  };
-}
-
-const mapRoundStatus = (s: string): Draw["status"] =>
-  s === "completed" || s === "drawn" ? "completed" : s === "active" || s === "ongoing" || s === "live" ? "live" : s === "postponed" ? "postponed" : "scheduled";
-
-function roundToDraw(r: EqubRoundResponse): Draw {
-  return {
-    id: r.id,
-    tierId: r.equb_group_id,
-    round: r.round_number,
-    scheduledAt: r.scheduled_at,
-    status: mapRoundStatus(r.status),
-    locked: !(r.status === "pending" || r.status === "scheduled") || !r.can_execute_draw,
-    eligibleCount: r.eligible_count,
-    winnersPerDraw: r.winners?.length || 0,
-    winners: (r.winners || []).map((w) => ({ ekubNumber: `#${w.winner_position}`, displayHandle: w.member_name })),
-  };
-}
-
-const mapPayoutStatus = (s: string): Payout["status"] =>
-  s === "paid" || s === "released" ? "released" : s === "approved" ? "approved" : "pending";
-
-function winnerToPayout(w: EqubWinnerResponse): Payout {
-  return {
-    id: w.id,
-    winnerHandle: w.member?.display_name || w.member?.full_name || w.member_id,
-    ekubNumber: w.member?.membership_number || `#${w.winner_position}`,
-    tierId: activeGroup() || "",
-    amount: w.payout_amount,
-    status: mapPayoutStatus(w.status),
-    requiresProperty: false,
-    drawCompletedAt: w.created_at,
-  };
-}
-
-function emergencyToHardship(e: EqubEmergencyDrawResponse): HardshipRequest {
-  const reason: HardshipRequest["reason"] = /ill|health|sick/i.test(e.reason)
-    ? "illness"
-    : /death|family/i.test(e.reason)
-    ? "family_death"
-    : "business_need";
-  const status: HardshipRequest["status"] =
-    e.status === "approved" || e.status === "released" ? "released" : e.status === "rejected" || e.status === "declined" ? "declined" : e.status === "proposed" ? "proposed" : "requested";
-  return { id: e.id, memberHandle: e.member_id, ekubNumber: "—", tierId: e.equb_group_id, reason, evidenceUrl: undefined, consentReceived: 0, consentRequired: 0, status };
-}
-
-function memberToGroupMember(m: EqubMemberResponse): GroupMember {
-  return {
-    id: m.id,
-    memberId: m.member_id,
-    handle: m.member?.display_name || m.member?.full_name || m.member_id,
-    ekubNumber: m.member?.membership_number || "—",
-    position: m.position,
-    status: m.status,
-  };
-}
-
-function previewToEligibility(p: EqubDrawPreviewResponse): EligibilityPreview {
-  return {
-    canExecute: p.can_execute_draw,
-    reason: p.reason,
-    eligibleCount: p.eligible_count,
-    excludedCount: p.excluded_count,
-    totalMembers: p.total_members,
-    winnersPerRound: p.winners_per_round,
-    members: (p.eligible_members || []).map((m) => ({
-      memberId: m.member_id,
-      handle: m.member_name,
-      position: m.position,
-      contributionPaid: m.contribution_paid,
-      previouslyWon: m.previously_won,
-      eligible: m.eligible,
-    })),
-  };
-}
-
-function takafulToView(x: EqubTakafulTransactionResponse): TakafulTxn {
-  return { id: x.id, memberHandle: x.member_id, type: x.type, amount: x.amount, reference: x.reference, createdAt: x.created_at };
-}
-
 function userToStaff(u: UserResponse): StaffMember {
   const role = (u.roles?.[0]?.name || "").toLowerCase();
   const mapped: StaffMember["role"] = role.includes("admin") ? "admin" : role.includes("manager") ? "manager" : role.includes("board") ? "board_chair" : "agent";
   return { id: u.id, name: u.full_name, role: mapped, branch: u.branch_id || "—", email: u.email, phone: u.phone || "—" };
 }
 
-function memberToPenalty(m: EqubMemberResponse): Penalty {
-  return {
-    id: m.id,
-    memberHandle: m.member?.display_name || m.member?.full_name || m.member_id,
-    ekubNumber: m.member?.membership_number || "—",
-    tierId: m.equb_group_id,
-    trigger: "missed",
-    consecutiveMisses: 0,
-    drawsAffected: 0,
-    status: m.status === "suspended" ? "suspended" : "at_risk",
-    createdAt: m.joined_at,
-  };
-}
+const categoryBody = (c: EqubCategoryInput) => ({
+  name: c.name,
+  description: c.description ?? "",
+  frequency: c.frequency,
+  contribution_amount: c.contribution,
+  admin_fee: c.adminFee,
+  takaful_fee: c.takafulFee,
+  payout_amount: c.payout,
+  members_per_group: c.membersPerEqub,
+  winners_per_round: c.winnersPerRound,
+  total_rounds: c.totalRounds,
+});
 
 // ============================================================================
 export const ekubService = {
-  // ---- Groups / cycles ----
-  async listGroups(): Promise<Group[]> {
-    if (!USE_MOCK) return (await equbApi.listGroups()).map(groupToView);
-    await delay();
-    return db.groups.map(mockGroupToView);
+  // ---- Equb Categories (backend schemes) ----
+  async listCategories(params?: { status?: string; search?: string }): Promise<EqubCategory[]> {
+    return (await equbApi.listSchemes(params)).map(schemeToCategory);
+  },
+  async getCategory(id: string): Promise<EqubCategory> {
+    return schemeToCategory(await equbApi.getScheme(id));
+  },
+  async createCategory(input: EqubCategoryInput): Promise<EqubCategory> {
+    if (!input.code) throw new Error("Category code is required");
+    return schemeToCategory(await equbApi.createScheme({ code: input.code, ...categoryBody(input) }));
+  },
+  async updateCategory(id: string, input: EqubCategoryInput): Promise<EqubCategory> {
+    return schemeToCategory(await equbApi.updateScheme(id, { ...categoryBody(input), status: input.status }));
+  },
+  async deleteCategory(id: string): Promise<void> {
+    await equbApi.deleteScheme(id);
   },
 
-  // ---- Overview ----
-  async getOverview(): Promise<OverviewStats> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) return { activeMembers: 0, collectionRate: 0, upcomingDraws: 0, flaggedDisputes: 0, guarantorExposure: 0, pendingApprovals: 0, takafulBalance: 0, collectionsTrend: [], membersByTier: [] };
-      return dashboardToOverview(await equbApi.dashboard(gid));
-    }
-    await delay();
-    return clone(db.overview);
+  // ---- Equbs (backend groups) ----
+  async listEqubs(filters: EqubListFilters = {}): Promise<Equb[]> {
+    const rows = await equbApi.listGroups({
+      equb_scheme_id: filters.categoryId || undefined,
+      status: filters.status && filters.status !== "all" ? filters.status : undefined,
+      search: filters.search || undefined,
+      per_page: 100,
+    });
+    return rows.map(groupToEqub);
   },
-
-  // ---- Tiers (Schemes) ----
-  async listTiers(): Promise<Tier[]> {
-    if (!USE_MOCK) return (await equbApi.listSchemes()).map(schemeToTier);
-    await delay();
-    return clone(db.tiers);
+  async getEqub(id: string): Promise<Equb> {
+    return groupToEqub(await equbApi.getGroup(id));
   },
-  async saveTier(tier: Tier): Promise<Tier> {
-    if (!USE_MOCK) {
-      const body = {
-        name: tier.name,
-        description: "",
-        frequency: tier.contributionCadence,
-        contribution_amount: tier.contribution,
-        admin_fee: tier.serviceFee + tier.participationFee,
-        takaful_fee: tier.tabarruPercent,
-        payout_amount: tier.fixedPayout,
-        members_per_group: tier.groupSize,
-        winners_per_round: tier.winnersPerDraw,
-        total_rounds: Math.ceil(tier.groupSize / Math.max(1, tier.winnersPerDraw)),
-      };
-      return schemeToTier(await equbApi.updateScheme(tier.id, body));
-    }
-    await delay();
-    const idx = db.tiers.findIndex((t) => t.id === tier.id);
-    if (idx >= 0) db.tiers[idx] = tier;
-    else db.tiers.push({ ...tier, id: `t${db.tiers.length + 1}` });
-    return clone(tier);
+  async getEqubDashboard(id: string): Promise<EqubDashboard> {
+    return dashboardToView(await equbApi.dashboard(id));
   },
-  async createTier(tier: Tier): Promise<Tier> {
-    if (!USE_MOCK) {
-      const s = await equbApi.createScheme({
-        code: tier.name.replace(/\s+/g, "-").toUpperCase().slice(0, 12) + "-" + Math.floor(Math.random() * 900 + 100),
-        name: tier.name,
-        description: "",
-        frequency: tier.contributionCadence,
-        contribution_amount: tier.contribution,
-        admin_fee: tier.serviceFee + tier.participationFee,
-        takaful_fee: tier.tabarruPercent,
-        payout_amount: tier.fixedPayout,
-        members_per_group: tier.groupSize,
-        winners_per_round: tier.winnersPerDraw,
-        total_rounds: Math.ceil(tier.groupSize / Math.max(1, tier.winnersPerDraw)),
-      });
-      return schemeToTier(s);
-    }
-    await delay();
-    const created = { ...tier, id: `t${db.tiers.length + 1}` };
-    db.tiers.push(created);
-    return clone(created);
+  async createEqub(input: EqubInput): Promise<Equb> {
+    return groupToEqub(
+      await equbApi.createGroup({
+        name: input.name,
+        code: input.code,
+        equb_scheme_id: input.categoryId,
+        max_members: input.maxMembers,
+        start_date: input.startDate || undefined,
+        expected_end_date: input.expectedEndDate || undefined,
+      })
+    );
   },
-  async deleteTier(id: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.deleteScheme(id); return; }
-    await delay();
-    const idx = db.tiers.findIndex((t) => t.id === id);
-    if (idx >= 0) db.tiers.splice(idx, 1);
+  async updateEqub(id: string, input: EqubUpdateInput): Promise<Equb> {
+    return groupToEqub(
+      await equbApi.updateGroup(id, {
+        name: input.name,
+        code: input.code,
+        max_members: input.maxMembers,
+        start_date: input.startDate || undefined,
+        expected_end_date: input.expectedEndDate || undefined,
+      })
+    );
   },
-
-  // ---- Cycle (group) lifecycle ----
-  async createGroup(input: { name: string; code: string; schemeId: string; maxMembers: number; startDate?: string; expectedEndDate?: string }): Promise<Group> {
-    if (!USE_MOCK) {
-      const g = await equbApi.createGroup({ name: input.name, code: input.code, equb_scheme_id: input.schemeId, max_members: input.maxMembers, start_date: input.startDate, expected_end_date: input.expectedEndDate });
-      return groupToView(g);
-    }
-    await delay();
-    const g: db.MockGroup = { id: `g${db.groups.length + 1}`, code: input.code, name: input.name, status: "draft", schemeId: input.schemeId, currentMembers: 0, maxMembers: input.maxMembers, startDate: input.startDate || "", expectedEndDate: input.expectedEndDate || "" };
-    db.groups.push(g);
-    db.groupMembers[g.id] = [];
-    return mockGroupToView(g);
+  async activateEqub(id: string, startDate: string): Promise<void> {
+    await equbApi.activateGroup(id, startDate);
   },
-  async activateGroup(id: string, startDate: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.activateGroup(id, startDate); return; }
-    await delay();
-    const g = db.groups.find((x) => x.id === id);
-    if (g) { g.status = "active"; g.startDate = startDate; }
+  async cancelEqub(id: string, reason: string): Promise<void> {
+    await equbApi.cancelGroup(id, reason);
   },
-  async cancelGroup(id: string, reason: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.cancelGroup(id, reason); return; }
-    await delay();
-    const g = db.groups.find((x) => x.id === id);
-    if (g) g.status = "cancelled";
+  async extendEqub(id: string, additionalRounds: number, reason: string): Promise<void> {
+    await equbApi.extendGroup(id, additionalRounds, reason);
   },
-  async extendGroup(id: string, additionalRounds: number, reason: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.extendGroup(id, additionalRounds, reason); return; }
-    await delay();
-  },
-  async deleteGroup(id: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.deleteGroup(id); return; }
-    await delay();
-    const idx = db.groups.findIndex((x) => x.id === id);
-    if (idx >= 0) db.groups.splice(idx, 1);
+  async deleteEqub(id: string): Promise<void> {
+    await equbApi.deleteGroup(id);
   },
   async autoCancel(): Promise<void> {
-    if (!USE_MOCK) { await equbApi.autoCancel(); return; }
-    await delay();
+    await equbApi.autoCancel();
+  },
+  async assignManager(id: string, managerUserId: string): Promise<ManagerAssignment> {
+    const r = await equbApi.assignManager(id, managerUserId);
+    return { changed: r.changed, managerUserId: r.manager_user_id, previousManagerUserId: r.previous_manager_user_id || undefined };
+  },
+  /** Staff users for the manager picker (GET /users?search=). */
+  async searchStaffUsers(search: string): Promise<StaffUser[]> {
+    const users = await equbApi.listUsers({ search: search.trim() || undefined, status: true, per_page: 20 });
+    return users.map((u) => ({
+      id: u.id,
+      fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
+      email: u.email ?? "",
+      phone: u.phone ?? "",
+      role: u.roles?.map((r) => r.name).join(", ") ?? "",
+    }));
   },
 
-  // ---- Group members ----
-  async listMembers(): Promise<GroupMember[]> {
-    const gid = activeGroup();
-    if (!USE_MOCK) {
-      if (!gid) return [];
-      return (await equbApi.listGroupMembers(gid)).map(memberToGroupMember);
-    }
-    await delay();
-    return clone(db.groupMembers[gid || "g1"] || []);
+  // ---- Equb members ----
+  async listEqubMembers(equbId: string, status?: string): Promise<EqubMember[]> {
+    const rows = await equbApi.listGroupMembers(equbId, { status: status && status !== "all" ? status : undefined, per_page: 500 });
+    return rows.map(memberToView).sort((a, b) => a.position - b.position);
   },
-  async addMember(memberId: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.addMember(gid, memberId); return; }
-    await delay();
-    const list = db.groupMembers[gid || "g1"] || (db.groupMembers[gid || "g1"] = []);
-    list.push({ id: `gm${Date.now()}`, memberId, handle: memberId, ekubNumber: "—", position: list.length + 1, status: "active" });
+  async searchMembers(query: string): Promise<MemberSummary[]> {
+    if (!query.trim()) return [];
+    return (await equbApi.searchMembers(query.trim())).map(saccoMemberToSummary);
   },
-  async removeMember(equbMemberId: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.removeMember(gid, equbMemberId); return; }
-    await delay();
-    const list = db.groupMembers[gid || "g1"] || [];
-    const idx = list.findIndex((m) => m.id === equbMemberId);
-    if (idx >= 0) list.splice(idx, 1);
+  async addMember(equbId: string, memberId: string): Promise<void> {
+    await equbApi.addMember(equbId, memberId);
   },
-  async setMemberSuspended(memberId: string, suspend: boolean, reason?: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) {
-      if (!gid) return;
-      if (suspend) await equbApi.suspendMember(gid, memberId, reason ?? "");
-      else await equbApi.unsuspendMember(gid, memberId);
-      return;
-    }
-    await delay();
-    const list = db.groupMembers[gid || "g1"] || [];
-    const m = list.find((x) => x.memberId === memberId || x.id === memberId);
-    if (m) m.status = suspend ? "suspended" : "active";
+  async removeMember(equbId: string, memberId: string): Promise<void> {
+    await equbApi.removeMember(equbId, memberId);
   },
-  async swapPositions(memberId1: string, memberId2: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.swapPositions(gid, memberId1, memberId2); return; }
-    await delay();
-    const list = db.groupMembers[gid || "g1"] || [];
-    const a = list.find((m) => m.memberId === memberId1), b = list.find((m) => m.memberId === memberId2);
-    if (a && b) { const p = a.position; a.position = b.position; b.position = p; }
+  async setMemberSuspended(equbId: string, memberId: string, suspend: boolean, reason?: string): Promise<void> {
+    if (suspend) await equbApi.suspendMember(equbId, memberId, reason ?? "");
+    else await equbApi.unsuspendMember(equbId, memberId);
+  },
+  async swapPositions(equbId: string, memberId1: string, memberId2: string): Promise<void> {
+    await equbApi.swapPositions(equbId, memberId1, memberId2);
   },
 
-  // ---- Draw eligibility preview ----
-  async getDrawPreview(roundId: string): Promise<EligibilityPreview | null> {
-    if (!USE_MOCK) return previewToEligibility(await equbApi.drawPreview(roundId));
-    await delay();
-    const d = db.draws.find((x) => x.id === roundId);
-    if (!d) return null;
-    return {
-      canExecute: d.status === "scheduled" && d.eligibleCount > 0,
-      reason: d.eligibleCount > 0 ? "" : "No eligible members",
-      eligibleCount: d.eligibleCount,
-      excludedCount: 0,
-      totalMembers: d.eligibleCount,
-      winnersPerRound: d.winnersPerDraw || 7,
-      members: [],
-    };
+  // ---- Rounds ----
+  async listRounds(equbId: string, status?: string): Promise<Round[]> {
+    const rows = await equbApi.listRounds(equbId, { status: status && status !== "all" ? status : undefined, per_page: 200 });
+    return rows.map(roundToView).sort((a, b) => a.roundNumber - b.roundNumber);
+  },
+  async getRound(roundId: string): Promise<Round> {
+    return roundToView(await equbApi.getRound(roundId));
+  },
+  async getDrawPreview(roundId: string): Promise<DrawPreview> {
+    return previewToView(await equbApi.drawPreview(roundId));
+  },
+  async executeDraw(roundId: string): Promise<Round> {
+    await equbApi.executeDraw(roundId);
+    return roundToView(await equbApi.getRound(roundId));
   },
 
-  // ---- Guarantee lifecycle ----
-  async createGuarantee(winnerId: string, body: { guaranteeType: string; guarantorName: string; guarantorMemberId?: string; collateralType?: string; collateralReference?: string; collateralValue?: number }): Promise<string> {
-    if (!USE_MOCK) {
-      const g = await equbApi.createGuarantee(winnerId, {
-        guarantee_type: body.guaranteeType, guarantor_name: body.guarantorName, guarantor_member_id: body.guarantorMemberId,
-        collateral_type: body.collateralType, collateral_reference: body.collateralReference, collateral_value: body.collateralValue,
-      });
-      return g.id;
-    }
-    await delay();
-    const p = db.payouts.find((x) => x.id === winnerId);
-    if (p) p.primaryGuarantor = { fullName: body.guarantorName, faydaId: "—", phone: "—", relationship: "—", collateralType: (body.collateralType as never) || "check", consentSigned: true };
-    return "mock-guarantee";
+  // ---- Winners / guarantees / payouts ----
+  async listRoundWinners(roundId: string, roundNumber?: number): Promise<Winner[]> {
+    return (await equbApi.listWinners(roundId)).map((w) => winnerToView(w, roundNumber));
+  },
+  /** Winners across every drawn round of an Equb (payouts & guarantees view). */
+  async listEqubWinners(equbId: string): Promise<Winner[]> {
+    const rounds = await equbApi.listRounds(equbId, { per_page: 200 });
+    const drawn = rounds.filter((r) => {
+      const s = mapRoundStatus(r.status);
+      return s === "drawn" || s === "completed" || (r.winners?.length ?? 0) > 0;
+    });
+    const lists = await Promise.all(
+      drawn.map((r) => equbApi.listWinners(r.id).then((ws) => ws.map((w) => winnerToView(w, r.round_number))).catch(() => []))
+    );
+    return lists.flat().sort((a, b) => (b.roundNumber ?? 0) - (a.roundNumber ?? 0) || a.position - b.position);
+  },
+  async createGuarantee(winnerId: string, body: GuaranteeInput): Promise<Guarantee> {
+    return guaranteeToView(
+      await equbApi.createGuarantee(winnerId, {
+        guarantee_type: body.guaranteeType,
+        guarantor_name: body.guarantorName,
+        guarantor_member_id: body.guarantorMemberId || undefined,
+        collateral_type: body.collateralType || undefined,
+        collateral_reference: body.collateralReference || undefined,
+        collateral_value: body.collateralValue || undefined,
+      })
+    );
   },
   async approveGuarantee(guaranteeId: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.approveGuarantee(guaranteeId); return; }
-    await delay();
+    await equbApi.approveGuarantee(guaranteeId);
   },
   async rejectGuarantee(guaranteeId: string, reviewNote: string): Promise<void> {
-    if (!USE_MOCK) { await equbApi.rejectGuarantee(guaranteeId, reviewNote); return; }
-    await delay();
+    await equbApi.rejectGuarantee(guaranteeId, reviewNote);
+  },
+  async processPayout(winnerId: string): Promise<void> {
+    await equbApi.processPayout(winnerId);
+  },
+
+  // ---- Hardship early-turn (emergency draws) ----
+  async listEmergencyDraws(equbId: string): Promise<EmergencyDrawRequest[]> {
+    return (await equbApi.listEmergencyDraws(equbId)).map(emergencyToView);
+  },
+  async decideEmergencyDraw(id: string, decision: "approve" | "reject", note?: string): Promise<void> {
+    if (decision === "approve") await equbApi.approveEmergencyDraw(id, note);
+    else await equbApi.rejectEmergencyDraw(id, note ?? "");
+  },
+  async submitEmergencyDraw(equbId: string, memberId: string, reason: string, evidence?: string): Promise<void> {
+    await equbApi.submitEmergencyDraw(equbId, memberId, reason, evidence);
+  },
+
+  // ---- Takaful ----
+  async listTakaful(equbId: string): Promise<TakafulTxn[]> {
+    return (await equbApi.listTakaful(equbId)).map(takafulToView);
+  },
+  async getTakafulBalance(equbId: string): Promise<number> {
+    const r = await equbApi.takafulBalance(equbId);
+    return typeof r === "number" ? r : r?.balance ?? 0;
+  },
+  async distributeSurplus(equbId: string): Promise<TakafulSettlement> {
+    return settlementToView(await equbApi.distributeSurplus(equbId));
+  },
+  async submitTakafulClaim(equbId: string, memberId: string, amount: number, reason: string): Promise<void> {
+    await equbApi.submitTakafulClaim(equbId, memberId, amount, reason);
+  },
+  async refundTakaful(equbId: string, reason: string): Promise<TakafulSettlement> {
+    return settlementToView(await equbApi.refundTakaful(equbId, reason));
+  },
+
+  // ---- Contributions (global admin op) ----
+  async markOverdue(): Promise<void> {
+    await equbApi.markOverdue();
   },
 
   // ---- Applications (registration requests) ----
   async listApplications(params: { status?: ApplicationStatus | "all"; search?: string } = {}): Promise<Application[]> {
-    if (!USE_MOCK) {
-      const rows = (await equbApi.listRegistrationRequests()).map(regToApplication);
-      let out = rows;
-      if (params.status && params.status !== "all") out = out.filter((a) => a.status === params.status);
-      if (params.search) {
-        const q = params.search.toLowerCase();
-        out = out.filter((a) => a.fullName.toLowerCase().includes(q) || a.faydaId.includes(q) || a.displayHandle.includes(q));
-      }
-      return out;
-    }
-    await delay();
-    let rows = clone(db.applications);
+    let rows: Application[];
+    if (!USE_MOCK) rows = (await equbApi.listRegistrationRequests()).map(regToApplication);
+    else { await delay(); rows = clone(db.applications); }
     if (params.status && params.status !== "all") rows = rows.filter((a) => a.status === params.status);
     if (params.search) {
       const q = params.search.toLowerCase();
@@ -466,18 +597,17 @@ export const ekubService = {
     }
     return rows;
   },
-  async decideApplication(id: string, decision: "accept" | "reject", reason?: string): Promise<Application> {
+  async decideApplication(id: string, decision: "accept" | "reject", reason?: string): Promise<void> {
     if (!USE_MOCK) {
       if (decision === "accept") await equbApi.approveRegistration(id);
       else await equbApi.rejectRegistration(id, reason ?? "");
-      return {} as Application; // hooks refetch the list on success
+      return;
     }
     await delay();
     const app = db.applications.find((a) => a.id === id);
     if (!app) throw new Error("Application not found");
     app.status = decision === "accept" ? "accepted" : "rejected";
     if (decision === "reject") app.rejectionReason = reason;
-    return clone(app);
   },
 
   // ---- Payments (no dedicated global admin endpoint yet → mock) ----
@@ -508,204 +638,6 @@ export const ekubService = {
     if (!r) throw new Error("Row not found");
     r.reconciled = true;
     return clone(r);
-  },
-
-  // ---- Draws (group rounds) ----
-  async listDraws(): Promise<Draw[]> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) return [];
-      return (await equbApi.listRounds(gid)).map(roundToDraw);
-    }
-    await delay();
-    return clone(db.draws);
-  },
-  async getDraw(id: string): Promise<Draw> {
-    if (!USE_MOCK) return roundToDraw(await equbApi.getRound(id));
-    await delay();
-    const d = db.draws.find((x) => x.id === id);
-    if (!d) throw new Error("Draw not found");
-    return clone(d);
-  },
-  async publishDraw(id: string): Promise<Draw> {
-    if (!USE_MOCK) throw new Error("Publishing/locking a round is not exposed by the backend yet.");
-    await delay();
-    const d = db.draws.find((x) => x.id === id);
-    if (!d) throw new Error("Draw not found");
-    d.locked = true;
-    return clone(d);
-  },
-  async rescheduleDraw(id: string, scheduledAt: string, reason: string): Promise<Draw> {
-    if (!USE_MOCK) throw new Error("Rescheduling a round is not exposed by the backend yet.");
-    await delay();
-    const d = db.draws.find((x) => x.id === id);
-    if (!d) throw new Error("Draw not found");
-    if (d.status === "completed") throw new Error("Completed draws are immutable");
-    d.scheduledAt = scheduledAt;
-    d.rescheduleReason = reason;
-    d.status = "scheduled";
-    return clone(d);
-  },
-  async runDraw(id: string): Promise<Draw> {
-    if (!USE_MOCK) return roundToDraw(await equbApi.executeDraw(id));
-    await delay(900);
-    const d = db.draws.find((x) => x.id === id);
-    if (!d) throw new Error("Draw not found");
-    if (d.status === "completed") throw new Error("Draw already completed — result is immutable (FR-4.17)");
-    if (d.eligibleCount === 0) {
-      d.status = "postponed";
-      d.postponeReason = "No eligible members at draw time (FR-4.13).";
-      return clone(d);
-    }
-    const winners = Array.from({ length: d.winnersPerDraw }, () => {
-      const n = Math.floor(Math.random() * 900) + 1;
-      const num = `EK-${String(n).padStart(6, "0")}`;
-      return { ekubNumber: num, displayHandle: `member_${num.slice(-3)}` };
-    });
-    d.winners = winners;
-    d.rngSeed = makeSeed();
-    d.rngAlgorithm = "HMAC-SHA256 / commit-reveal v1";
-    d.status = "completed";
-    d.locked = true;
-    return clone(d);
-  },
-
-  // ---- Payouts (winners across the group's rounds) ----
-  async listPayouts(): Promise<Payout[]> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) return [];
-      const rounds = await equbApi.listRounds(gid);
-      const done = rounds.filter((r) => mapRoundStatus(r.status) === "completed");
-      const winnerLists = await Promise.all(done.map((r) => equbApi.listWinners(r.id)));
-      return winnerLists.flat().map(winnerToPayout);
-    }
-    await delay();
-    return clone(db.payouts);
-  },
-  async approvePackage(id: string): Promise<Payout> {
-    if (!USE_MOCK) throw new Error("Guarantee approval requires the guarantee id (create the guarantee first).");
-    await delay();
-    const p = db.payouts.find((x) => x.id === id);
-    if (!p) throw new Error("Payout not found");
-    if (p.requiresProperty && !p.propertyTitleUrl) throw new Error("Immovable-property collateral required for Tier 2/3 (FR-5.5)");
-    p.status = "approved";
-    p.approvedAt = new Date().toISOString();
-    return clone(p);
-  },
-  async releasePayout(id: string): Promise<Payout> {
-    if (!USE_MOCK) {
-      await equbApi.processPayout(id); // id = winner id
-      return {} as Payout;
-    }
-    await delay();
-    const p = db.payouts.find((x) => x.id === id);
-    if (!p) throw new Error("Payout not found");
-    if (p.status !== "approved") throw new Error("Package must be approved before release (FR-5.6)");
-    p.status = "released";
-    return clone(p);
-  },
-  async attachPropertyTitle(id: string): Promise<Payout> {
-    if (!USE_MOCK) throw new Error("Collateral upload is not exposed by the backend yet.");
-    await delay();
-    const p = db.payouts.find((x) => x.id === id);
-    if (!p) throw new Error("Payout not found");
-    p.propertyTitleUrl = "https://picsum.photos/seed/title/600/380";
-    return clone(p);
-  },
-  async listHardship(): Promise<HardshipRequest[]> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) return [];
-      return (await equbApi.listEmergencyDraws(gid)).map(emergencyToHardship);
-    }
-    await delay();
-    return clone(db.hardshipRequests);
-  },
-  async decideHardship(id: string, decision: "approve" | "reject", note?: string): Promise<void> {
-    if (!USE_MOCK) {
-      if (decision === "approve") await equbApi.approveEmergencyDraw(id);
-      else await equbApi.rejectEmergencyDraw(id, note ?? "");
-      return;
-    }
-    await delay();
-    const h = db.hardshipRequests.find((x) => x.id === id);
-    if (h) h.status = decision === "approve" ? "released" : "declined";
-  },
-  async submitHardship(memberId: string, reason: string, evidence?: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.submitEmergencyDraw(gid, memberId, reason, evidence); return; }
-    await delay();
-    db.hardshipRequests.push({ id: `hs${Date.now()}`, memberHandle: memberId, ekubNumber: "—", tierId: gid || "g1", reason: "business_need", evidenceUrl: evidence, consentReceived: 0, consentRequired: 0, status: "requested" });
-  },
-
-  // ---- Takaful ----
-  async listTakaful(): Promise<TakafulTxn[]> {
-    const gid = activeGroup();
-    if (!USE_MOCK) {
-      if (!gid) return [];
-      return (await equbApi.listTakaful(gid)).map(takafulToView);
-    }
-    await delay();
-    return (db.takafulTxns.filter((x) => x.groupId === (gid || "g1"))).map((x) => ({ id: x.id, memberHandle: x.memberHandle, type: x.type, amount: x.amount, reference: x.reference, createdAt: x.createdAt }));
-  },
-  async getTakafulBalance(): Promise<number> {
-    const gid = activeGroup();
-    if (!USE_MOCK) {
-      if (!gid) return 0;
-      return (await equbApi.takafulBalance(gid)).balance;
-    }
-    await delay();
-    return db.takafulBalances[gid || "g1"] ?? 0;
-  },
-  async distributeSurplus(): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.distributeSurplus(gid); return; }
-    await delay();
-  },
-  async submitTakafulClaim(memberId: string, amount: number, reason: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.submitTakafulClaim(gid, memberId, amount, reason); return; }
-    await delay();
-    db.takafulTxns.push({ id: `tk${Date.now()}`, groupId: gid || "g1", memberHandle: memberId, type: "claim", amount, reference: "CLAIM", createdAt: new Date().toISOString() });
-  },
-  async refundTakaful(reason: string): Promise<void> {
-    const gid = activeGroup();
-    if (!USE_MOCK) { if (gid) await equbApi.refundTakaful(gid, reason); return; }
-    await delay();
-  },
-
-  // ---- Contributions (admin op) ----
-  async markOverdue(): Promise<void> {
-    if (!USE_MOCK) { await equbApi.markOverdue(); return; }
-    await delay();
-  },
-
-  // ---- Penalties (suspended group members) ----
-  async listPenalties(): Promise<Penalty[]> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) return [];
-      const members = await equbApi.listGroupMembers(gid);
-      return members.filter((m) => m.status === "suspended" || m.status === "at_risk").map(memberToPenalty);
-    }
-    await delay();
-    return clone(db.penalties);
-  },
-  async liftSuspension(id: string): Promise<Penalty> {
-    if (!USE_MOCK) {
-      const gid = activeGroup();
-      if (!gid) throw new Error("Select a cycle first.");
-      await equbApi.unsuspendMember(gid, id);
-      return {} as Penalty;
-    }
-    await delay();
-    const p = db.penalties.find((x) => x.id === id);
-    if (!p) throw new Error("Penalty not found");
-    if (p.trigger === "turn_sale") throw new Error("Turn-selling removal is permanent (Article 11.2)");
-    p.status = "at_risk";
-    p.drawsAffected = 0;
-    return clone(p);
   },
 
   // ---- Disputes (no equb endpoint yet → mock) ----

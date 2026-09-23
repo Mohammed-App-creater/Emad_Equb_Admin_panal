@@ -1,7 +1,14 @@
 // ============================================================================
-// Core Equb domain types (SRS §4). Field names are camelCase on the client;
-// the service layer maps to/from the backend's shape once the real API lands.
+// Core Equb domain types (SRS §4) as the admin pages render them. Field names
+// are camelCase on the client; services/ekub.ts maps the backend DTOs
+// (types/equb-api.ts, snake_case) into these.
+//
+// Vocabulary:  Equb Category = backend "scheme" (reusable template)
+//              Equb          = backend "group"  (a running instance)
+//              Round         = one draw period inside an Equb
 // ============================================================================
+
+import type { EqubFrequency, EqubSchemeStatus } from "./equb-api";
 
 export interface ApiResponse<T> {
   data: T;
@@ -15,7 +22,8 @@ export interface PaginatedMetaResponse<T> {
   data: T[];
 }
 
-export type Cadence = "daily" | "weekly" | "monthly";
+export type Frequency = EqubFrequency;
+export type LifecycleStatus = EqubSchemeStatus; // draft | active | completed | cancelled
 
 // ---- Application / Member --------------------------------------------------
 export type ApplicationStatus =
@@ -24,13 +32,6 @@ export type ApplicationStatus =
   | "under_review"
   | "accepted"
   | "rejected";
-
-export type MemberStatus =
-  | "active"
-  | "at_risk"
-  | "suspended"
-  | "terminated"
-  | "completed";
 
 export interface EligibilityDeclarations {
   shariaAccept: boolean;
@@ -57,7 +58,7 @@ export interface Application {
   phone: string;
   occupation: string;
   estimatedMonthlyIncome: number;
-  tierId: string;
+  categoryId: string;
   status: ApplicationStatus;
   submittedAt: string;
   // FR-1.6 peer vote (read-only here; voting happens in the customer app)
@@ -74,88 +75,299 @@ export interface Application {
   rejectionReason?: string;
 }
 
-export interface Member {
+/** A Sacco member as shown in the "add to Equb" picker. */
+export interface MemberSummary {
   id: string;
-  memberId: string; // FR-1.7
-  ekubNumber: string; // FR-4.8 (distinct from memberId)
-  displayHandle: string; // FR-1.5b (real name never shown publicly)
   fullName: string;
-  tierId: string;
-  status: MemberStatus;
-  consecutiveMisses: number;
-  hasWonThisCycle: boolean;
+  membershipNumber: string;
+  phone: string;
+  photo?: string;
+  status: string;
 }
 
-// ---- Group / Cycle (a running instance of a Scheme/Tier) -------------------
-export interface Group {
+// ---- Equb Category (backend scheme) ----------------------------------------
+export interface EqubCategory {
   id: string;
   code: string;
   name: string;
-  status: string; // draft | active | completed | cancelled
-  schemeId: string;
+  description: string;
+  status: string; // LifecycleStatus
+  frequency: Frequency;
+  contribution: number; // per round
+  adminFee: number; // Ujrah service fee, per round
+  takafulFee: number; // tabarru' donation, per round
+  payout: number; // fixed payout per winner
+  membersPerEqub: number;
+  winnersPerRound: number;
+  totalRounds: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EqubCategoryInput {
+  code?: string; // required on create, immutable afterwards
+  name: string;
+  description: string;
+  frequency: Frequency;
+  contribution: number;
+  adminFee: number;
+  takafulFee: number;
+  payout: number;
+  membersPerEqub: number;
+  winnersPerRound: number;
+  totalRounds: number;
+  status?: LifecycleStatus; // update only
+}
+
+// ---- Equb (backend group: a running instance of a category) ----------------
+export interface EqubManager {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+}
+export interface ManagerAssignment {
+  changed: boolean;
+  managerUserId: string;
+  previousManagerUserId?: string;
+}
+/** A staff user as shown in the "assign manager" picker. */
+export interface StaffUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: string;
+}
+
+export interface Equb {
+  id: string;
+  code: string;
+  name: string;
+  status: string; // LifecycleStatus
+  categoryId: string;
+  category?: EqubCategory;
+  manager?: EqubManager;
   currentMembers: number;
   maxMembers: number;
   startDate: string;
   expectedEndDate: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// ---- Tier / Cycle ----------------------------------------------------------
-export interface Tier {
-  id: string;
+export interface EqubInput {
+  code: string;
   name: string;
-  contribution: number;
-  serviceFee: number; // Ujrah
-  participationFee: number;
-  groupSize: number; // FR-2.1a (200)
-  winnersPerDraw: number; // FR-2.1a (7)
-  fixedPayout: number; // FR-2.1a
-  contributionCadence: Cadence; // FR-4.1a
-  drawCadence: Cadence; // FR-4.1a (independent)
-  tabarruPercent: number; // FR-T1
-  requiresProperty: boolean; // FR-5.5 (tiers 2/3)
+  categoryId: string;
+  maxMembers: number;
+  startDate?: string;
+  expectedEndDate?: string;
+}
+export type EqubUpdateInput = Partial<Omit<EqubInput, "categoryId">>;
+
+export interface EqubListFilters {
+  categoryId?: string;
+  status?: string;
+  search?: string;
 }
 
-// ---- Group members (per-cycle roster) --------------------------------------
-export interface GroupMember {
+/** Per-Equb admin dashboard (GET /equb/admin/groups/{id}/admin-dashboard). */
+export interface EqubDashboard {
+  equbId: string;
+  equbCode: string;
+  equbName: string;
+  status: string;
+  currentRound: number;
+  totalRounds: number;
+  progressPercent: number;
+  drawStatus: string;
+  totalMembers: number;
+  activeMembers: number;
+  suspendedMembers: number;
+  eligibleForDraw: number;
+  paidThisRound: number;
+  unpaidThisRound: number;
+  nextDueDate: string;
+  totalCollected: number;
+  totalPayouts: number;
+  totalAdminFees: number;
+  totalTakafulFees: number;
+  takafulBalance: number;
+  winsDistributed: number;
+}
+
+// ---- Equb members (per-Equb roster) ----------------------------------------
+export interface EqubMember {
   id: string; // equb member record id
-  memberId: string; // underlying member id
-  handle: string;
-  ekubNumber: string;
+  memberId: string; // underlying Sacco member id
+  name: string;
+  membershipNumber: string;
+  phone: string;
+  photo?: string;
   position: number;
   status: string; // active | suspended | at_risk | ...
+  joinedAt: string;
 }
 
-// ---- Draw eligibility preview ----------------------------------------------
-export interface EligibilityMember {
+// ---- Rounds ----------------------------------------------------------------
+export type RoundStatus = "scheduled" | "open" | "drawn" | "completed" | "cancelled" | "postponed";
+
+export interface RoundWinner {
   memberId: string;
-  handle: string;
+  name: string;
+  phone: string;
+  payoutAmount: number;
+  status: string;
+  position: number;
+  paidAt: string;
+}
+export interface RoundMemberPayment {
+  memberId: string;
+  name: string;
+  phone: string;
+  amount: number;
+  status: string; // paid | pending | overdue
+  paidAt: string;
+  isCatchUp: boolean;
+}
+export interface EligibleMember {
+  memberId: string;
+  name: string;
+  phone: string;
   position: number;
   contributionPaid: boolean;
   previouslyWon: boolean;
   eligible: boolean;
-  reason?: string;
 }
-export interface EligibilityPreview {
+export interface ExcludedMember {
+  memberId: string;
+  name: string;
+  phone: string;
+  contributionPaid: boolean;
+  previouslyWon: boolean;
+  hasUnpaidCatchUp: boolean;
+  isBanned: boolean;
+  reason: string;
+}
+
+export interface Round {
+  id: string;
+  equbId: string;
+  roundNumber: number;
+  status: RoundStatus;
+  rawStatus: string;
+  scheduledAt: string;
+  drawnAt: string;
+  contributionDueDate: string;
+  createdAt: string;
+  // payment summary
+  totalMembers: number;
+  paidCount: number;
+  unpaidCount: number;
+  paymentPercentage: number;
+  totalContribution: number;
+  totalAdminFee: number;
+  totalTakafulFee: number;
+  payoutAmount: number;
+  memberPayments: RoundMemberPayment[];
+  // draw
+  canExecuteDraw: boolean;
+  eligibleCount: number;
+  excludedCount: number;
+  eligibleMembers: EligibleMember[];
+  excludedMembers: ExcludedMember[];
+  winners: RoundWinner[];
+}
+
+export interface DrawPreview {
+  roundId: string;
+  roundNumber: number;
   canExecute: boolean;
   reason: string;
   eligibleCount: number;
   excludedCount: number;
   totalMembers: number;
   winnersPerRound: number;
-  members: EligibilityMember[];
+  eligible: EligibleMember[];
+  excluded: ExcludedMember[];
+}
+
+// ---- Winners / payouts / guarantees ----------------------------------------
+export type WinnerStatus = "pending" | "approved" | "paid";
+
+export interface Winner {
+  id: string;
+  roundId: string;
+  roundNumber?: number;
+  memberId: string;
+  name: string;
+  membershipNumber: string;
+  phone: string;
+  position: number;
+  payoutAmount: number;
+  status: WinnerStatus;
+  rawStatus: string;
+  guaranteeStatus: string;
+  paidAt: string;
+  createdAt: string;
+}
+
+export interface GuaranteeInput {
+  guaranteeType: "member" | "cheque" | "collateral";
+  guarantorName: string;
+  guarantorMemberId?: string;
+  collateralType?: string;
+  collateralReference?: string;
+  collateralValue?: number;
+}
+
+export interface Guarantee {
+  id: string;
+  winnerId: string;
+  guaranteeType: string;
+  guarantorName: string;
+  guarantorMemberId: string;
+  collateralType: string;
+  collateralReference: string;
+  collateralValue: number;
+  status: string;
+  approvedAt: string;
+}
+
+// ---- Hardship early-turn (emergency draws) ---------------------------------
+export interface EmergencyDrawRequest {
+  id: string;
+  equbId: string;
+  memberId: string;
+  reason: string;
+  status: string; // pending | approved | rejected
+  reviewNote: string;
+  reviewedBy: string;
+  createdAt: string;
 }
 
 // ---- Takaful ---------------------------------------------------------------
 export interface TakafulTxn {
   id: string;
-  memberHandle: string;
+  equbId: string;
+  roundId: string;
+  memberId: string;
   type: string; // contribution | claim | surplus | refund
   amount: number;
   reference: string;
   createdAt: string;
 }
+export interface TakafulSettlement {
+  type: string;
+  totalAmount: number;
+  remainingBalance: number;
+  items: { memberId: string; type: string; amount: number }[];
+}
 
-// ---- Payments --------------------------------------------------------------
+// ---- Payments (still mock-backed: no global admin ledger endpoint yet) -----
 export type PaymentMethod = "mobile_money" | "bank_transfer" | "gateway" | "cash";
 export type PaymentTiming = "on_time" | "late" | "outage_grace";
 
@@ -163,7 +375,7 @@ export interface Payment {
   id: string;
   memberHandle: string;
   ekubNumber: string;
-  tierId: string;
+  categoryId: string;
   round: number;
   amount: number;
   method: PaymentMethod;
@@ -180,86 +392,6 @@ export interface ReconciliationRow {
   bankDeposit: number;
   reconciled: boolean;
   date: string;
-}
-
-// ---- Draws -----------------------------------------------------------------
-export type DrawStatus = "scheduled" | "live" | "completed" | "postponed";
-
-export interface DrawWinner {
-  ekubNumber: string;
-  displayHandle: string;
-}
-
-export interface Draw {
-  id: string;
-  tierId: string;
-  round: number;
-  scheduledAt: string; // ISO, canonical Africa/Addis_Ababa (FR-4.18)
-  status: DrawStatus;
-  locked: boolean; // FR-4.9
-  eligibleCount: number;
-  winnersPerDraw: number;
-  winners: DrawWinner[];
-  rngSeed?: string; // FR-4.3 / 4.16
-  rngAlgorithm?: string;
-  postponeReason?: string;
-  rescheduleReason?: string;
-}
-
-// ---- Payout / Guarantor / Collateral ---------------------------------------
-export type PayoutStatus = "pending" | "approved" | "released";
-export type CollateralType = "check" | "vehicle" | "house_title";
-
-export interface Guarantor {
-  fullName: string;
-  faydaId: string;
-  phone: string;
-  relationship: string;
-  collateralType: CollateralType;
-  consentSigned: boolean;
-}
-
-export interface Payout {
-  id: string;
-  winnerHandle: string;
-  ekubNumber: string;
-  tierId: string;
-  amount: number;
-  status: PayoutStatus;
-  primaryGuarantor?: Guarantor;
-  backupGuarantor?: Guarantor;
-  propertyTitleUrl?: string; // FR-5.5
-  requiresProperty: boolean;
-  approvedAt?: string;
-  drawCompletedAt: string;
-}
-
-export interface HardshipRequest {
-  id: string;
-  memberHandle: string;
-  ekubNumber: string;
-  tierId: string;
-  reason: "illness" | "family_death" | "business_need";
-  evidenceUrl?: string;
-  consentReceived: number;
-  consentRequired: number; // unanimous of eligible members (FR-4.6a)
-  status: "requested" | "proposed" | "released" | "declined";
-}
-
-// ---- Penalties -------------------------------------------------------------
-export type PenaltyTrigger = "missed" | "turn_sale";
-export type PenaltyStatus = "at_risk" | "suspended" | "terminated";
-
-export interface Penalty {
-  id: string;
-  memberHandle: string;
-  ekubNumber: string;
-  tierId: string;
-  trigger: PenaltyTrigger;
-  consecutiveMisses: number;
-  drawsAffected: number;
-  status: PenaltyStatus;
-  createdAt: string;
 }
 
 // ---- Disputes --------------------------------------------------------------
@@ -289,17 +421,4 @@ export interface RoleDef {
   id: string;
   name: string;
   permissions: string[];
-}
-
-// ---- Overview --------------------------------------------------------------
-export interface OverviewStats {
-  activeMembers: number;
-  collectionRate: number;
-  upcomingDraws: number;
-  flaggedDisputes: number;
-  guarantorExposure: number;
-  pendingApprovals: number;
-  takafulBalance: number;
-  collectionsTrend: { label: string; value: number }[];
-  membersByTier: { tier: string; count: number }[];
 }
