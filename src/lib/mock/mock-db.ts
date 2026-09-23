@@ -1,83 +1,17 @@
 import type {
   Application,
-  Draw,
   Dispute,
   Payment,
-  Payout,
-  Penalty,
   ReconciliationRow,
   RoleDef,
   StaffMember,
-  Tier,
-  HardshipRequest,
-  OverviewStats,
 } from "@/types/ekub";
 
-// In-memory mock store. Mutations persist for the lifetime of the browser tab
-// so approve/reject/run-draw flows behave like a real backend during demos.
-
-export const tiers: Tier[] = [
-  {
-    id: "t1",
-    name: "Medium (መካከለኛ)",
-    contribution: 1000,
-    serviceFee: 50,
-    participationFee: 40,
-    groupSize: 200,
-    winnersPerDraw: 7,
-    fixedPayout: 200000,
-    contributionCadence: "daily",
-    drawCadence: "weekly",
-    tabarruPercent: 1,
-    requiresProperty: false,
-  },
-  {
-    id: "t2",
-    name: "High Merchant (ከፍተኛ ነጋዴ)",
-    contribution: 10000,
-    serviceFee: 500,
-    participationFee: 400,
-    groupSize: 200,
-    winnersPerDraw: 7,
-    fixedPayout: 2000000,
-    contributionCadence: "daily",
-    drawCadence: "weekly",
-    tabarruPercent: 1.5,
-    requiresProperty: true,
-  },
-  {
-    id: "t3",
-    name: "VIP",
-    contribution: 50000,
-    serviceFee: 2500,
-    participationFee: 1500,
-    groupSize: 200,
-    winnersPerDraw: 7,
-    fixedPayout: 10000000,
-    contributionCadence: "daily",
-    drawCadence: "weekly",
-    tabarruPercent: 2,
-    requiresProperty: true,
-  },
-];
-
-export interface MockGroup {
-  id: string;
-  code: string;
-  name: string;
-  status: string;
-  schemeId: string;
-  currentMembers: number;
-  maxMembers: number;
-  startDate: string;
-  expectedEndDate: string;
-}
-
-export const groups: MockGroup[] = [
-  { id: "g1", code: "MED-2026-01", name: "Medium · Cycle 01", status: "active", schemeId: "t1", currentMembers: 200, maxMembers: 200, startDate: "2026-01-05", expectedEndDate: "2026-07-20" },
-  { id: "g2", code: "HM-2026-01", name: "High Merchant · Cycle 01", status: "active", schemeId: "t2", currentMembers: 179, maxMembers: 200, startDate: "2026-02-01", expectedEndDate: "2026-08-15" },
-  { id: "g3", code: "VIP-2026-01", name: "VIP · Cycle 01", status: "draft", schemeId: "t3", currentMembers: 42, maxMembers: 200, startDate: "", expectedEndDate: "" },
-];
+// In-memory mock store, used only when NEXT_PUBLIC_USE_MOCK=true and only for
+// the modules that have no backend endpoint yet (payments ledger,
+// reconciliation, disputes) plus demo fallbacks for applications and staff.
+// Equb entities (categories, equbs, members, rounds, winners, takaful) are
+// seeded separately in lib/mock/mock-equb-api.ts.
 
 export const applications: Application[] = [
   {
@@ -90,7 +24,7 @@ export const applications: Application[] = [
     phone: "+251911223344",
     occupation: "Merchant",
     estimatedMonthlyIncome: 45000,
-    tierId: "t1",
+    categoryId: "t1",
     status: "submitted",
     submittedAt: "2026-09-01T08:30:00+03:00",
     peerVotesFor: 118,
@@ -115,7 +49,7 @@ export const applications: Application[] = [
     phone: "+251922334455",
     occupation: "Private-org employee",
     estimatedMonthlyIncome: 30000,
-    tierId: "t2",
+    categoryId: "t2",
     status: "under_review",
     submittedAt: "2026-09-02T10:15:00+03:00",
     peerVotesFor: 64,
@@ -140,7 +74,7 @@ export const applications: Application[] = [
     phone: "+251933445566",
     occupation: "Self-employed",
     estimatedMonthlyIncome: 120000,
-    tierId: "t3",
+    categoryId: "t3",
     status: "submitted",
     submittedAt: "2026-09-03T09:00:00+03:00",
     peerVotesFor: 90,
@@ -164,7 +98,7 @@ export const applications: Application[] = [
     phone: "+251944556677",
     occupation: "Government employee",
     estimatedMonthlyIncome: 22000,
-    tierId: "t1",
+    categoryId: "t1",
     status: "accepted",
     submittedAt: "2026-08-20T11:00:00+03:00",
     peerVotesFor: 140,
@@ -179,120 +113,15 @@ export const applications: Application[] = [
 ];
 
 export const payments: Payment[] = [
-  { id: "p1", memberHandle: "nuru_a", ekubNumber: "EK-000123", tierId: "t1", round: 42, amount: 1090, method: "mobile_money", timing: "on_time", receiptNo: "RC-88213", timestamp: "2026-09-06T07:12:00+03:00" },
-  { id: "p2", memberHandle: "hanan_a", ekubNumber: "EK-000201", tierId: "t1", round: 42, amount: 1090, method: "cash", timing: "on_time", receiptNo: "RC-88214", collectedBy: "Yusuf Kedir", timestamp: "2026-09-06T08:40:00+03:00" },
-  { id: "p3", memberHandle: "bilal_y", ekubNumber: "EK-000342", tierId: "t2", round: 42, amount: 10900, method: "bank_transfer", timing: "late", receiptNo: "RC-88215", timestamp: "2026-09-06T20:05:00+03:00" },
-  { id: "p4", memberHandle: "sara_k", ekubNumber: "EK-000501", tierId: "t3", round: 41, amount: 54000, method: "gateway", timing: "outage_grace", receiptNo: "RC-88190", timestamp: "2026-09-05T23:50:00+03:00" },
+  { id: "p1", memberHandle: "nuru_a", ekubNumber: "EK-000123", categoryId: "t1", round: 42, amount: 1090, method: "mobile_money", timing: "on_time", receiptNo: "RC-88213", timestamp: "2026-09-06T07:12:00+03:00" },
+  { id: "p2", memberHandle: "hanan_a", ekubNumber: "EK-000201", categoryId: "t1", round: 42, amount: 1090, method: "cash", timing: "on_time", receiptNo: "RC-88214", collectedBy: "Yusuf Kedir", timestamp: "2026-09-06T08:40:00+03:00" },
+  { id: "p3", memberHandle: "bilal_y", ekubNumber: "EK-000342", categoryId: "t2", round: 42, amount: 10900, method: "bank_transfer", timing: "late", receiptNo: "RC-88215", timestamp: "2026-09-06T20:05:00+03:00" },
+  { id: "p4", memberHandle: "sara_k", ekubNumber: "EK-000501", categoryId: "t3", round: 41, amount: 54000, method: "gateway", timing: "outage_grace", receiptNo: "RC-88190", timestamp: "2026-09-05T23:50:00+03:00" },
 ];
 
 export const reconciliation: ReconciliationRow[] = [
   { id: "rc1", agentName: "Yusuf Kedir", cashCollected: 54500, bankDeposit: 54500, reconciled: true, date: "2026-09-05" },
   { id: "rc2", agentName: "Mimi Tesfaye", cashCollected: 98100, bankDeposit: 87200, reconciled: false, date: "2026-09-06" },
-];
-
-export const draws: Draw[] = [
-  {
-    id: "dr-t1-43",
-    tierId: "t1",
-    round: 43,
-    scheduledAt: "2026-09-12T15:00:00+03:00",
-    status: "scheduled",
-    locked: true,
-    eligibleCount: 186,
-    winnersPerDraw: 7,
-    winners: [],
-  },
-  {
-    id: "dr-t2-43",
-    tierId: "t2",
-    round: 43,
-    scheduledAt: "2026-09-13T15:00:00+03:00",
-    status: "scheduled",
-    locked: false,
-    eligibleCount: 179,
-    winnersPerDraw: 7,
-    winners: [],
-  },
-  {
-    id: "dr-t1-42",
-    tierId: "t1",
-    round: 42,
-    scheduledAt: "2026-09-05T15:00:00+03:00",
-    status: "completed",
-    locked: true,
-    eligibleCount: 190,
-    winnersPerDraw: 7,
-    winners: [
-      { ekubNumber: "EK-000123", displayHandle: "nuru_a" },
-      { ekubNumber: "EK-000087", displayHandle: "mus_k" },
-      { ekubNumber: "EK-000144", displayHandle: "fatima_z" },
-      { ekubNumber: "EK-000210", displayHandle: "abdi_r" },
-      { ekubNumber: "EK-000255", displayHandle: "leyla_h" },
-      { ekubNumber: "EK-000301", displayHandle: "kedir_m" },
-      { ekubNumber: "EK-000333", displayHandle: "sami_a" },
-    ],
-    rngSeed: "7f3a9c2e18b64d05",
-    rngAlgorithm: "HMAC-SHA256 / commit-reveal v1",
-  },
-];
-
-export const payouts: Payout[] = [
-  {
-    id: "po-1",
-    winnerHandle: "nuru_a",
-    ekubNumber: "EK-000123",
-    tierId: "t1",
-    amount: 200000,
-    status: "pending",
-    requiresProperty: false,
-    primaryGuarantor: { fullName: "Kedir Nuru", faydaId: "7001-1", phone: "+251955667788", relationship: "Brother", collateralType: "check", consentSigned: true },
-    drawCompletedAt: "2026-09-05T15:05:00+03:00",
-  },
-  {
-    id: "po-2",
-    winnerHandle: "fatima_z",
-    ekubNumber: "EK-000144",
-    tierId: "t2",
-    amount: 2000000,
-    status: "pending",
-    requiresProperty: true,
-    primaryGuarantor: { fullName: "Zahra Ali", faydaId: "7002-2", phone: "+251966778899", relationship: "Sister", collateralType: "house_title", consentSigned: true },
-    backupGuarantor: { fullName: "Ali Hassan", faydaId: "7003-3", phone: "+251977889900", relationship: "Uncle", collateralType: "check", consentSigned: false },
-    propertyTitleUrl: undefined,
-    drawCompletedAt: "2026-09-05T15:06:00+03:00",
-  },
-  {
-    id: "po-3",
-    winnerHandle: "abdi_r",
-    ekubNumber: "EK-000210",
-    tierId: "t1",
-    amount: 200000,
-    status: "released",
-    requiresProperty: false,
-    primaryGuarantor: { fullName: "Roba Abdi", faydaId: "7004-4", phone: "+251988990011", relationship: "Father", collateralType: "vehicle", consentSigned: true },
-    approvedAt: "2026-09-05T18:00:00+03:00",
-    drawCompletedAt: "2026-09-05T15:07:00+03:00",
-  },
-];
-
-export const hardshipRequests: HardshipRequest[] = [
-  {
-    id: "hs-1",
-    memberHandle: "leyla_h",
-    ekubNumber: "EK-000255",
-    tierId: "t1",
-    reason: "illness",
-    evidenceUrl: "https://picsum.photos/seed/med1/600/380",
-    consentReceived: 172,
-    consentRequired: 186,
-    status: "proposed",
-  },
-];
-
-export const penalties: Penalty[] = [
-  { id: "pen-1", memberHandle: "bilal_y", ekubNumber: "EK-000342", tierId: "t2", trigger: "missed", consecutiveMisses: 1, drawsAffected: 0, status: "at_risk", createdAt: "2026-09-04T10:00:00+03:00" },
-  { id: "pen-2", memberHandle: "mus_k", ekubNumber: "EK-000087", tierId: "t1", trigger: "missed", consecutiveMisses: 2, drawsAffected: 3, status: "suspended", createdAt: "2026-09-02T10:00:00+03:00" },
-  { id: "pen-3", memberHandle: "worku_b", ekubNumber: "EK-000412", tierId: "t2", trigger: "turn_sale", consecutiveMisses: 0, drawsAffected: 0, status: "terminated", createdAt: "2026-08-29T10:00:00+03:00" },
 ];
 
 export const disputes: Dispute[] = [
@@ -314,72 +143,3 @@ export const roles: RoleDef[] = [
   { id: "r3", name: "Manager", permissions: ["application:read", "payment:read", "draw:read", "payout:read", "penalty:read", "dispute:read"] },
   { id: "r4", name: "Board Chair", permissions: ["dispute:resolve", "payout:read", "draw:read"] },
 ];
-
-export interface MockMember {
-  id: string;
-  memberId: string;
-  handle: string;
-  ekubNumber: string;
-  position: number;
-  status: string;
-}
-
-// Roster is keyed by group id so the Members page reflects the active cycle.
-export const groupMembers: Record<string, MockMember[]> = {
-  g1: [
-    { id: "gm1", memberId: "m-201", handle: "hanan_a", ekubNumber: "EK-000201", position: 1, status: "active" },
-    { id: "gm2", memberId: "m-123", handle: "nuru_a", ekubNumber: "EK-000123", position: 2, status: "active" },
-    { id: "gm3", memberId: "m-087", handle: "mus_k", ekubNumber: "EK-000087", position: 3, status: "suspended" },
-    { id: "gm4", memberId: "m-255", handle: "leyla_h", ekubNumber: "EK-000255", position: 4, status: "active" },
-    { id: "gm5", memberId: "m-412", handle: "worku_b", ekubNumber: "EK-000412", position: 5, status: "at_risk" },
-  ],
-  g2: [
-    { id: "gm6", memberId: "m-342", handle: "bilal_y", ekubNumber: "EK-000342", position: 1, status: "at_risk" },
-    { id: "gm7", memberId: "m-144", handle: "fatima_z", ekubNumber: "EK-000144", position: 2, status: "active" },
-  ],
-  g3: [],
-};
-
-export interface MockTakafulTxn {
-  id: string;
-  groupId: string;
-  memberHandle: string;
-  type: string;
-  amount: number;
-  reference: string;
-  createdAt: string;
-}
-
-export const takafulTxns: MockTakafulTxn[] = [
-  { id: "tk1", groupId: "g1", memberHandle: "hanan_a", type: "contribution", amount: 40, reference: "R-42", createdAt: "2026-09-06T08:40:00+03:00" },
-  { id: "tk2", groupId: "g1", memberHandle: "nuru_a", type: "contribution", amount: 40, reference: "R-42", createdAt: "2026-09-06T07:12:00+03:00" },
-  { id: "tk3", groupId: "g1", memberHandle: "leyla_h", type: "claim", amount: 15000, reference: "CLAIM-7", createdAt: "2026-09-05T10:00:00+03:00" },
-  { id: "tk4", groupId: "g2", memberHandle: "fatima_z", type: "contribution", amount: 400, reference: "R-42", createdAt: "2026-09-06T09:00:00+03:00" },
-];
-
-export const takafulBalances: Record<string, number> = { g1: 3820000, g2: 1240000, g3: 0 };
-
-export const overview: OverviewStats = {
-  activeMembers: 1184,
-  collectionRate: 96.4,
-  upcomingDraws: 2,
-  flaggedDisputes: 1,
-  guarantorExposure: 12400000,
-  pendingApprovals: 2,
-  takafulBalance: 3820000,
-  collectionsTrend: [
-    { label: "W1", value: 88 },
-    { label: "W2", value: 91 },
-    { label: "W3", value: 90 },
-    { label: "W4", value: 94 },
-    { label: "W5", value: 95 },
-    { label: "W6", value: 93 },
-    { label: "W7", value: 97 },
-    { label: "W8", value: 96 },
-  ],
-  membersByTier: [
-    { tier: "Medium", count: 720 },
-    { tier: "High Merchant", count: 340 },
-    { tier: "VIP", count: 124 },
-  ],
-};

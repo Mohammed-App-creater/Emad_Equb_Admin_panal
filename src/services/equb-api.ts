@@ -1,24 +1,33 @@
 import { api } from "@/lib/api/client";
 import { EQUB_ENDPOINTS } from "@/lib/api/equb-endpoints";
+import { mockEqubApi } from "@/lib/mock/mock-equb-api";
 import type {
   ApiEnvelope,
   CreateEqubGroupRequest,
   CreateEqubGuaranteeRequest,
   CreateEqubSchemeRequest,
   EqubAdminDashboardResponse,
+  EqubDrawCandidateResponse,
+  EqubDrawPreviewResponse,
   EqubEmergencyDrawResponse,
   EqubGroupResponse,
   EqubGuaranteeResponse,
   EqubMemberResponse,
+  EqubPayoutResponse,
   EqubRoundResponse,
-  EqubDrawPreviewResponse,
   EqubSchemeResponse,
-  EqubTakafulTransactionResponse,
   EqubTakafulClaimResponse,
+  EqubTakafulSettlementResponse,
+  EqubTakafulTransactionResponse,
   EqubWinnerResponse,
+  ListEqubGroupsParams,
+  ListEqubMembersParams,
+  ListEqubRoundsParams,
   LoginRequest,
   LoginResponse,
   MemberRegistrationRequestResponse,
+  MemberSummaryResponse,
+  UpdateEqubGroupRequest,
   UpdateEqubSchemeRequest,
   UserResponse,
 } from "@/types/equb-api";
@@ -29,15 +38,19 @@ import type {
 const unwrap = async <T>(p: Promise<{ data: ApiEnvelope<T> }>): Promise<T> =>
   (await p).data.data;
 
-export const equbApi = {
+// Some list endpoints return `null` instead of `[]` when empty.
+const list = async <T>(p: Promise<{ data: ApiEnvelope<T[] | null> }>): Promise<T[]> =>
+  (await unwrap(p)) ?? [];
+
+const realEqubApi = {
   // ---- Auth ----
   async login(payload: LoginRequest): Promise<LoginResponse> {
     return unwrap<LoginResponse>(api.post(EQUB_ENDPOINTS.AUTH.LOGIN, payload));
   },
 
-  // ---- Schemes (Tiers) ----
-  async listSchemes(params?: Record<string, unknown>): Promise<EqubSchemeResponse[]> {
-    return unwrap<EqubSchemeResponse[]>(api.get(EQUB_ENDPOINTS.SCHEMES.LIST, { params }));
+  // ---- Schemes (Equb Categories) ----
+  async listSchemes(params?: { status?: string; search?: string; page?: number; per_page?: number }): Promise<EqubSchemeResponse[]> {
+    return list<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.SCHEMES.LIST, { params }));
   },
   async createScheme(body: CreateEqubSchemeRequest): Promise<EqubSchemeResponse> {
     return unwrap<EqubSchemeResponse>(api.post(EQUB_ENDPOINTS.SCHEMES.CREATE, body));
@@ -52,9 +65,9 @@ export const equbApi = {
     return unwrap(api.delete(EQUB_ENDPOINTS.SCHEMES.DELETE(id)));
   },
 
-  // ---- Groups (cycles) ----
-  async listGroups(params?: Record<string, unknown>): Promise<EqubGroupResponse[]> {
-    return unwrap<EqubGroupResponse[]>(api.get(EQUB_ENDPOINTS.GROUPS.LIST, { params }));
+  // ---- Groups (Equbs) ----
+  async listGroups(params?: ListEqubGroupsParams): Promise<EqubGroupResponse[]> {
+    return list<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.LIST, { params }));
   },
   async getGroup(id: string): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.DETAIL(id)));
@@ -62,7 +75,7 @@ export const equbApi = {
   async createGroup(body: CreateEqubGroupRequest): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.CREATE, body));
   },
-  async updateGroup(id: string, body: Partial<CreateEqubGroupRequest>): Promise<EqubGroupResponse> {
+  async updateGroup(id: string, body: UpdateEqubGroupRequest): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.put(EQUB_ENDPOINTS.GROUPS.UPDATE(id), body));
   },
   async deleteGroup(id: string): Promise<unknown> {
@@ -80,6 +93,14 @@ export const equbApi = {
   async autoCancel(): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.AUTO_CANCEL, {}));
   },
+  async dashboard(groupId: string): Promise<EqubAdminDashboardResponse> {
+    return unwrap<EqubAdminDashboardResponse>(api.get(EQUB_ENDPOINTS.DASHBOARD(groupId)));
+  },
+
+  // ---- Group members ----
+  async listGroupMembers(groupId: string, params?: ListEqubMembersParams): Promise<EqubMemberResponse[]> {
+    return list<EqubMemberResponse>(api.get(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { params }));
+  },
   async addMember(groupId: string, memberId: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { member_id: memberId }));
   },
@@ -89,12 +110,6 @@ export const equbApi = {
   async swapPositions(groupId: string, memberId1: string, memberId2: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.SWAP_POSITIONS(groupId), { member_id_1: memberId1, member_id_2: memberId2 }));
   },
-  async dashboard(groupId: string): Promise<EqubAdminDashboardResponse> {
-    return unwrap<EqubAdminDashboardResponse>(api.get(EQUB_ENDPOINTS.DASHBOARD(groupId)));
-  },
-  async listGroupMembers(groupId: string): Promise<EqubMemberResponse[]> {
-    return unwrap<EqubMemberResponse[]>(api.get(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId)));
-  },
   async suspendMember(groupId: string, memberId: string, reason: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.SUSPEND_MEMBER(groupId, memberId), { reason }));
   },
@@ -102,9 +117,14 @@ export const equbApi = {
     return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.UNSUSPEND_MEMBER(groupId, memberId), {}));
   },
 
+  // ---- Sacco member directory (picker for "add member") ----
+  async searchMembers(search: string, limit = 10): Promise<MemberSummaryResponse[]> {
+    return list<MemberSummaryResponse>(api.get(EQUB_ENDPOINTS.MEMBERS.LIST, { params: { search, limit, page: 1 } }));
+  },
+
   // ---- Rounds / draws ----
-  async listRounds(groupId: string): Promise<EqubRoundResponse[]> {
-    return unwrap<EqubRoundResponse[]>(api.get(EQUB_ENDPOINTS.GROUPS.ROUNDS(groupId)));
+  async listRounds(groupId: string, params?: ListEqubRoundsParams): Promise<EqubRoundResponse[]> {
+    return list<EqubRoundResponse>(api.get(EQUB_ENDPOINTS.GROUPS.ROUNDS(groupId), { params }));
   },
   async getRound(roundId: string): Promise<EqubRoundResponse> {
     return unwrap<EqubRoundResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DETAIL(roundId)));
@@ -112,14 +132,14 @@ export const equbApi = {
   async drawPreview(roundId: string): Promise<EqubDrawPreviewResponse> {
     return unwrap<EqubDrawPreviewResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DRAW_PREVIEW(roundId)));
   },
-  async executeDraw(roundId: string): Promise<EqubRoundResponse> {
-    return unwrap<EqubRoundResponse>(api.post(EQUB_ENDPOINTS.ROUNDS.EXECUTE_DRAW(roundId), {}));
+  async executeDraw(roundId: string): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.ROUNDS.EXECUTE_DRAW(roundId), {}));
   },
   async listWinners(roundId: string): Promise<EqubWinnerResponse[]> {
-    return unwrap<EqubWinnerResponse[]>(api.get(EQUB_ENDPOINTS.ROUNDS.WINNERS(roundId)));
+    return list<EqubWinnerResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.WINNERS(roundId)));
   },
-  async drawCandidates(drawId: string): Promise<EqubDrawPreviewResponse> {
-    return unwrap<EqubDrawPreviewResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DRAW_CANDIDATES(drawId)));
+  async drawCandidates(drawId: string): Promise<EqubDrawCandidateResponse[]> {
+    return list<EqubDrawCandidateResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DRAW_CANDIDATES(drawId)));
   },
 
   // ---- Payout / guarantor ----
@@ -132,21 +152,21 @@ export const equbApi = {
   async rejectGuarantee(guaranteeId: string, reviewNote: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GUARANTEES.REJECT(guaranteeId), { review_note: reviewNote }));
   },
-  async processPayout(winnerId: string): Promise<unknown> {
-    return unwrap(api.post(EQUB_ENDPOINTS.PAYOUT(winnerId), {}));
+  async processPayout(winnerId: string): Promise<EqubPayoutResponse> {
+    return unwrap<EqubPayoutResponse>(api.post(EQUB_ENDPOINTS.PAYOUT(winnerId), {}));
   },
 
   // ---- Hardship / emergency draws ----
-  async listEmergencyDraws(groupId: string): Promise<EqubEmergencyDrawResponse[]> {
-    return unwrap<EqubEmergencyDrawResponse[]>(api.get(EQUB_ENDPOINTS.EMERGENCY_DRAWS.LIST(groupId)));
+  async listEmergencyDraws(groupId: string, params?: { status?: string }): Promise<EqubEmergencyDrawResponse[]> {
+    return list<EqubEmergencyDrawResponse>(api.get(EQUB_ENDPOINTS.EMERGENCY_DRAWS.LIST(groupId), { params }));
   },
   async submitEmergencyDraw(groupId: string, memberId: string, reason: string, evidence?: string): Promise<EqubEmergencyDrawResponse> {
     return unwrap<EqubEmergencyDrawResponse>(
       api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.SUBMIT(groupId), { equb_group_id: groupId, member_id: memberId, reason, evidence })
     );
   },
-  async approveEmergencyDraw(requestId: string): Promise<unknown> {
-    return unwrap(api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.APPROVE(requestId), {}));
+  async approveEmergencyDraw(requestId: string, reviewNote?: string): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.APPROVE(requestId), { review_note: reviewNote ?? "" }));
   },
   async rejectEmergencyDraw(requestId: string, reviewNote: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.EMERGENCY_DRAWS.REJECT(requestId), { review_note: reviewNote }));
@@ -154,21 +174,21 @@ export const equbApi = {
 
   // ---- Takaful ----
   async listTakaful(groupId: string): Promise<EqubTakafulTransactionResponse[]> {
-    return unwrap<EqubTakafulTransactionResponse[]>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId)));
+    return list<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId)));
   },
   async takafulBalance(groupId: string): Promise<{ balance: number }> {
     return unwrap<{ balance: number }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
   },
-  async distributeSurplus(groupId: string): Promise<unknown> {
-    return unwrap(api.post(EQUB_ENDPOINTS.TAKAFUL.DISTRIBUTE_SURPLUS(groupId), {}));
+  async distributeSurplus(groupId: string): Promise<EqubTakafulSettlementResponse> {
+    return unwrap<EqubTakafulSettlementResponse>(api.post(EQUB_ENDPOINTS.TAKAFUL.DISTRIBUTE_SURPLUS(groupId), {}));
   },
   async submitTakafulClaim(groupId: string, memberId: string, amount: number, reason: string): Promise<EqubTakafulClaimResponse> {
     return unwrap<EqubTakafulClaimResponse>(
       api.post(EQUB_ENDPOINTS.TAKAFUL.CLAIMS(groupId), { equb_group_id: groupId, member_id: memberId, amount, reason })
     );
   },
-  async refundTakaful(groupId: string, reason: string): Promise<unknown> {
-    return unwrap(api.post(EQUB_ENDPOINTS.TAKAFUL.REFUND(groupId), { reason }));
+  async refundTakaful(groupId: string, reason: string): Promise<EqubTakafulSettlementResponse> {
+    return unwrap<EqubTakafulSettlementResponse>(api.post(EQUB_ENDPOINTS.TAKAFUL.REFUND(groupId), { reason }));
   },
 
   // ---- Contributions / penalties ----
@@ -178,7 +198,7 @@ export const equbApi = {
 
   // ---- Membership approvals ----
   async listRegistrationRequests(params?: Record<string, unknown>): Promise<MemberRegistrationRequestResponse[]> {
-    return unwrap<MemberRegistrationRequestResponse[]>(api.get(EQUB_ENDPOINTS.REGISTRATION_REQUESTS.LIST, { params }));
+    return list<MemberRegistrationRequestResponse>(api.get(EQUB_ENDPOINTS.REGISTRATION_REQUESTS.LIST, { params }));
   },
   async approveRegistration(id: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.REGISTRATION_REQUESTS.APPROVE(id), {}));
@@ -189,20 +209,26 @@ export const equbApi = {
 
   // ---- Staff & roles ----
   async listUsers(params?: Record<string, unknown>): Promise<UserResponse[]> {
-    return unwrap<UserResponse[]>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }));
+    return list<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }));
   },
   async listRoles(): Promise<Array<{ id: string; name: string; permissions?: Array<{ name?: string; slug?: string }> }>> {
-    return unwrap(api.get(EQUB_ENDPOINTS.USERS.ROLES));
+    return list(api.get(EQUB_ENDPOINTS.USERS.ROLES));
   },
 
   // ---- Manager (portfolio role) ----
   async managerGroups(): Promise<EqubGroupResponse[]> {
-    return unwrap<EqubGroupResponse[]>(api.get(EQUB_ENDPOINTS.MANAGER.MY_GROUPS));
+    return list<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.MANAGER.MY_GROUPS));
   },
   async managerSchemes(): Promise<EqubSchemeResponse[]> {
-    return unwrap<EqubSchemeResponse[]>(api.get(EQUB_ENDPOINTS.MANAGER.MY_SCHEMES));
+    return list<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.MANAGER.MY_SCHEMES));
   },
   async catchUpAmount(groupId: string, memberId: string): Promise<unknown> {
     return unwrap(api.get(EQUB_ENDPOINTS.MANAGER.CATCH_UP(groupId, memberId)));
   },
 };
+
+export type EqubApi = typeof realEqubApi;
+
+// NEXT_PUBLIC_USE_MOCK=true swaps in a seeded in-memory backend with the same
+// surface and DTOs, so every page runs the identical code path offline.
+export const equbApi: EqubApi = process.env.NEXT_PUBLIC_USE_MOCK === "true" ? mockEqubApi : realEqubApi;

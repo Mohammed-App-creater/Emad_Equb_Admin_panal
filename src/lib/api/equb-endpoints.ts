@@ -3,15 +3,13 @@
  * (swagger.json). All paths are relative to NEXT_PUBLIC_API_BASE_URL, which
  * already includes the `/api/v1` basePath (host: api.emadssl.com).
  *
- * Domain model (important — differs from the mock's flat "Tier + Draw"):
- *   Scheme  = reusable template/catalogue entry (our "Tier"), lifecycle
- *             draft → active → completed → cancelled.
- *   Group   = a running instance created from a Scheme (our "cycle", ~200
- *             members). Owns members, rounds, takaful, dashboard.
- *   Round   = one draw period within a Group; has winners.
+ * Domain model and the names the admin UI uses for it:
+ *   Scheme  = reusable template/catalogue entry → UI "Equb Category",
+ *             lifecycle draft → active → completed → cancelled.
+ *   Group   = a running instance created from a Scheme → UI "Equb"
+ *             (~200 members). Owns members, rounds, takaful, dashboard.
+ *   Round   = one draw period within a Group → UI "Round"; has winners.
  *   Winner  = a member drawn in a round; carries guarantee + payout.
- *
- * These replace the mock branches in services/ekub.ts once we wire real data.
  */
 export const EQUB_ENDPOINTS = {
   AUTH: {
@@ -26,7 +24,7 @@ export const EQUB_ENDPOINTS = {
   // Per-group admin dashboard powers our Overview tiles/charts.
   DASHBOARD: (groupId: string) => `/equb/admin/groups/${groupId}/admin-dashboard`,
 
-  // ---- Tiers (= Schemes: the configurable catalogue, FR-2.1/2.1a) ----
+  // ---- Equb Categories (= Schemes: the configurable catalogue, FR-2.1/2.1a) ----
   SCHEMES: {
     LIST: "/equb/admin/schemes",
     CREATE: "/equb/admin/schemes",
@@ -35,7 +33,7 @@ export const EQUB_ENDPOINTS = {
     DELETE: (id: string) => `/equb/admin/schemes/${id}`,
   },
 
-  // ---- Groups / cycles (create, lifecycle, members) ----
+  // ---- Equbs (= Groups: create, lifecycle, members, rounds) ----
   GROUPS: {
     LIST: "/equb/admin/groups",
     CREATE: "/equb/admin/groups",
@@ -103,6 +101,8 @@ export const EQUB_ENDPOINTS = {
   },
 
   // ---- Member directory / KYC (FR-1.x) ----
+  // LIST accepts ?search=&phone_number=&name=&status=&page=&limit= and is
+  // what the "add member to Equb" picker queries.
   MEMBERS: {
     LIST: "/members",
     DETAIL: (id: string) => `/members/${id}`,

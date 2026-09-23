@@ -1,36 +1,29 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  Users,
-  TrendingUp,
-  Ticket,
-  Scale,
-  ShieldCheck,
-  ClipboardCheck,
-  PiggyBank,
-} from "lucide-react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip as RTooltip,
-  BarChart,
-  Bar,
-  CartesianGrid,
-} from "recharts";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { PageHeader, StatCard, TrustBadge } from "@/components/dashboard/shared";
+import { ArrowRight, CircleDot, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useOverview } from "@/hooks/ekub";
-import { formatCurrency } from "@/lib/utils";
+import { PageHeader, TrustBadge } from "@/components/dashboard/shared";
+import { EqubOverview } from "@/components/equb/overview-tab";
+import { StatusBadge } from "@/components/equb/status-badge";
+import { useEqubs, useEqubDashboard } from "@/hooks/ekub";
+import { useEqubStore } from "@/store/equb.store";
 
+/**
+ * Dashboard: the live admin-dashboard of the Equb picked in the top bar. The
+ * backend only exposes per-Equb figures, so there is no cross-Equb roll-up.
+ */
 export default function DashboardPage() {
   const t = useTranslations("overview");
+  const te = useTranslations("equbs");
   const tb = useTranslations("brand");
-  const { data, isLoading } = useOverview();
+  const router = useRouter();
+  const activeId = useEqubStore((s) => s.activeGroupId);
+  const { data: equbs, isLoading } = useEqubs();
+  const equb = equbs?.find((e) => e.id === activeId) ?? equbs?.[0];
+  const dashboard = useEqubDashboard(equb && equb.status !== "draft" ? equb.id : null);
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -40,84 +33,52 @@ export default function DashboardPage() {
         actions={<TrustBadge label={tb("tagline")} />}
       />
 
-      {/* Stat tiles */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {isLoading || !data ? (
-          Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
-        ) : (
-          <>
-            <StatCard label={t("activeMembers")} value={data.activeMembers.toLocaleString()} icon={Users} tone="primary" />
-            <StatCard label={t("collectionRate")} value={`${data.collectionRate}%`} icon={TrendingUp} tone="success" />
-            <StatCard label={t("upcomingDraws")} value={data.upcomingDraws} icon={Ticket} tone="secondary" />
-            <StatCard label={t("pendingApprovals")} value={data.pendingApprovals} icon={ClipboardCheck} tone="info" />
-            <StatCard label={t("flaggedDisputes")} value={data.flaggedDisputes} icon={Scale} tone="warning" />
-            <StatCard label={t("guarantorExposure")} value={formatCurrency(data.guarantorExposure)} icon={ShieldCheck} tone="destructive" />
-            <StatCard label={t("takafulBalance")} value={formatCurrency(data.takafulBalance)} icon={PiggyBank} tone="primary" />
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-16 rounded-xl" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Skeleton className="h-56 rounded-xl" />
+            <Skeleton className="h-56 rounded-xl" />
+          </div>
+        </div>
+      ) : !equb ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center">
+          <CircleDot size={28} className="text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">{t("noEqubs")}</p>
+          <Button variant="outline" onClick={() => router.push("/dashboard/equbs")}>{te("title")}</Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <CircleDot size={22} />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-lg font-bold text-foreground">{equb.name}</p>
+                  <StatusBadge status={equb.status} kind="lifecycle" />
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  <span className="font-mono">{equb.code}</span>{equb.category ? ` · ${equb.category.name}` : ""}
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => router.push(`/dashboard/equbs/${equb.id}`)}>
+              {t("openEqub")} <ArrowRight size={15} className="ml-1" />
+            </Button>
+          </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>{t("collectionsTrend")}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
-            {data && (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.collectionsTrend} margin={{ left: -20, right: 8, top: 8 }}>
-                  <defs>
-                    <linearGradient id="collGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(149 74% 25%)" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="hsl(149 74% 25%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis domain={[80, 100]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <RTooltip
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
-                      color: "hsl(var(--popover-foreground))",
-                    }}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="hsl(149 74% 25%)" strokeWidth={2.5} fill="url(#collGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+          {dashboard.isError && (
+            <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <Info size={16} className="mt-0.5 shrink-0 text-primary" />
+              <span>{te("noDashboard")}</span>
+            </div>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("membersByTier")}</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
-            {data && (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.membersByTier} margin={{ left: -20, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="tier" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <RTooltip
-                    cursor={{ fill: "hsl(var(--muted))" }}
-                    contentStyle={{
-                      background: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
-                      color: "hsl(var(--popover-foreground))",
-                    }}
-                  />
-                  <Bar dataKey="count" fill="hsl(38 94% 56%)" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          <EqubOverview equb={equb} dashboard={dashboard.data} dashboardLoading={dashboard.isLoading} />
+        </>
+      )}
     </div>
   );
 }

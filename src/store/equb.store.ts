@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// The group-scoped admin surfaces (Overview, Draws, Payouts, Penalties,
-// Takaful) operate on one active cycle at a time. The Cycles page and the
-// topbar selector write here; scoped services read `getState().activeGroupId`.
+// The Dashboard (overview) page shows one Equb at a time; the topbar selector
+// writes the choice here. Every other Equb-scoped surface lives under
+// /dashboard/equbs/[id] and takes its id from the route instead.
 interface EqubState {
   activeGroupId: string | null;
   activeGroupName: string | null;

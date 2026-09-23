@@ -2,6 +2,9 @@
 // Real Equb backend DTOs — mirror the OpenAPI definitions exactly (snake_case),
 // so the service layer maps them into the camelCase view types in types/ekub.ts.
 // Source: swagger.json (github_com_emad_internal_usecase_dto.*).
+//
+// Naming in the admin UI:  Scheme → "Equb Category",  Group → "Equb",
+//                          Round  → "Round" (one draw period inside an Equb).
 // ============================================================================
 
 export interface ApiEnvelope<T> {
@@ -47,14 +50,51 @@ export interface LoginRequest {
   password: string;
 }
 
-// ---- Scheme (our "Tier") ----
+// ---- Shared ----
+export interface MemberInfo {
+  id: string;
+  full_name: string;
+  display_name: string;
+  membership_number: string;
+  phone_number: string;
+  photo: string;
+}
+
+/** Subset of the Sacco `MemberResponse` we need for the member picker. */
+export interface MemberSummaryResponse {
+  id: string;
+  full_name: string;
+  first_name: string;
+  last_name: string;
+  membership_number: string;
+  phone_number: string;
+  photo: string;
+  status: string;
+  member_category: string;
+}
+
+// ---- Scheme (= Equb Category) ----
+export const EQUB_FREQUENCIES = [
+  "daily",
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+  "semi_annual",
+  "annual",
+] as const;
+export type EqubFrequency = (typeof EQUB_FREQUENCIES)[number];
+
+export const EQUB_SCHEME_STATUSES = ["draft", "active", "completed", "cancelled"] as const;
+export type EqubSchemeStatus = (typeof EQUB_SCHEME_STATUSES)[number];
+
 export interface EqubSchemeResponse {
   id: string;
   code: string;
   name: string;
   description: string;
   status: string; // draft | active | completed | cancelled
-  frequency: string; // daily | weekly | monthly
+  frequency: string; // EqubFrequency
   contribution_amount: number;
   admin_fee: number;
   takaful_fee: number;
@@ -62,6 +102,7 @@ export interface EqubSchemeResponse {
   members_per_group: number;
   winners_per_round: number;
   total_rounds: number;
+  created_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,7 +110,7 @@ export interface CreateEqubSchemeRequest {
   code: string;
   name: string;
   description?: string;
-  frequency: string;
+  frequency: EqubFrequency;
   contribution_amount: number;
   admin_fee?: number;
   takaful_fee?: number;
@@ -79,23 +120,29 @@ export interface CreateEqubSchemeRequest {
   total_rounds: number;
 }
 export type UpdateEqubSchemeRequest = Omit<CreateEqubSchemeRequest, "code"> & {
-  status?: string;
+  status?: EqubSchemeStatus;
 };
 
-// ---- Group (our "cycle") ----
+// ---- Group (= Equb) ----
 export interface EqubGroupResponse {
   id: string;
   code: string;
   name: string;
-  status: string;
+  status: string; // draft | active | completed | cancelled
   equb_scheme_id: string;
   equb_scheme?: EqubSchemeResponse;
   current_members: number;
   max_members: number;
   start_date: string;
   expected_end_date: string;
+  created_by: string;
   created_at: string;
   updated_at: string;
+}
+export interface EqubGroupDetailResponse extends EqubGroupResponse {
+  current_round?: EqubRoundResponse;
+  recent_winners?: EqubWinnerResponse[];
+  my_member_info?: EqubMemberResponse;
 }
 export interface CreateEqubGroupRequest {
   code: string;
@@ -104,6 +151,20 @@ export interface CreateEqubGroupRequest {
   max_members: number;
   start_date?: string;
   expected_end_date?: string;
+}
+export interface UpdateEqubGroupRequest {
+  code?: string;
+  name?: string;
+  max_members?: number;
+  start_date?: string;
+  expected_end_date?: string;
+}
+export interface ListEqubGroupsParams {
+  equb_scheme_id?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  per_page?: number;
 }
 
 export interface EqubAdminDashboardResponse {
@@ -141,6 +202,15 @@ export interface EqubRoundWinner {
   winner_position: number;
   paid_at: string;
 }
+export interface EqubRoundMemberPayment {
+  member_id: string;
+  member_name: string;
+  phone: string;
+  amount: number;
+  status: string; // paid | pending | overdue | ...
+  paid_at: string;
+  isCatchUp: boolean;
+}
 export interface EqubDrawEligibleMember {
   member_id: string;
   member_name: string;
@@ -150,6 +220,17 @@ export interface EqubDrawEligibleMember {
   previously_won: boolean;
   eligible: boolean;
 }
+export interface EqubDrawExcludedMember {
+  member_id: string;
+  member_name: string;
+  phone: string;
+  contribution_paid: boolean;
+  previously_won: boolean;
+  has_unpaid_catch_up: boolean;
+  is_banned: boolean;
+  eligible: boolean;
+  reason: string;
+}
 export interface EqubRoundResponse {
   id: string;
   equb_group_id: string;
@@ -158,15 +239,30 @@ export interface EqubRoundResponse {
   scheduled_at: string;
   drawn_at: string;
   contribution_due_date: string;
+  created_at: string;
+  // Payment summary
+  total_members: number;
+  paid_count: number;
+  unpaid_count: number;
+  payment_percentage: number;
+  total_contribution: number;
+  total_admin_fee: number;
+  total_takaful_fee: number;
+  payout_amount: number;
+  member_payments?: EqubRoundMemberPayment[];
+  // Draw preview (if the round is ready for a draw)
   can_execute_draw: boolean;
   eligible_count: number;
   excluded_count: number;
-  paid_count: number;
-  unpaid_count: number;
-  total_members: number;
-  payment_percentage: number;
-  payout_amount: number;
-  winners: EqubRoundWinner[];
+  eligible_members?: EqubDrawEligibleMember[];
+  excluded_members?: EqubDrawExcludedMember[];
+  // Winner info (if the round is drawn)
+  winners?: EqubRoundWinner[];
+}
+export interface ListEqubRoundsParams {
+  status?: string;
+  page?: number;
+  per_page?: number;
 }
 export interface EqubDrawPreviewResponse {
   group_id: string;
@@ -180,17 +276,22 @@ export interface EqubDrawPreviewResponse {
   total_members: number;
   winners_per_round: number;
   eligible_members: EqubDrawEligibleMember[];
+  excluded_members: EqubDrawExcludedMember[];
+}
+export interface EqubDrawCandidateResponse {
+  id: string;
+  equb_member_id: string;
+  member_id: string;
+  contribution_paid: boolean;
+  eligible: boolean;
+  overdue: boolean;
+  previously_won: boolean;
+  suspended: boolean;
+  reason: string;
+  created_at: string;
 }
 
 // ---- Winners / guarantee / payout ----
-export interface MemberInfo {
-  id: string;
-  full_name: string;
-  display_name: string;
-  membership_number: string;
-  phone_number: string;
-  photo: string;
-}
 export interface EqubWinnerResponse {
   id: string;
   equb_round_id: string;
@@ -215,14 +316,28 @@ export interface EqubGuaranteeResponse {
   collateral_value: number;
   status: string;
   approved_at: string;
+  created_at: string;
 }
+export const EQUB_GUARANTEE_TYPES = ["member", "cheque", "collateral"] as const;
+export type EqubGuaranteeType = (typeof EQUB_GUARANTEE_TYPES)[number];
 export interface CreateEqubGuaranteeRequest {
-  guarantee_type: string;
+  guarantee_type: EqubGuaranteeType;
   guarantor_name: string;
   guarantor_member_id?: string;
   collateral_type?: string;
   collateral_reference?: string;
   collateral_value?: number;
+}
+export interface EqubPayoutResponse {
+  id: string;
+  equb_winner_id: string;
+  member_id: string;
+  member?: MemberInfo;
+  amount: number;
+  status: string;
+  payment_id: string;
+  paid_at: string;
+  created_at: string;
 }
 
 // ---- Members ----
@@ -234,6 +349,11 @@ export interface EqubMemberResponse {
   position: number;
   status: string;
   joined_at: string;
+}
+export interface ListEqubMembersParams {
+  status?: string;
+  page?: number;
+  per_page?: number;
 }
 
 // ---- Takaful ----
@@ -247,7 +367,6 @@ export interface EqubTakafulTransactionResponse {
   reference: string;
   created_at: string;
 }
-
 export interface EqubTakafulClaimResponse {
   id: string;
   equb_group_id: string;
@@ -255,6 +374,19 @@ export interface EqubTakafulClaimResponse {
   amount: number;
   reason: string;
   status: string;
+  created_at: string;
+}
+export interface EqubTakafulSettlementItem {
+  member_id: string;
+  type: string;
+  amount: number;
+}
+export interface EqubTakafulSettlementResponse {
+  equb_group_id: string;
+  type: string;
+  total_amount: number;
+  remaining_balance: number;
+  items: EqubTakafulSettlementItem[];
   created_at: string;
 }
 

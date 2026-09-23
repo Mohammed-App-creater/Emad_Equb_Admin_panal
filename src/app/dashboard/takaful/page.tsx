@@ -1,128 +1,121 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { PiggyBank, Gift, Undo2, Plus, Info } from "lucide-react";
+import { PiggyBank, CircleDot, Trophy, Eye, ExternalLink, Info } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Modal } from "@/components/ui/modal";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import {
-  useTakaful,
-  useTakafulBalance,
-  useDistributeSurplus,
-  useSubmitTakafulClaim,
-  useRefundTakaful,
-} from "@/hooks/ekub";
-import { useEqubStore } from "@/store/equb.store";
-import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
-import type { TakafulTxn } from "@/types/ekub";
+import { StatusBadge } from "@/components/equb/status-badge";
+import { TakafulTab } from "@/components/equb/takaful-tab";
+import { useEqubs, useTakafulBalances } from "@/hooks/ekub";
+import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
+import { formatCurrency } from "@/lib/utils";
+import type { Equb } from "@/types/ekub";
 
-const typeBadge: Record<string, string> = {
-  contribution: "bg-success/15 text-success",
-  claim: "bg-warning/15 text-warning",
-  surplus: "bg-info/15 text-info",
-  refund: "bg-muted text-muted-foreground",
-};
+type Row = Equb & { balance: number | undefined };
 
+/**
+ * General Takaful view: every Equb's fund balance side by side, with the full
+ * ledger (claims / refund / surplus) of the selected Equb underneath. The
+ * per-Equb Takaful tab inside /dashboard/equbs/[id] is the same ledger.
+ */
 function TakafulInner() {
   const t = useTranslations("takaful");
+  const te = useTranslations("equbs");
   const tc = useTranslations("common");
-  const { activeGroupName } = useEqubStore();
-  const { has } = useEkubAccess();
-  const { toast } = useToast();
-  const canManage = has(EKUB_PERMS.PAYOUT_APPROVE) || has(EKUB_PERMS.TIER_MANAGE);
+  const router = useRouter();
 
-  const { data: txns, isLoading } = useTakaful();
-  const { data: balance } = useTakafulBalance();
-  const distribute = useDistributeSurplus();
-  const claim = useSubmitTakafulClaim();
-  const refund = useRefundTakaful();
+  const { data: allEqubs, isLoading } = useEqubs();
+  // Draft Equbs haven't collected anything yet, so they have no fund.
+  const equbs = (allEqubs ?? []).filter((e) => e.status !== "draft");
+  const balances = useTakafulBalances(equbs.map((e) => e.id));
+  const rows: Row[] = equbs.map((e, i) => ({ ...e, balance: balances[i]?.data }));
 
-  const [claiming, setClaiming] = useState(false);
-  const [claimForm, setClaimForm] = useState({ memberId: "", amount: 0, reason: "" });
-  const [refunding, setRefunding] = useState(false);
-  const [refundReason, setRefundReason] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = rows.find((r) => r.id === selectedId) ?? rows[0];
 
-  const err = (e: unknown) => toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+  const total = rows.reduce((sum, r) => sum + (r.balance ?? 0), 0);
+  const largest = rows.reduce<Row | undefined>((best, r) => ((r.balance ?? 0) > (best?.balance ?? -1) ? r : best), undefined);
+  const balancesLoading = balances.some((b) => b.isLoading);
 
-  const columns: DataTableColumn<TakafulTxn>[] = [
-    { id: "member", header: t("member"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.memberHandle}</span> },
-    { id: "type", header: t("type"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${typeBadge[r.type] ?? "bg-muted text-muted-foreground"}`}>{r.type}</Badge> },
-    { id: "amount", header: t("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
-    { id: "ref", header: t("reference"), mobile: "detail", cell: (r) => <span className="text-sm">{r.reference}</span> },
-    { id: "date", header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDateTime(r.createdAt)}</span> },
+  const columns: DataTableColumn<Row>[] = [
+    { id: "equb", header: t("equb"), mobile: "title", cell: (r) => (
+      <div>
+        <p className="font-medium text-foreground">{r.name}</p>
+        <p className="font-mono text-xs text-muted-foreground">{r.code}</p>
+      </div>
+    ) },
+    { id: "category", header: te("category"), mobile: "detail", cell: (r) => <span className="text-sm">{r.category?.name ?? "—"}</span> },
+    { id: "members", header: te("members"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{r.currentMembers}</span> },
+    { id: "balance", header: t("balance"), mobile: "detail", align: "right", cell: (r) => <span className="font-semibold text-primary">{r.balance === undefined ? "…" : formatCurrency(r.balance)}</span> },
+    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="lifecycle" /> },
   ];
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <PageHeader
-        title={t("title")}
-        subtitle={activeGroupName ? `${t("subtitle")} · ${activeGroupName}` : t("subtitle")}
-        actions={
-          canManage ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => { setClaimForm({ memberId: "", amount: 0, reason: "" }); setClaiming(true); }}>
-                <Plus size={15} className="mr-1" /> {t("claim")}
-              </Button>
-              <Button variant="outline" onClick={() => { setRefundReason(""); setRefunding(true); }}>
-                <Undo2 size={15} className="mr-1" /> {t("refund")}
-              </Button>
-              <Button onClick={() => distribute.mutate(undefined, { onSuccess: () => toast({ title: t("distribute") }), onError: err })}>
-                <Gift size={15} className="mr-1" /> {t("distribute")}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+      <PageHeader title={t("title")} subtitle={t("generalSubtitle")} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label={t("balance")} value={formatCurrency(balance ?? 0)} icon={PiggyBank} tone="primary" />
-        <Card className="flex items-start gap-2 p-5 text-sm text-muted-foreground">
-          <Info size={16} className="mt-0.5 shrink-0 text-primary" />
-          <span>{t("surplusNote")}</span>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label={t("totalBalance")} value={balancesLoading && !total ? "…" : formatCurrency(total)} icon={PiggyBank} tone="primary" />
+        <StatCard label={t("equbsWithFund")} value={rows.length} icon={CircleDot} tone="info" />
+        <StatCard label={t("largestFund")} value={largest ? formatCurrency(largest.balance ?? 0) : "—"} hint={largest?.name} icon={Trophy} tone="secondary" />
       </div>
 
-      <DataTable columns={columns} data={txns ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+        <Info size={16} className="mt-0.5 shrink-0 text-primary" />
+        <span>{t("surplusNote")}</span>
+      </div>
 
-      {/* Submit claim */}
-      <Modal open={claiming} onOpenChange={setClaiming} title={t("claim")} className="max-w-md">
-        <div className="space-y-4">
-          <div className="space-y-1.5"><Label>{t("member")}</Label><Input value={claimForm.memberId} onChange={(e) => setClaimForm({ ...claimForm, memberId: e.target.value })} placeholder="member id" /></div>
-          <div className="space-y-1.5"><Label>{t("amount")}</Label><Input type="number" value={claimForm.amount} onChange={(e) => setClaimForm({ ...claimForm, amount: Number(e.target.value) || 0 })} /></div>
-          <div className="space-y-1.5"><Label>{t("reason")}</Label><Input value={claimForm.reason} onChange={(e) => setClaimForm({ ...claimForm, reason: e.target.value })} /></div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setClaiming(false)}>{tc("cancel")}</Button>
-            <Button disabled={!claimForm.memberId || !claimForm.amount || claim.isPending} onClick={() => claim.mutate(claimForm, { onSuccess: () => { toast({ title: t("claim") }); setClaiming(false); }, onError: err })}>{tc("submit")}</Button>
-          </div>
-        </div>
-      </Modal>
+      <Card>
+        <CardHeader><CardTitle className="text-base">{t("byEqub")}</CardTitle></CardHeader>
+        <CardContent>
+          <DataTable
+            bare
+            columns={columns}
+            data={rows}
+            rowKey={(r) => r.id}
+            isLoading={isLoading}
+            onRowClick={(r) => setSelectedId(r.id)}
+            emptyTitle={tc("noData")}
+            renderLeadingActions={(r) =>
+              selected?.id === r.id ? <span className="text-xs font-semibold text-primary">●</span> : null
+            }
+            actions={[
+              { label: t("viewLedger"), icon: Eye, onClick: (r) => setSelectedId(r.id) },
+              { label: t("openInEqub"), icon: ExternalLink, onClick: (r) => router.push(`/dashboard/equbs/${r.id}?tab=takaful`) },
+            ]}
+          />
+        </CardContent>
+      </Card>
 
-      {/* Refund */}
-      <Modal open={refunding} onOpenChange={setRefunding} title={t("refund")} className="max-w-md">
-        <div className="space-y-4">
-          <div className="space-y-1.5"><Label>{t("reason")}</Label><Input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /></div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setRefunding(false)}>{tc("cancel")}</Button>
-            <Button disabled={!refundReason || refund.isPending} onClick={() => refund.mutate(refundReason, { onSuccess: () => { toast({ title: t("refund") }); setRefunding(false); }, onError: err })}>{tc("confirm")}</Button>
-          </div>
-        </div>
-      </Modal>
+      {selected ? (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <CardTitle className="text-base">
+              {selected.name} <span className="font-mono text-xs font-normal text-muted-foreground">· {selected.code}</span>
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/equbs/${selected.id}?tab=takaful`)}>
+              <ExternalLink size={14} className="mr-1" /> {t("openInEqub")}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <TakafulTab key={selected.id} equb={selected} />
+          </CardContent>
+        </Card>
+      ) : (
+        !isLoading && <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">{t("selectEqub")}</p>
+      )}
     </div>
   );
 }
 
 export default function TakafulPage() {
   return (
-    <RequirePermission anyOf={[EKUB_PERMS.PAYOUT_READ, EKUB_PERMS.TIER_READ]}>
+    <RequirePermission anyOf={[EKUB_PERMS.PAYOUT_READ, EKUB_PERMS.EQUB_READ, EKUB_PERMS.CATEGORY_READ]}>
       <TakafulInner />
     </RequirePermission>
   );

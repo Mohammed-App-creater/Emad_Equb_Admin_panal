@@ -16,7 +16,7 @@
         },
         "version": "1.0"
     },
-    "host": "196.188.249.99:8080",
+    "host": "",
     "basePath": "/api/v1",
     "paths": {
         "/account-journal-syncs": {
@@ -436,6 +436,149 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {}
+                    }
+                }
+            }
+        },
+        "/agents/me/commission": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "What the authenticated agent has earned: totals earned, paid and outstanding. Resolves to the caller, so an agent never needs to know their own agent ID and cannot read anyone else's.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "My commission summary",
+                "responses": {
+                    "200": {
+                        "description": "Commission summary retrieved",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.AgentCommissionSummaryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/me/commissions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The authenticated agent's own commission entries, newest first, with their payment status.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "My commissions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Commissions retrieved",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.AgentCommissionListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/agents/me/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The members this agent brought in — the book they earn commission on.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Members I registered",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Members retrieved",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.AgentRegisteredMembersResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     }
                 }
             }
@@ -5928,6 +6071,57 @@
                 }
             }
         },
+        "/equb/manager/my-collections": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "End-of-day reconciliation for a field agent: the Equb contributions this staff member recorded in a period, with confirmed and still-pending totals separated. The difference between them is what is still outstanding. Defaults to today when no dates are given.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Payments"
+                ],
+                "summary": "What I collected",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date, YYYY-MM-DD (default today)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date, YYYY-MM-DD inclusive (default today)",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Collections retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubCollectionsSummaryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/equb/manager/my-groups": {
             "get": {
                 "security": [
@@ -6074,6 +6268,130 @@
                         "description": "Member or group not found",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/manager/my-groups/{group_id}/members/{member_id}/collect": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "For an agent or manager collecting in the field. Records a payment on behalf of a member for one or more rounds — the server works out the amount owed, so no amount is sent. The staff user who collected the money is recorded on the payment and written to the audit log. Like the member's own payment, the contribution settles once the payment is confirmed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Payments"
+                ],
+                "summary": "Record a contribution collected from a member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member ID",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rounds being collected for",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayRoundsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Collection recorded",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayInitiatedResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/manager/my-groups/{group_id}/members/{member_id}/standing": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Where a named member stands in a group: missed payments, any warning or ban, what is still owed, and whether they will be in the next draw. Use it before recording a collection, or to answer a member asking why they were left out of a draw.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "A member's standing (staff view)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member ID",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Standing retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMemberStandingResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -6853,6 +7171,117 @@
                 }
             }
         },
+        "/equb/member/my-groups/{group_id}/emergency-draws": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The member's own emergency-draw requests in this group, with their review status. Returns only the caller's requests, never other members'.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "My emergency draw requests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Requests retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubEmergencyDrawResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Asks to be moved up the queue because of genuine hardship — a medical bill, a funeral. Requires a reason and, ideally, supporting evidence; a manager reviews it. An approved request grants priority in one draw and is then spent. A member may have only one pending request per group, and a member who has already won cannot request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "Request an emergency turn",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reason and evidence",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMemberEmergencyDrawRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Request submitted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubEmergencyDrawResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "422": {
+                        "description": "Already has a pending request, or has already won",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/member/my-groups/{group_id}/members": {
             "get": {
                 "security": [
@@ -6921,6 +7350,70 @@
                                             "items": {
                                                 "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMemberResponse"
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/member/my-groups/{group_id}/pay": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Settles one or more rounds in a single call. The server works out what is owed, raises the payment for exactly that amount, and reserves it against those contributions. They settle automatically once the payment is confirmed — the client does not call back. Supersedes the older create-payment-then-apply flow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Payments"
+                ],
+                "summary": "Pay for one or more rounds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rounds to pay for",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayRoundsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Payment initiated",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayInitiatedResponse"
                                         }
                                     }
                                 }
@@ -7075,6 +7568,68 @@
                 }
             }
         },
+        "/equb/member/my-groups/{group_id}/rounds/{round_id}/draw": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Returns everything needed to check that a round's draw was fair, without trusting the operator. The <b>seed commitment</b> is published when the round is created — before anyone knows who will be eligible. After the draw the <b>seed</b> itself is revealed, along with the exact candidate pool and the selection input. Hash the seed, confirm it matches the commitment, then re-run the documented algorithm to reproduce the winners. The <code>how_to_verify</code> field spells out the steps.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "Verify a round's draw",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Round ID",
+                        "name": "round_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Draw record retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubDrawVerificationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member of this group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/member/my-groups/{group_id}/rules": {
             "get": {
                 "security": [
@@ -7185,6 +7740,52 @@
                 }
             }
         },
+        "/equb/member/my-groups/{group_id}/standing": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Whether the member is in good standing: missed payments, any warning or ban, what is still owed, and whether they will be in the next draw. <code>what_to_do</code> is plain-language guidance safe to show verbatim, and <code>status</code> is one of <code>good</code>, <code>warning</code>, <code>banned</code>, <code>owing</code>. A lapsed ban reports <code>banned: false</code> — the response describes the effect now, not the stored flag.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "My standing in a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Standing retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMemberStandingResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/equb/member/my-groups/{group_id}/summary": {
             "get": {
                 "security": [
@@ -7235,6 +7836,52 @@
                         "description": "Group not found",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/member/my-groups/{group_id}/takaful": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The shared protection fund the member pays into every round: the group's balance, the member's own contribution to date, the per-round fee, and what the fund is for. Members contribute to this continuously and previously had no way to see it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "The group's protection fund (Takaful)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Takaful retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMemberTakafulResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -7291,6 +7938,156 @@
                     },
                     "400": {
                         "description": "round_id is required",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/member/my-wins": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Every round this member has won, with the state of each payout and what they need to do next. Winning is the moment a member most needs guidance, and it is usually the guarantee — not the payout — that is holding things up.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "My wins",
+                "responses": {
+                    "200": {
+                        "description": "Wins retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMyWinResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/member/my-wins/{winner_id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The full state of a single win: the guarantee, the payout, and <code>next_step</code> guidance written for the member. Returns 404 for a win belonging to someone else.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "One of my wins",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Winner ID",
+                        "name": "winner_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Win retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubMyWinResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/member/my-wins/{winner_id}/guarantee": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "A winner puts up their own security so the payout can be released, instead of having to visit an office for staff to record it. Staff still approve it — this only removes the trip. A winner holds money contributed by everyone else and keeps owing contributions for the remaining rounds, which is why security is required.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Member Portal"
+                ],
+                "summary": "Provide a guarantee for my win",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Winner ID",
+                        "name": "winner_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Guarantee details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSubmitGuaranteeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Guarantee submitted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGuaranteeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": "A guarantee already exists for this win",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -9560,6 +10357,58 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/lookup": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Resolves a phone number to the minimal identity needed to confirm the person and obtain their ID — name, membership number, status and photo. Intended for field staff, who know a member's phone but not their UUID. Deliberately narrow: this is a person-finder, not a route to a member's full record, and it respects the caller's branch scope.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Members"
+                ],
+                "summary": "Look up a member by phone number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Phone number",
+                        "name": "phone",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Member found",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.MemberLookupResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "No member with that phone number",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -11843,6 +12692,63 @@
                 "responses": {
                     "201": {
                         "description": "Deposit created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.MemberPortalPaymentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/portal/equb-contribution": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Creates a payment of type <b>equb_contribution</b> for the authenticated member. This is the payment the Equb endpoints accept as proof of payment: once it has completed, pass its ID to <code>/equb/member/pay</code> or the advance-payment endpoint to settle one or more rounds. The amount must cover every round being settled, and each payment can only be applied once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Member Portal"
+                ],
+                "summary": "Pay in for an Equb contribution",
+                "parameters": [
+                    {
+                        "description": "Equb contribution payment details",
+                        "name": "payment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubContributionPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Equb contribution payment created successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -15293,6 +16199,157 @@
                 }
             }
         },
+        "/saving-contracts/member/{member_id}/regular-saving-schedules": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Retrieve a paginated list of a member's regular saving schedules with filtering (status), search, sort and pagination. Status may be a comma-separated list (paid,partial,unpaid,pending,overdue,waived).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Saving Contract"
+                ],
+                "summary": "List Member Regular Saving Schedules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Member UUID",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "paid",
+                            "partial",
+                            "unpaid",
+                            "pending",
+                            "overdue",
+                            "waived"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status (comma-separated). Enums(paid,partial,unpaid,pending,overdue,waived)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by month, amount, amount_paid or status",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "month",
+                        "description": "Sort field (month, amount, amount_paid, overdue_amount, deadline, status)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc/desc)",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Member regular saving schedules retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.RegularSavingScheduleListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid UUID format",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Member not found",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/saving-contracts/{id}": {
             "get": {
                 "security": [
@@ -18523,7 +19580,9 @@
                 "dividend",
                 "refund",
                 "pre_regular_saving",
-                "prs"
+                "prs",
+                "equb_contribution",
+                "equb_payout"
             ],
             "x-enum-varnames": [
                 "PaymentTypeMembershipFee",
@@ -18539,7 +19598,9 @@
                 "PaymentTypeDividend",
                 "PaymentTypeRefund",
                 "PaymentTypePreRegularSaving",
-                "PaymentTypePRS"
+                "PaymentTypePRS",
+                "PaymentTypeEqubContribution",
+                "PaymentTypeEqubPayout"
             ]
         },
         "github_com_emad_internal_domain.Permission": {
@@ -21581,6 +22642,82 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.EqubCollectionListItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "collected_at": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "reference_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubCollectionsSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "collections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubCollectionListItem"
+                    }
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "total_collected": {
+                    "description": "TotalCollected is everything recorded; TotalConfirmed is the part already confirmed by someone with approval rights. The difference is what is still outstanding.",
+                    "type": "number"
+                },
+                "total_confirmed": {
+                    "type": "number"
+                },
+                "total_pending": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubContributionPaymentRequest": {
+            "type": "object",
+            "required": [
+                "amount"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "method": {
+                    "$ref": "#/definitions/github_com_emad_internal_domain.PaymentMethod"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.EqubContributionResponse": {
             "type": "object",
             "properties": {
@@ -21791,6 +22928,117 @@
                 },
                 "winners_per_round": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubDrawVerificationCandidate": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "eligible": {
+                    "type": "boolean"
+                },
+                "in_seeded_pool": {
+                    "description": "InSeededPool is false for members who were eligible but occupied a priority slot, and for members excluded altogether. Only the seeded pool is what the algorithm selects from.",
+                    "type": "boolean"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubDrawVerificationResponse": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "Proof material",
+                    "type": "string"
+                },
+                "algorithm_version": {
+                    "type": "string"
+                },
+                "candidates_in_order": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubDrawVerificationCandidate"
+                    }
+                },
+                "commitment_verified": {
+                    "description": "CommitmentVerified is the server recomputing the check the member should perform themselves. It is a convenience, not the proof — the proof is the two values above.",
+                    "type": "boolean"
+                },
+                "committed_in_advance": {
+                    "description": "CommittedInAdvance is false when the seed had to be generated at draw time because the round predates provable fairness. Such a draw is reproducible but the operator was not bound in advance, and the weaker guarantee is stated rather than hidden.",
+                    "type": "boolean"
+                },
+                "draw_id": {
+                    "type": "string"
+                },
+                "drawn_at": {
+                    "type": "string"
+                },
+                "executed_by": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "how_to_verify": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "priority_slots": {
+                    "description": "PrioritySlots counts winner slots assigned to approved emergency requests instead of drawn. Those winners are not explained by the seed.",
+                    "type": "integer"
+                },
+                "revealed_seed": {
+                    "type": "string"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "seed_commitment": {
+                    "type": "string"
+                },
+                "selection_input": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "winners": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubDrawVerificationWinner"
+                    }
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubDrawVerificationWinner": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "source": {
+                    "description": "Source is "drawn" when the seed selected them, or "priority" when the slot was assigned by an approved emergency request.",
+                    "type": "string"
                 }
             }
         },
@@ -22090,6 +23338,23 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.EqubMemberEmergencyDrawRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "evidence": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "minLength": 10
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.EqubMemberGroupSummary": {
             "type": "object",
             "properties": {
@@ -22157,6 +23422,95 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubMemberStandingResponse": {
+            "type": "object",
+            "properties": {
+                "banned": {
+                    "description": "Banned reflects the ban as it applies to the round now open, not merely the flag on the record: a lapsed ban reports false.",
+                    "type": "boolean"
+                },
+                "banned_until_round": {
+                    "type": "integer"
+                },
+                "catch_up_amount": {
+                    "type": "number"
+                },
+                "catch_up_rounds": {
+                    "type": "integer"
+                },
+                "current_round": {
+                    "type": "integer"
+                },
+                "eligible_next_draw": {
+                    "type": "boolean"
+                },
+                "good": {
+                    "description": "Good is true when nothing is owed and no ban applies — the common case.",
+                    "type": "boolean"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "missed_count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "Status is a short machine-readable label: good | warning | banned | owing.",
+                    "type": "string"
+                },
+                "unpaid_amount": {
+                    "type": "number"
+                },
+                "unpaid_rounds": {
+                    "description": "Unsettled contributions standing between them and the next draw.",
+                    "type": "integer"
+                },
+                "warning_issued": {
+                    "type": "boolean"
+                },
+                "what_to_do": {
+                    "description": "WhatToDo is plain-language guidance, safe to show verbatim.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubMemberTakafulResponse": {
+            "type": "object",
+            "properties": {
+                "about": {
+                    "description": "Explains what the fund is for, so the fee reads as a benefit rather than a charge.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "fund_balance": {
+                    "description": "FundBalance is the group's whole fund; MyContribution is this member's share of what went in.",
+                    "type": "number"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "my_contribution": {
+                    "type": "number"
+                },
+                "per_round_fee": {
+                    "type": "number"
                 }
             }
         },
@@ -22335,6 +23689,84 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.EqubMyWinResponse": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "guarantee": {
+                    "description": "Guarantee is nil until one has been submitted.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGuaranteeResponse"
+                        }
+                    ]
+                },
+                "guarantee_required": {
+                    "description": "GuaranteeRequired is true while no approved guarantee is on file — the usual reason a winner has not been paid.",
+                    "type": "boolean"
+                },
+                "next_step": {
+                    "description": "NextStep is plain-language guidance, safe to show verbatim.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payout_amount": {
+                    "type": "number"
+                },
+                "payout_status": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "Status is the winner's own state: selected | pending_verification | approved | paid.",
+                    "type": "string"
+                },
+                "winner_id": {
+                    "type": "string"
+                },
+                "won_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubPayInitiatedResponse": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "payment": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.MemberPortalPaymentResponse"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "rounds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayRoundItem"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.EqubPayRequest": {
             "type": "object",
             "required": [
@@ -22351,6 +23783,45 @@
                 },
                 "round_id": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubPayRoundItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "is_catch_up": {
+                    "type": "boolean"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubPayRoundsRequest": {
+            "type": "object",
+            "required": [
+                "round_ids"
+            ],
+            "properties": {
+                "method": {
+                    "$ref": "#/definitions/github_com_emad_internal_domain.PaymentMethod"
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "round_ids": {
+                    "type": "array",
+                    "maxItems": 52,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -22660,6 +24131,40 @@
                 },
                 "winners_per_round": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubSubmitGuaranteeRequest": {
+            "type": "object",
+            "required": [
+                "guarantee_type",
+                "guarantor_name"
+            ],
+            "properties": {
+                "collateral_reference": {
+                    "type": "string"
+                },
+                "collateral_type": {
+                    "type": "string"
+                },
+                "collateral_value": {
+                    "type": "number"
+                },
+                "guarantee_type": {
+                    "type": "string",
+                    "enum": [
+                        "member",
+                        "cheque",
+                        "collateral"
+                    ]
+                },
+                "guarantor_member_id": {
+                    "type": "string"
+                },
+                "guarantor_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2
                 }
             }
         },
@@ -24121,6 +25626,29 @@
                     "type": "boolean"
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.MemberLookupResponse": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "photo": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -26046,6 +27574,64 @@
                 },
                 "members_created": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.RegularSavingScheduleListResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.RegularSavingScheduleResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.RegularSavingScheduleResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "amount_paid": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deadline": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "month": {
+                    "type": "string"
+                },
+                "overdue_amount": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
