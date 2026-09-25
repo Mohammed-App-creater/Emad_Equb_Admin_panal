@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Eye, AlarmClockOff, Trophy, Info } from "lucide-react";
+import { Eye, AlarmClockOff, Trophy, Info, RefreshCw, CheckCircle2, Hourglass } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/equb/status-badge";
-import { useRounds, useMarkOverdue } from "@/hooks/ekub";
+import { useRounds, useMarkOverdue, useRefreshReadiness } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
@@ -23,6 +23,7 @@ export function RoundsTab({ equb }: { equb: Equb }) {
 
   const { data, isLoading } = useRounds(equb.id);
   const markOverdue = useMarkOverdue();
+  const refresh = useRefreshReadiness();
 
   const go = (r: Round) => router.push(`/dashboard/equbs/${equb.id}/rounds/${r.id}`);
 
@@ -45,10 +46,19 @@ export function RoundsTab({ equb }: { equb: Equb }) {
         <span className="text-sm">{Math.round(r.paymentPercentage)}%</span>
       </div>
     ) },
+    { id: "adminFee", header: t("adminFee"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{formatCurrency(r.totalAdminFee)}</span> },
     { id: "payout", header: t("payout"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm font-medium">{formatCurrency(r.payoutAmount)}</span> },
     { id: "winners", header: t("winners"), mobile: "detail", align: "right", cell: (r) => (
       <span className="inline-flex items-center gap-1 text-sm"><Trophy size={13} className="text-secondary-foreground" /> {r.winners.length}</span>
     ) },
+    { id: "ready", header: t("readiness"), mobile: "detail", cell: (r) => {
+      if (r.status === "drawn" || r.status === "completed" || r.status === "cancelled") return <span className="text-sm text-muted-foreground">—</span>;
+      return r.notReadyReason ? (
+        <span className="inline-flex max-w-[260px] items-start gap-1 text-xs text-warning" title={r.notReadyReason}><Hourglass size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2">{r.notReadyReason}</span></span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-success"><CheckCircle2 size={13} /> {t("readyToDraw")}</span>
+      );
+    } },
     { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="round" /> },
   ];
 
@@ -60,6 +70,15 @@ export function RoundsTab({ equb }: { equb: Equb }) {
           <span>{t("subtitle")}</span>
         </div>
         {canManage && (
+          <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            title={t("refreshReadinessHint")}
+            disabled={refresh.isPending}
+            onClick={() => refresh.mutate(undefined, { onSuccess: () => toast({ title: t("refreshReadiness") }), onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }) })}
+          >
+            <RefreshCw size={15} className={`mr-1 ${refresh.isPending ? "animate-spin" : ""}`} /> {t("refreshReadiness")}
+          </Button>
           <Button
             variant="outline"
             title={t("markOverdueHint")}
@@ -68,10 +87,12 @@ export function RoundsTab({ equb }: { equb: Equb }) {
           >
             <AlarmClockOff size={15} className="mr-1" /> {t("markOverdue")}
           </Button>
+          </div>
         )}
       </div>
 
       <DataTable
+        filters={{ facets: [{ id: "status", label: tc("status"), get: (r) => r.status }] }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

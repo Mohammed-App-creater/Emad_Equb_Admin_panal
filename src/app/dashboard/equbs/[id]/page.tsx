@@ -4,7 +4,7 @@ import { Suspense, use } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, LayoutDashboard, UsersRound, CircleDot, Trophy, PiggyBank, Heart } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, UsersRound, CircleDot, Trophy, PiggyBank, Heart, Coins, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,21 +14,26 @@ import { useEqubLifecycle } from "@/components/equb/equb-lifecycle";
 import { EqubOverview } from "@/components/equb/overview-tab";
 import { MembersTab } from "@/components/equb/members-tab";
 import { RoundsTab } from "@/components/equb/rounds-tab";
+import { ContributionsTab } from "@/components/equb/contributions-tab";
 import { WinnersTab } from "@/components/equb/winners-tab";
 import { TakafulTab } from "@/components/equb/takaful-tab";
 import { HardshipTab } from "@/components/equb/hardship-tab";
+import { AdminFeesTab } from "@/components/equb/admin-fees-tab";
 import { useEqub, useEqubDashboard } from "@/hooks/ekub";
+import { useLiveUpdates } from "@/lib/realtime";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "members", "rounds", "winners", "takaful", "hardship"] as const;
+const TABS = ["overview", "members", "contributions", "rounds", "winners", "fees", "takaful", "hardship"] as const;
 type Tab = (typeof TABS)[number];
 
 const tabIcon: Record<Tab, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
   members: UsersRound,
+  contributions: Wallet,
   rounds: CircleDot,
   winners: Trophy,
+  fees: Coins,
   takaful: PiggyBank,
   hardship: Heart,
 };
@@ -45,6 +50,7 @@ function EqubDetailInner({ id }: { id: string }) {
   // failure there as "no figures yet" rather than an error.
   const dashboard = useEqubDashboard(equb && equb.status !== "draft" ? id : null);
   const lifecycle = useEqubLifecycle({ onDeleted: () => router.push("/dashboard/equbs") });
+  useLiveUpdates(id);
 
   const requested = params.get("tab") as Tab | null;
   const tab: Tab = requested && TABS.includes(requested) ? requested : "overview";
@@ -130,8 +136,10 @@ function EqubDetailInner({ id }: { id: string }) {
           <EqubOverview equb={equb} dashboard={dashboard.data} dashboardLoading={dashboard.isLoading} />
         </TabsContent>
         <TabsContent value="members" className="mt-4"><MembersTab equb={equb} /></TabsContent>
+        <TabsContent value="contributions" className="mt-4"><ContributionsTab equb={equb} /></TabsContent>
         <TabsContent value="rounds" className="mt-4"><RoundsTab equb={equb} /></TabsContent>
         <TabsContent value="winners" className="mt-4"><WinnersTab equb={equb} /></TabsContent>
+        <TabsContent value="fees" className="mt-4"><AdminFeesTab equb={equb} /></TabsContent>
         <TabsContent value="takaful" className="mt-4"><TakafulTab equb={equb} /></TabsContent>
         <TabsContent value="hardship" className="mt-4"><HardshipTab equb={equb} /></TabsContent>
       </Tabs>

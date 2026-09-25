@@ -9,7 +9,7 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <div className="flex">
+      <div className="flex min-h-screen w-full overflow-x-clip">
         <Sidebar />
         <DashboardShell>{children}</DashboardShell>
       </div>

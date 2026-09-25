@@ -41,7 +41,7 @@ export function HardshipTab({ equb }: { equb: Equb }) {
   const [rejecting, setRejecting] = useState<EmergencyDrawRequest | null>(null);
   const [note, setNote] = useState("");
 
-  const memberName = (id: string) => members?.find((m) => m.memberId === id)?.name ?? id;
+  const memberName = (id: string) => members?.find((m) => m.memberId === id)?.name ?? tc("unknownMember");
   const err = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
   const isOpen = (s: string) => s === "pending" || s === "requested" || s === "submitted";
 

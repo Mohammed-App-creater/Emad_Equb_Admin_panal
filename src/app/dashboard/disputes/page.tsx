@@ -42,11 +42,11 @@ function DisputesInner() {
     s === "open" ? t("statusOpen") : s === "escalated" ? t("statusEscalated") : t("statusResolved");
 
   const columns: DataTableColumn<Dispute>[] = [
-    { id: "member", header: t("member"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.memberHandle}</span> },
-    { id: "subject", header: t("subject"), mobile: "subtitle", cell: (r) => <span className="text-sm text-foreground">{r.subject}</span> },
-    { id: "opened", header: t("openedAt"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.openedAt)}</span> },
+    { id: "member", sortValue: (r) => r.memberHandle, header: t("member"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.memberHandle}</span> },
+    { id: "subject", sortValue: (r) => r.subject, header: t("subject"), mobile: "subtitle", cell: (r) => <span className="text-sm text-foreground">{r.subject}</span> },
+    { id: "opened", sortValue: (r) => r.openedAt, header: t("openedAt"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.openedAt)}</span> },
     { id: "decision", header: t("boardDecision"), mobile: "detail", cell: (r) => <span className="text-sm text-muted-foreground">{r.boardDecision ?? "—"}</span> },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <Badge className={statusBadge[r.status]}>{statusLabel(r.status)}</Badge> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <Badge className={statusBadge[r.status]}>{statusLabel(r.status)}</Badge> },
   ];
 
   return (
@@ -54,6 +54,8 @@ function DisputesInner() {
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       <DataTable
+        defaultSort={{ id: "opened", dir: "desc" }}
+        filters={{ search: { keys: (r) => [r.memberHandle, r.subject] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status, labelOf: (v) => statusLabel(v as DisputeStatus) }] }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

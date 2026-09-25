@@ -17,6 +17,15 @@ export interface ApiResponse<T> {
   success: boolean;
 }
 
+/** One page of a list, as the pages render it. */
+export interface Page<T> {
+  items: T[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface PaginatedMetaResponse<T> {
   meta: { page: number; per_page: number; total: number; total_pages: number };
   data: T[];
@@ -75,6 +84,24 @@ export interface Application {
   rejectionReason?: string;
 }
 
+/** Sacco profile of a member (GET /members/{id}), as shown on the member page. */
+export interface MemberProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  gender: string;
+  age?: number;
+  membershipNumber: string;
+  category: string;
+  photo?: string;
+  status: string;
+  memberSince: string;
+  branch: string;
+  address: string;
+  emergencyContacts: { name: string; phone: string; relationship: string }[];
+}
+
 /** A Sacco member as shown in the "add to Equb" picker. */
 export interface MemberSummary {
   id: string;
@@ -100,6 +127,8 @@ export interface EqubCategory {
   membersPerEqub: number;
   winnersPerRound: number;
   totalRounds: number;
+  guaranteeRequired: boolean;
+  acceptedGuaranteeTypes: string[];
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -117,6 +146,8 @@ export interface EqubCategoryInput {
   membersPerEqub: number;
   winnersPerRound: number;
   totalRounds: number;
+  guaranteeRequired?: boolean;
+  acceptedGuaranteeTypes?: string[];
   status?: LifecycleStatus; // update only
 }
 
@@ -141,6 +172,39 @@ export interface StaffUser {
   role: string;
 }
 
+/** Terms an Equb actually runs on: its category's terms with its overrides applied. */
+export interface EqubTerms {
+  contribution: number;
+  adminFee: number;
+  takafulFee: number;
+  payout: number;
+  totalPerRound: number;
+  frequency: Frequency;
+  membersPerEqub: number;
+  winnersPerRound: number;
+  totalRounds: number;
+  guaranteeRequired: boolean;
+  acceptedGuaranteeTypes: string[];
+}
+/** Per-Equb departures from the category. Undefined = inherit. */
+export interface EqubOverrides {
+  contribution?: number;
+  adminFee?: number;
+  takafulFee?: number;
+  payout?: number;
+  frequency?: Frequency;
+  totalRounds?: number;
+  winnersPerRound?: number;
+  guaranteeRequired?: boolean;
+  acceptedGuaranteeTypes?: string[];
+}
+/** How the admin fee divides between SACCO, agent and broker, in percent (totals 100). */
+export interface AdminFeeShares {
+  sacco: number;
+  agent: number;
+  broker: number;
+}
+
 export interface Equb {
   id: string;
   code: string;
@@ -149,6 +213,12 @@ export interface Equb {
   categoryId: string;
   category?: EqubCategory;
   manager?: EqubManager;
+  effectiveTerms?: EqubTerms;
+  overrides: EqubOverrides;
+  feeShares?: AdminFeeShares;
+  brokerUserId?: string;
+  cycleNumber: number;
+  previousEqubId?: string;
   currentMembers: number;
   maxMembers: number;
   startDate: string;
@@ -159,14 +229,21 @@ export interface Equb {
 }
 
 export interface EqubInput {
-  code: string;
+  code?: string; // blank -> server allocates EQG00001-style
   name: string;
   categoryId: string;
   maxMembers: number;
   startDate?: string;
   expectedEndDate?: string;
+  overrides?: EqubOverrides;
+  feeShares?: AdminFeeShares;
+  brokerUserId?: string;
 }
-export type EqubUpdateInput = Partial<Omit<EqubInput, "categoryId">>;
+/** Only draft Equbs can be updated. */
+export type EqubUpdateInput = Partial<Omit<EqubInput, "categoryId">> & {
+  /** Return to the category's terms before applying `overrides`. */
+  clearOverrides?: boolean;
+};
 
 export interface EqubListFilters {
   categoryId?: string;
@@ -259,6 +336,8 @@ export interface Round {
   roundNumber: number;
   status: RoundStatus;
   rawStatus: string;
+  /** Empty when the round can be drawn. */
+  notReadyReason: string;
   scheduledAt: string;
   drawnAt: string;
   contributionDueDate: string;
@@ -293,6 +372,203 @@ export interface DrawPreview {
   winnersPerRound: number;
   eligible: EligibleMember[];
   excluded: ExcludedMember[];
+}
+
+// ---- Next cycle -------------------------------------------------------------
+export interface CloneEqubInput {
+  name?: string;
+  code?: string;
+  maxMembers?: number;
+  startDate?: string;
+  copyMembers: boolean;
+  carryOverMissedPayments: boolean;
+}
+export interface ClonedEqub {
+  equb: Equb;
+  previousEqubCode: string;
+  membersCopied: number;
+  bansCarriedOver: number;
+  nextStep: string;
+}
+
+// ---- SACCO-wide fee ledger ----------------------------------------------------
+export interface FeeLedgerLine {
+  contributionId: string;
+  memberId: string;
+  memberName: string;
+  membershipNumber: string;
+  equbId: string;
+  equbCode: string;
+  equbName: string;
+  categoryId: string;
+  categoryName: string;
+  roundId: string;
+  roundNumber: number;
+  scheduledAt: string;
+  contribution: number;
+  adminFee: number;
+  takafulFee: number;
+  total: number;
+  status: string;
+  collected: boolean;
+  isCatchUp: boolean;
+  paidAt: string;
+}
+export interface FeeLedgerTotals {
+  contributions: number;
+  members: number;
+  rounds: number;
+  contributionCharged: number;
+  contributionCollected: number;
+  adminFeeCharged: number;
+  adminFeeCollected: number;
+  takafulCharged: number;
+  takafulCollected: number;
+  totalCharged: number;
+  totalCollected: number;
+}
+export interface FeeLedgerFilters {
+  categoryId?: string;
+  equbId?: string;
+  roundId?: string;
+  memberId?: string;
+  status?: string;
+}
+export interface FeeLedger extends Page<FeeLedgerLine> {
+  totals: FeeLedgerTotals;
+}
+
+// ---- Contribution attachments -----------------------------------------------
+export interface ContributionAttachment {
+  id: string;
+  contributionId: string;
+  memberId: string;
+  memberName: string;
+  roundId: string;
+  roundNumber: number;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  fileUrl: string;
+  isImage: boolean;
+  description: string;
+  createdAt: string;
+}
+
+// ---- Recording a contribution ---------------------------------------------
+export interface MemberStanding {
+  status: string; // good | warning | banned | owing
+  good: boolean;
+  banned: boolean;
+  bannedUntilRound: number;
+  warningIssued: boolean;
+  missedCount: number;
+  currentRound: number;
+  eligibleNextDraw: boolean;
+  unpaidRounds: number;
+  unpaidAmount: number;
+  catchUpRounds: number;
+  catchUpAmount: number;
+  whatToDo: string[];
+}
+export interface RecordPaymentInput {
+  roundIds: string[];
+  method: string;
+  reference?: string;
+}
+export interface RecordedPayment {
+  paymentId: string;
+  status: string;
+  totalAmount: number;
+}
+
+// ---- Staff collections (what I collected) ---------------------------------
+export interface CollectionItem {
+  paymentId: string;
+  memberId: string;
+  memberName: string;
+  equbId: string;
+  equbName: string;
+  categoryId: string;
+  categoryName: string;
+  amount: number;
+  reference: string;
+  status: string; // pending | confirmed
+  collectedAt: string;
+}
+export interface CollectionsSummary {
+  from: string;
+  to: string;
+  count: number;
+  totalCollected: number;
+  totalConfirmed: number;
+  totalPending: number;
+  items: CollectionItem[];
+}
+export interface CollectionsFilters {
+  from?: string;
+  to?: string;
+  equbId?: string;
+  categoryId?: string;
+  memberId?: string;
+}
+export interface CatchUp {
+  roundsMissed: number;
+  perRoundAmount: number;
+  totalCatchUp: number;
+  nextRoundNumber: number;
+}
+
+// ---- Admin fee ledgers -----------------------------------------------------
+export interface FeeTotals {
+  charged: number;
+  collected: number;
+  outstanding: number;
+}
+export interface FeeSplit {
+  saccoPercent: number;
+  saccoAmount: number;
+  agentPercent: number;
+  agentAmount: number;
+  brokerPercent: number;
+  brokerAmount: number;
+}
+export interface FeeLine {
+  contributionId: string;
+  memberId: string;
+  memberName: string;
+  membershipNumber: string;
+  roundId: string;
+  roundNumber: number;
+  scheduledAt: string;
+  amount: number;
+  collected: boolean;
+  isCatchUp: boolean;
+  paidAt: string;
+  paymentId: string;
+  status: string;
+}
+export interface EqubAdminFees {
+  feePerMemberPerRound: number;
+  totals: FeeTotals;
+  split: FeeSplit;
+  rounds: { roundId: string; roundNumber: number; scheduledAt: string; status: string; members: number; paidCount: number; totals: FeeTotals }[];
+  members: { memberId: string; name: string; membershipNumber: string; rounds: number; paidCount: number; totals: FeeTotals }[];
+}
+export interface RoundAdminFees {
+  roundId: string;
+  roundNumber: number;
+  status: string;
+  totals: FeeTotals;
+  split: FeeSplit;
+  lines: FeeLine[];
+}
+export interface MemberAdminFees {
+  memberId: string;
+  name: string;
+  membershipNumber: string;
+  totals: FeeTotals;
+  lines: FeeLine[];
 }
 
 // ---- Winners / payouts / guarantees ----------------------------------------

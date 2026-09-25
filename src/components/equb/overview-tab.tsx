@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import {
   Users,
   UserX,
@@ -35,6 +36,10 @@ export function EqubOverview({ equb, dashboard, dashboardLoading }: Props) {
   const tc = useTranslations("common");
   const tcat = useTranslations("categories");
   const cat = equb.category;
+  // What the Equb actually runs on; the category is only the template.
+  const terms = equb.effectiveTerms ?? (cat ? { ...cat, totalPerRound: cat.contribution + cat.adminFee + cat.takafulFee } : undefined);
+  const o = equb.overrides ?? {};
+  const custom = (key: keyof typeof o) => (o[key] !== undefined ? <span className="ml-1 rounded bg-primary/10 px-1 py-px text-[10px] font-semibold uppercase text-primary">{t("custom")}</span> : null);
 
   return (
     <div className="space-y-6">
@@ -50,11 +55,11 @@ export function EqubOverview({ equb, dashboard, dashboardLoading }: Props) {
                 label={t("manager")}
                 value={equb.manager ? <span title={[equb.manager.email, equb.manager.phone].filter(Boolean).join(" · ")}>{equb.manager.fullName}</span> : <span className="italic text-muted-foreground">{t("noManager")}</span>}
               />
-              <Row label={t("createdBy")} value={<span className="break-all font-mono text-xs">{equb.createdBy || "—"}</span>} />
               <Row label={t("createdAt")} value={formatDate(equb.createdAt)} />
               <Row label={t("start")} value={formatDate(equb.startDate)} />
               <Row label={t("end")} value={formatDate(equb.expectedEndDate)} />
               <Row label={t("members")} value={t("membersOf", { current: equb.currentMembers, max: equb.maxMembers })} />
+              <Row label={t("cycle")} value={equb.previousEqubId ? <Link href={`/dashboard/equbs/${equb.previousEqubId}`} className="hover:underline">{t("cycleOf", { n: equb.cycleNumber })} · {t("previousCycle")}</Link> : t("cycleOf", { n: equb.cycleNumber })} />
               {equb.manager?.phone && <Row label={t("managerContact")} value={equb.manager.phone} />}
               <Row label={tc("status")} value={<StatusBadge status={equb.status} kind="lifecycle" />} />
             </dl>
@@ -63,21 +68,33 @@ export function EqubOverview({ equb, dashboard, dashboardLoading }: Props) {
 
         {/* Category terms */}
         <Card>
-          <CardHeader><CardTitle className="text-base">{t("categoryDetails")}</CardTitle></CardHeader>
-          <CardContent>
-            {cat ? (
+          <CardHeader className="flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">{t("termsInForce")}</CardTitle>
+            {Object.keys(o).length > 0 && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{t("customTerms")}</span>}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {terms ? (
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <Row label={t("contribution")} value={formatCurrency(cat.contribution)} />
-                <Row label={t("adminFee")} value={formatCurrency(cat.adminFee)} />
-                <Row label={t("takafulFee")} value={formatCurrency(cat.takafulFee)} />
-                <Row label={t("totalPerRound")} value={<strong>{formatCurrency(cat.contribution + cat.adminFee + cat.takafulFee)}</strong>} />
-                <Row label={t("payout")} value={<span className="font-semibold text-primary">{formatCurrency(cat.payout)}</span>} />
-                <Row label={t("frequency")} value={tcat.has(cat.frequency) ? tcat(cat.frequency) : cat.frequency} />
-                <Row label={t("winnersPerRound")} value={String(cat.winnersPerRound)} />
-                <Row label={t("totalRounds")} value={String(cat.totalRounds)} />
+                <Row label={t("contribution")} value={<>{formatCurrency(terms.contribution)}{custom("contribution")}</>} />
+                <Row label={t("adminFee")} value={<>{formatCurrency(terms.adminFee)}{custom("adminFee")}</>} />
+                <Row label={t("takafulFee")} value={<>{formatCurrency(terms.takafulFee)}{custom("takafulFee")}</>} />
+                <Row label={t("totalPerRound")} value={<strong>{formatCurrency(terms.totalPerRound)}</strong>} />
+                <Row label={t("payout")} value={<><span className="font-semibold text-primary">{formatCurrency(terms.payout)}</span>{custom("payout")}</>} />
+                <Row label={t("frequency")} value={<>{tcat.has(terms.frequency) ? tcat(terms.frequency) : terms.frequency}{custom("frequency")}</>} />
+                <Row label={t("winnersPerRound")} value={<>{terms.winnersPerRound}{custom("winnersPerRound")}</>} />
+                <Row label={t("totalRounds")} value={<>{terms.totalRounds}{custom("totalRounds")}</>} />
+                <Row label={t("guaranteeRequired")} value={<>{terms.guaranteeRequired ? (terms.acceptedGuaranteeTypes.length ? terms.acceptedGuaranteeTypes.map((g) => tcat(`guarantee_${g}`)).join(", ") : tc("yes")) : tc("no")}{custom("guaranteeRequired")}</>} />
               </dl>
             ) : (
               <p className="text-sm text-muted-foreground">—</p>
+            )}
+            {equb.feeShares && (
+              <div className="border-t border-border pt-3 text-sm">
+                <p className="text-xs text-muted-foreground">{t("feeSplit")}</p>
+                <p className="font-medium text-foreground">
+                  {t("shareSacco")} {equb.feeShares.sacco}% · {t("shareAgent")} {equb.feeShares.agent}% · {t("shareBroker")} {equb.feeShares.broker}%
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

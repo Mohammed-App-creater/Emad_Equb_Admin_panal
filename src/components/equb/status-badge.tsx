@@ -39,6 +39,8 @@ const tones: Record<Kind, Record<string, string>> = {
   },
   payment: {
     paid: "bg-success/15 text-success",
+    processing: "bg-info/15 text-info",
+    confirmed: "bg-success/15 text-success",
     pending: "bg-warning/15 text-warning",
     unpaid: "bg-warning/15 text-warning",
     overdue: "bg-destructive/15 text-destructive",

@@ -23,6 +23,7 @@ import {
   useApproveGuarantee,
   useRejectGuarantee,
   useProcessPayout,
+  useApproveWinner,
 } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
@@ -39,13 +40,15 @@ interface TableProps {
   isLoading?: boolean;
   /** Hide the round column when every row is from the same round. */
   hideRound?: boolean;
+  /** From the Equb's terms; when false winners are approved directly, without a guarantee. */
+  guaranteeRequired?: boolean;
 }
 
 /**
  * Winners with their guarantee + payout workflow. Shared by the Equb-level
  * "Winners & Payouts" tab and the round detail page.
  */
-export function WinnersTable({ equbId, roundId, winners, isLoading, hideRound }: TableProps) {
+export function WinnersTable({ equbId, roundId, winners, isLoading, hideRound, guaranteeRequired = true }: TableProps) {
   const t = useTranslations("payouts");
   const tc = useTranslations("common");
   const { has } = useEkubAccess();
@@ -56,6 +59,7 @@ export function WinnersTable({ equbId, roundId, winners, isLoading, hideRound }:
   const approveGuarantee = useApproveGuarantee();
   const rejectGuarantee = useRejectGuarantee();
   const processPayout = useProcessPayout();
+  const approveWinner = useApproveWinner();
 
   // The winners list doesn't carry the guarantee id, so remember the ones
   // created in this session to offer approve / reject right away.
@@ -70,27 +74,29 @@ export function WinnersTable({ equbId, roundId, winners, isLoading, hideRound }:
   const scope = { equbId, roundId };
 
   const columns: DataTableColumn<Winner>[] = [
-    { id: "winner", header: t("winner"), mobile: "title", cell: (r) => (
+    { id: "winner", sortValue: (r) => r.name, header: t("winner"), mobile: "title", cell: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.name}</p>
         <p className="text-xs text-muted-foreground">{r.membershipNumber}{r.phone ? ` · ${r.phone}` : ""}</p>
       </div>
     ) },
-    ...(hideRound ? [] : [{ id: "round", header: t("round"), mobile: "detail" as const, cell: (r: Winner) => <span className="text-sm">{r.roundNumber != null ? `#${r.roundNumber}` : "—"}</span> }]),
-    { id: "position", header: "#", mobile: "detail", align: "center", cell: (r) => <span className="text-sm text-muted-foreground">{r.position}</span> },
-    { id: "amount", header: t("payoutAmount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.payoutAmount)}</span> },
-    { id: "guarantee", header: t("guaranteeStatus"), mobile: "detail", cell: (r) => (
+    ...(hideRound ? [] : [{ id: "round", sortValue: (r: Winner) => r.roundNumber ?? null, header: t("round"), mobile: "detail" as const, cell: (r: Winner) => <span className="text-sm">{r.roundNumber != null ? `#${r.roundNumber}` : "—"}</span> }]),
+    { id: "position", sortValue: (r) => r.position, header: "#", mobile: "detail", align: "center", cell: (r) => <span className="text-sm text-muted-foreground">{r.position}</span> },
+    { id: "amount", sortValue: (r) => r.payoutAmount, header: t("payoutAmount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.payoutAmount)}</span> },
+    { id: "guarantee", sortValue: (r) => r.guaranteeStatus, header: t("guaranteeStatus"), mobile: "detail", cell: (r) => (
       <Badge className={`capitalize ${r.guaranteeStatus === "approved" ? "bg-success/15 text-success" : r.guaranteeStatus === "rejected" ? "bg-destructive/15 text-destructive" : r.guaranteeStatus === "pending" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}>
         {r.guaranteeStatus.replace(/_/g, " ")}
       </Badge>
     ) },
-    { id: "paidAt", header: t("paidAt"), mobile: "detail", cell: (r) => <span className="text-sm">{r.paidAt ? formatDateTime(r.paidAt) : "—"}</span> },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="winner" /> },
+    { id: "paidAt", sortValue: (r) => r.paidAt, header: t("paidAt"), mobile: "detail", cell: (r) => <span className="text-sm">{r.paidAt ? formatDateTime(r.paidAt) : "—"}</span> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="winner" /> },
   ];
 
   return (
     <>
       <DataTable
+        defaultSort={{ by: (r) => r.createdAt, dir: "desc" }}
+        filters={{ search: { keys: (r) => [r.name, r.membershipNumber, r.phone] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status, labelOf: (v) => (v === "pending" ? t("statusPending") : v === "approved" ? t("statusApproved") : t("statusPaid")) }, { id: "guarantee", label: t("guaranteeStatus"), get: (r) => r.guaranteeStatus }, ...(hideRound ? [] : [{ id: "round", label: t("round"), get: (r: Winner) => (r.roundNumber != null ? `#${r.roundNumber}` : null) }])] }}
         columns={columns}
         data={winners}
         rowKey={(r) => r.id}
@@ -103,7 +109,12 @@ export function WinnersTable({ equbId, roundId, winners, isLoading, hideRound }:
           const gid = guaranteeIds[r.id];
           return (
             <div className="flex flex-wrap gap-1.5">
-              {r.guaranteeStatus !== "approved" && (
+              {!guaranteeRequired && r.status === "pending" && (
+                <Button size="sm" variant="outline" disabled={approveWinner.isPending} onClick={() => approveWinner.mutate({ ...scope, winnerId: r.id }, { onSuccess: () => toast({ title: t("winnerApproved"), description: r.name }), onError: err })}>
+                  <ThumbsUp size={14} className="mr-1" /> {t("approveWinner")}
+                </Button>
+              )}
+              {guaranteeRequired && r.guaranteeStatus !== "approved" && (
                 <Button size="sm" variant="outline" onClick={() => { setGForm(blankGuarantee); setGuaranteeFor(r); }}>
                   <FileSignature size={14} className="mr-1" /> {t("submitGuarantee")}
                 </Button>
@@ -227,7 +238,7 @@ export function WinnersTab({ equb }: { equb: Equb }) {
         <Info size={16} className="mt-0.5 shrink-0 text-primary" />
         <span>{t("subtitle")} · {t("slaTarget")}</span>
       </div>
-      <WinnersTable equbId={equb.id} winners={data ?? []} isLoading={isLoading} />
+      <WinnersTable equbId={equb.id} winners={data ?? []} isLoading={isLoading} guaranteeRequired={equb.effectiveTerms?.guaranteeRequired ?? equb.category?.guaranteeRequired ?? true} />
     </div>
   );
 }

@@ -530,6 +530,59 @@
                 }
             }
         },
+        "/agents/me/equb-admin-fee-commissions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "The authenticated agent's share of the Equb admin fees their members paid. Every time a member this agent registered completes an Equb contribution payment, the agent earns a configured share (50% by default) of the <b>admin fee</b> that payment collected — not of the contribution itself. Each entry shows the admin fee it was calculated from, the rate applied, the Equb group and (where the payment settled a single round) the round. Resolves to the caller, so an agent cannot read anyone else's figures.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "My Equb admin-fee commissions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Equb admin-fee commissions retrieved",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeCommissionListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/agents/me/members": {
             "get": {
                 "security": [
@@ -1209,6 +1262,72 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {}
+                    }
+                }
+            }
+        },
+        "/agents/{id}/equb-admin-fee-commissions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "A named agent's share of the Equb admin fees their registered members paid. The manager-facing counterpart of /agents/me/equb-admin-fee-commissions.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Agent Equb admin-fee commissions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent user UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Equb admin-fee commissions retrieved",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeCommissionListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid agent ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
                     }
                 }
             }
@@ -3666,6 +3785,239 @@
                 }
             }
         },
+        "/equb/admin/contributions/{contribution_id}/attachments": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Returns the attachments filed against one contribution, newest first. Each record carries a <code>file_url</code> minted for this response and valid for a limited time - do not cache it; re-read or use the download endpoint instead. <code>is_image</code> says whether the file can be rendered inline rather than offered as a download.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Contribution Attachments"
+                ],
+                "summary": "List Contribution Attachments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contribution ID",
+                        "name": "contribution_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attachments retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubContributionAttachmentListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Contribution not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Files an optional attachment against one contribution - a bank slip, a photo of a cash receipt, a screenshot of a transfer. Sent as <b>multipart/form-data</b> with the file in <code>file</code> and an optional <code>description</code>. Accepts JPEG, PNG, GIF, WebP, HEIC and PDF up to 10MB, stored in object storage. A contribution may carry at most 10 attachments.<br><br>Attachments are <b>evidence, never state</b>: nothing about settlement, round readiness or the draw reads them - a contribution is settled by a completed payment, not by a picture of one. Uploading is therefore allowed whatever state the contribution is in, which is what lets a member file proof of a payment that has not landed yet.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Contribution Attachments"
+                ],
+                "summary": "Upload Contribution Attachment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contribution ID",
+                        "name": "contribution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File to attach (image or PDF, max 10MB)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "What this file shows",
+                        "name": "description",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Attachment uploaded successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubContributionAttachmentResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "No file provided, type not allowed, or file too large",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contribution not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "File storage not available",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/contributions/{contribution_id}/attachments/{attachment_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Removes an attachment and the stored file behind it. The attachment must belong to the contribution in the path.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Contribution Attachments"
+                ],
+                "summary": "Delete Contribution Attachment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contribution ID",
+                        "name": "contribution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attachment ID",
+                        "name": "attachment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attachment deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Attachment not found on this contribution",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/contributions/{contribution_id}/attachments/{attachment_id}/download": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Redirects to a freshly minted, time-limited URL for the file. The attachment must belong to the contribution in the path.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Contribution Attachments"
+                ],
+                "summary": "Download Contribution Attachment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contribution ID",
+                        "name": "contribution_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Attachment ID",
+                        "name": "attachment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "307": {
+                        "description": "Redirect to the file URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Attachment not found on this contribution",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/admin/draws/{draw_id}/candidates": {
             "get": {
                 "security": [
@@ -3852,6 +4204,110 @@
                 }
             }
         },
+        "/equb/admin/fees": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Returns the fee ledger for whatever scope the query names: every fee that rides on a contribution - the <b>contribution itself</b>, the <b>admin fee</b> and the <b>Takaful fee</b> - and the total ask, one line per member per round.<br><br><b>Scopes the query understands</b> (all optional, and freely combinable - the ledger is their intersection):<br>- <b>no filter at all</b> — the whole SACCO's ledger<br>- <code>scheme_id</code> — every group and round under one scheme<br>- <code>group_id</code> — every round and contribution inside one group<br>- <code>round_id</code> — one round's contributions<br>- <code>contribution_id</code> — a single contribution, the finest unit, which is how one member's exact fee position for one round is read<br>- <code>member_id</code> — one member's contributions under whatever else is set<br>- <code>status</code> — one contribution state (<code>paid</code>, <code>pending</code>, <code>overdue</code>, <code>waived</code>); omit for every state<br><br><b>Charged vs collected.</b> A fee is <b>charged</b> on every matching contribution and <b>collected</b> only once that contribution is <b>paid</b> - a waived contribution settles its round but yields no cash, and an overdue one has not yielded it yet, so <code>collected</code> can sit below <code>charged</code>. The per-type <code>*_charged</code>/<code>*_collected</code> totals and the <code>total_charged</code>/<code>total_collected</code> pair cover the <b>whole filtered set</b>, not just the returned page. Each <code>admin_fee</code> is read off the contribution rather than recomputed from the scheme, so a group whose fee was overridden mid-cycle still reports each round at what it actually charged.<br><br><b>Access:</b> administrators reach any scope; a manager's group in the path is ownership-checked and pinned to their group; a member's request is scoped to their own contributions only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Fees"
+                ],
+                "summary": "Fee Ledger",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Scheme ID",
+                        "name": "scheme_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Round ID",
+                        "name": "round_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Contribution ID",
+                        "name": "contribution_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member ID",
+                        "name": "member_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "paid",
+                            "pending",
+                            "overdue",
+                            "waived"
+                        ],
+                        "type": "string",
+                        "description": "Filter by contribution status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Records per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fee ledger retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubFeesLedgerResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid filter or pagination",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/admin/groups": {
             "get": {
                 "security": [
@@ -3859,7 +4315,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a paginated list of Equb groups, optionally filtered by scheme (equb_scheme_id), lifecycle status (draft / active / completed / cancelled) or searched by name or code. Use this to manage all groups currently running or configured across the SACCO.",
+                "description": "Returns a paginated list of Equb groups, optionally filtered by scheme (equb_scheme_id), lifecycle status (draft / active / completed / cancelled) or searched by name or code. Use this to manage all groups currently running or configured across the SACCO.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case. Every manager on the page is resolved in a single lookup, so page size does not multiply the cost.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3946,7 +4402,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a new Equb group under a given scheme. The group inherits its financial and membership rules from the scheme, and records an optional start date and expected end date. Groups are created in <b>draft</b> status and must be activated before members can cycle through rounds. A member can belong to at most one active group at a time.",
+                "description": "Creates a new Equb group under a given scheme. The group inherits its financial and membership rules from the scheme unless it states its own: send any of <code>contribution_amount_override</code>, <code>admin_fee_override</code>, <code>takaful_fee_override</code>, <code>payout_amount_override</code>, <code>winners_per_round_override</code>, <code>frequency_override</code> or <code>total_rounds_override</code> to depart from the template, and omit them to inherit. A group that overrides anything must state a set that adds up: the payout must equal the contribution times <code>max_members</code>, and the winners per round must fit in <code>max_members</code>. The resolved figures come back as <code>effective_terms</code>. <code>code</code> is optional: leave it out (or send it empty) and the server allocates the next free <code>EQG00001</code>-style code; supply one and it is used verbatim and must be unique. Groups are created in <b>draft</b> status and must be activated before members can cycle through rounds. A member can belong to at most one active group at a time.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4003,7 +4459,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a single Equb group by its ID, including its inherited scheme details, current membership count and lifecycle status. Use this to review a group's configuration and progress.",
+                "description": "Returns a single Equb group by its ID, including its inherited scheme details, current membership count and lifecycle status. Use this to review a group's configuration and progress.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4056,7 +4512,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Updates an existing Equb group's configuration, such as its name, code, expected end date or anonymity setting. Note that the financial values are inherited from the scheme and cannot be changed at the group level.",
+                "description": "Updates an existing Equb group's configuration, such as its name, code (omit or blank it to keep the current one — it is never regenerated), expected end date or anonymity setting, and the terms it overrides from its scheme. Only <b>draft</b> groups can be edited: activation freezes the terms into the group's round and contribution rows. An omitted override is left as it is, never cleared -- send <code>clear_term_overrides: true</code> to return the group to its scheme, optionally alongside a new set. The whole resolved set is re-checked after the update, so a change to <code>max_members</code> that leaves an existing payout override stale is refused.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4273,6 +4729,61 @@
                 }
             }
         },
+        "/equb/admin/groups/{id}/admin-fees": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Admin fee ledger for a whole Equb group. The admin fee is a <b>flat amount</b> each member pays on top of their contribution every round - a member hands over contribution + admin fee + takaful fee - set by the scheme and optionally overridden by the group. It is never a percentage of the contribution. Returns the fee charged and the fee actually collected (only a <b>paid</b> contribution has yielded its fee), broken down per round and per member, plus how the collected total divides between the SACCO, the agent and the broker under this group's shares.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Admin Fees"
+                ],
+                "summary": "Group Admin Fee Ledger",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Group admin fee ledger retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeGroupResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/admin/groups/{id}/cancel": {
             "post": {
                 "security": [
@@ -4330,6 +4841,81 @@
                     },
                     "400": {
                         "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/groups/{id}/clone": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Creates the next cycle of a finished group: a new <b>draft</b> group carrying the same scheme, term overrides, admin fee split, broker, manager and active member roster, linked back to the one it continues. Activate it with a start date to generate its rounds and contributions.<br><br>Only a <b>completed</b> or <b>cancelled</b> group can start a next cycle. A group runs once, and a next cycle is a new group rather than a reopened one - not for tidiness, but because winners are scoped per group: re-running the finished group in place would start with every member already in its winner set, so the "previously won" exclusion would lift on round one and never re-apply, letting one member win twice while another won nothing. A new group starts with an empty winner set, its own Takaful fund and its own admin fee ledger, and leaves the finished cycle intact and reportable.<br><br>Every field is optional and inherited from the source group when omitted. Missed-payment history carries over by default so a repeat defaulter does not get a clean slate simply because the cycle rolled over; an unserved ban is rebased onto the new cycle's round numbering and serves out only its remaining rounds.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Groups"
+                ],
+                "summary": "Start the Next Cycle of a Group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID of the cycle being continued",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Overrides; an empty body inherits everything",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.CloneEqubGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Next cycle created as a draft",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.CloneEqubGroupResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Group has not finished, or the scheme is no longer active",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Group code already exists",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -4539,6 +5125,76 @@
                     },
                     "400": {
                         "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/groups/{id}/manager": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Hands a group to a manager. The manager is the user every ownership check under <code>/equb/manager/**</code> matches against, so this is what lets a group outlive the person who created it — previously a group whose manager had left could only ever be operated by an admin. <br><br>Admin-only, and deliberately not offered to managers: one who could reassign their own group could hand it to anyone. <br><br>Works at any group status: a manager leaving mid-cycle is the case this exists for, and refusing to reassign an active group would leave its members with nobody able to run their draws. Idempotent — naming the manager a group already has writes nothing and returns <code>changed: false</code>. The change is written to the audit log, which is the only record of who held the group before.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Groups"
+                ],
+                "summary": "Assign Equb Group Manager",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The user to hand the group to",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.AssignEqubGroupManagerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Manager assigned",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupManagerResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error, or no such user",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -4798,6 +5454,68 @@
                     },
                     "404": {
                         "description": "Member not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/groups/{id}/members/{member_id}/admin-fees": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Admin fee ledger for one member of a group, with a line per round showing the flat fee charged, whether it has been collected, and the payment it was collected on. Catch-up rounds a late joiner owes are included and flagged.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Admin Fees"
+                ],
+                "summary": "Member Admin Fee Ledger",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member ID",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Member admin fee ledger retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeMemberResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Group or member not found",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -5433,6 +6151,52 @@
                 }
             }
         },
+        "/equb/admin/rounds/refresh-readiness": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Re-checks every round that has not yet been drawn and advances the ones that now meet both draw conditions: every member has settled their contribution, and the round's collection window has opened and closed. Contributions advance a round as they are paid, but a round whose members all paid before the due date has no further payment to trigger the final transition - this closes that gap. Returns the number of rounds whose status changed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Rounds"
+                ],
+                "summary": "Refresh Round Draw Readiness",
+                "responses": {
+                    "200": {
+                        "description": "Round readiness refreshed",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/admin/rounds/{round_id}": {
             "get": {
                 "security": [
@@ -5473,6 +6237,116 @@
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubRoundResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Round not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/rounds/{round_id}/admin-fees": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Admin fee ledger for one round, with a line per member showing the flat fee they were charged, whether it has been collected, and the payment it was collected on. Totals and the SACCO/agent/broker split cover this round alone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Admin Fees"
+                ],
+                "summary": "Round Admin Fee Ledger",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Round ID",
+                        "name": "round_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Round admin fee ledger retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeRoundResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Round not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/admin/rounds/{round_id}/attachments": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Returns every attachment filed against any contribution of a round - the whole round's evidence in one call, newest first, each record naming the member it belongs to. Use this to review what was collected for a round before drawing it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Contribution Attachments"
+                ],
+                "summary": "List Round Attachments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Round ID",
+                        "name": "round_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attachments retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubContributionAttachmentListResponse"
                                         }
                                     }
                                 }
@@ -5744,7 +6618,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a new Equb scheme, which is the reusable template that configures every group's rules. The scheme defines the fixed contribution amount, the flat admin fee and Takaful fee that are added on top of each contribution, the payout a winner receives, the group size, and how many winners are selected per round. <br><br>Key business rules:<br>- The member pays <b>ContributionAmt + AdminFee + TakafulFee</b> each round; fees are NOT deducted from the contribution.<br>- The winner's payout must equal <b>ContributionAmt × MembersPerGroup</b> (payout math is validated).<br>- MembersPerGroup × WinnersPerRound determines membership and draw configuration.",
+                "description": "Creates a new Equb scheme, which is the reusable template that configures every group's rules. The scheme defines the fixed contribution amount, the flat admin fee and Takaful fee that are added on top of each contribution, the payout a winner receives, the group size, and how many winners are selected per round. <br><br>Key business rules:<br>- The member pays <b>ContributionAmt + AdminFee + TakafulFee</b> each round; fees are NOT deducted from the contribution.<br>- The winner's payout must equal <b>ContributionAmt × MembersPerGroup</b> (payout math is validated).<br>- MembersPerGroup × WinnersPerRound determines membership and draw configuration.<br>- <code>code</code> is optional. Leave it out (or send it empty) and the server allocates the next free <code>EQS00001</code>-style code. Supply one and it is used verbatim and must be unique — letters and digits only, no hyphens.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5854,7 +6728,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Updates an existing Equb scheme's configuration. Changes affect future groups created from this scheme; the same payout-math validation applies — the winner's payout must still equal <b>ContributionAmt × MembersPerGroup</b>. Editing fees (admin/Takaful) changes what each member pays per round for new groups.",
+                "description": "Updates an existing Equb scheme's configuration. Changes affect future groups created from this scheme; the same payout-math validation applies — the winner's payout must still equal <b>ContributionAmt × MembersPerGroup</b>. Editing fees (admin/Takaful) changes what each member pays per round for new groups. <code>code</code> is optional here and is the one field that is not full-replace: omit it and the scheme keeps the code it has, which is never regenerated — a code that changed itself when someone edited the name would break every receipt already carrying it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5952,6 +6826,67 @@
                 }
             }
         },
+        "/equb/admin/winners/{winner_id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Approves a winner for payout on a group whose terms set <b>guarantee_required</b> to false, so the winner is released without putting up a guarantee. On a group that does require a guarantee this is refused — there the guarantee is the approval, and the winner's guarantee must be approved instead. The winner moves to <b>approved</b> and becomes eligible for payout.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Payouts"
+                ],
+                "summary": "Approve Winner (no guarantee)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Winner ID",
+                        "name": "winner_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Winner approved for payout",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubWinnerResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Winner cannot be approved (group requires a guarantee, or winner is not awaiting approval)",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Winner not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/equb/admin/winners/{winner_id}/guarantee": {
             "post": {
                 "security": [
@@ -5959,7 +6894,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a guarantee for a winner before the payout can be processed. The guarantee can be member-backed, cheque, or collateral, and must be approved before the winner's payout proceeds. Guarantee type is one of member / cheque / collateral.",
+                "description": "Creates a guarantee for a winner before the payout can be processed. The guarantee can be member-backed, cheque, or collateral, and must be approved before the winner's payout proceeds. Guarantee type is one of member / cheque / collateral, and must be among the types the winner's group accepts (see the group's <b>effective_terms.accepted_guarantee_types</b>). On a group configured not to require a guarantee, submit one only if the winner volunteers it; it is never needed to be paid.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6023,7 +6958,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Processes the payout for a winner whose guarantee has been approved. The payout amount is the winner's payout (ContributionAmt × MembersPerGroup) and is issued through the existing payment system. Payout cannot be processed until the winner's guarantee is approved; after this the winner moves to <b>paid</b>.",
+                "description": "Processes the payout for an approved winner. The payout amount is the winner's payout (ContributionAmt × MembersPerGroup) and is issued through the existing payment system. Whether a guarantee is required is a term of the winner's group (<b>effective_terms.guarantee_required</b>): when required, the payout is refused unless the winner's guarantee is on file and approved; when not required, the winner is released via <b>POST .../approve</b> instead. After payment clears the winner moves to <b>paid</b>.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6078,7 +7013,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "End-of-day reconciliation for a field agent: the Equb contributions this staff member recorded in a period, with confirmed and still-pending totals separated. The difference between them is what is still outstanding. Defaults to today when no dates are given.",
+                "description": "End-of-day reconciliation for a field agent: the Equb contributions this staff member recorded in a period, with confirmed and still-pending totals separated. The difference between them is what is still outstanding. Defaults to today when no dates are given, and can be narrowed to a single group, scheme or member.",
                 "produces": [
                     "application/json"
                 ],
@@ -6097,6 +7032,24 @@
                         "type": "string",
                         "description": "End date, YYYY-MM-DD inclusive (default today)",
                         "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only collections for this Equb group",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only collections for this Equb scheme",
+                        "name": "scheme_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only collections from this member",
+                        "name": "member_id",
                         "in": "query"
                     }
                 ],
@@ -6118,6 +7071,18 @@
                                 }
                             ]
                         }
+                    },
+                    "400": {
+                        "description": "A date is not YYYY-MM-DD, or `to` is before `from`",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
                     }
                 }
             }
@@ -6129,7 +7094,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a paginated list of Equb groups owned by the current manager, optionally filtered by scheme, status or searched by name/code. Managers can then operate on their own groups via the manager-scoped routes.",
+                "description": "Returns a paginated list of Equb groups owned by the current manager, optionally filtered by scheme, status or searched by name/code. Managers can then operate on their own groups via the manager-scoped routes. Ownership is <code>created_by</code>, and an admin can reassign it with <code>PUT /equb/admin/groups/{id}/manager</code>.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6280,9 +7245,10 @@
                         "Bearer": []
                     }
                 ],
-                "description": "For an agent or manager collecting in the field. Records a payment on behalf of a member for one or more rounds — the server works out the amount owed, so no amount is sent. The staff user who collected the money is recorded on the payment and written to the audit log. Like the member's own payment, the contribution settles once the payment is confirmed.",
+                "description": "For an agent or manager collecting in the field. Records a payment on behalf of a member for one or more rounds — the server works out the amount owed, so no amount is sent. The staff user who collected the money is recorded on the payment and written to the audit log. Like the member's own payment, the contribution settles once the payment is confirmed.<br><br>Send <b>multipart/form-data</b> instead of JSON to file proof of the collection in the same request: the rounds as repeated <code>round_ids</code> fields, plus <code>method</code>, <code>reference</code>, and optionally <code>file</code> with <code>description</code>. A member settles a run of rounds with one payment, so one slip covers all of them: the file is stored once and filed against every contribution this request collects for, and <code>attachments[].contribution_ids</code> names them. The file is filed only after the collection is recorded, so a file that cannot be stored leaves the collection intact and is reported in <code>attachment_warning</code>.",
                 "consumes": [
-                    "application/json"
+                    "application/json",
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -6307,13 +7273,43 @@
                         "required": true
                     },
                     {
-                        "description": "Rounds being collected for",
+                        "description": "Rounds being collected for (JSON body)",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubPayRoundsRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Round being collected for; repeat once per round (multipart only)",
+                        "name": "round_ids",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Payment method (multipart only)",
+                        "name": "method",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Payment reference (multipart only)",
+                        "name": "reference",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Proof of the collection - bank slip, photo of cash received. Covers every round in the request (multipart only, max 10MB)",
+                        "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "What the file shows",
+                        "name": "description",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -6392,6 +7388,24 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed group or member ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "You are not the manager of this group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No such member in this group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
                     }
                 }
@@ -6631,7 +7645,7 @@
         },
         "/equb/member/groups": {
             "get": {
-                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.",
+                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6715,7 +7729,7 @@
         },
         "/equb/member/groups/{id}": {
             "get": {
-                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.",
+                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6920,7 +7934,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns detailed information about a group the member belongs to — including the scheme's rules, the member's position, current round, and their standing in the group. Use this for the member's group detail screen.",
+                "description": "Returns detailed information about a group the member belongs to — including the scheme's rules, the member's position, current round, and their standing in the group. Use this for the member's group detail screen.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case. For a member that is who is collecting from them, and who to contact about a problem.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7215,6 +8229,24 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Member not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "You are not a member of this Equb group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
                     }
                 }
@@ -7782,6 +8814,24 @@
                                 }
                             ]
                         }
+                    },
+                    "401": {
+                        "description": "Member not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "You are not a member of this Equb group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
                     }
                 }
             }
@@ -7883,6 +8933,24 @@
                                 }
                             ]
                         }
+                    },
+                    "401": {
+                        "description": "Member not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "You are not a member of this Equb group",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
                     }
                 }
             }
@@ -7981,6 +9049,12 @@
                                 }
                             ]
                         }
+                    },
+                    "401": {
+                        "description": "Member not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
                     }
                 }
             }
@@ -8026,6 +9100,18 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Member not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No such win, or it belongs to another member",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
                     }
                 }
@@ -8473,6 +9559,268 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/public/groups": {
+            "get": {
+                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Groups"
+                ],
+                "summary": "List Groups (Public)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by scheme UUID",
+                        "name": "equb_scheme_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "draft",
+                            "active",
+                            "completed",
+                            "cancelled"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name or code",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Groups retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/public/groups/{id}": {
+            "get": {
+                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Groups"
+                ],
+                "summary": "Get Group (Public)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Group retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Group not found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/public/schemes": {
+            "get": {
+                "description": "Returns a paginated list of Equb schemes that are visible to members browsing available saving circles. Only schemes in <b>active</b> status are surfaced here; results can be filtered by status, or searched by name or code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Schemes"
+                ],
+                "summary": "List Schemes (Public)",
+                "parameters": [
+                    {
+                        "enum": [
+                            "draft",
+                            "active",
+                            "completed",
+                            "cancelled"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name or code",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Schemes retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSchemeResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/equb/public/schemes/{id}": {
+            "get": {
+                "description": "Returns a single Equb scheme by ID that is visible to members, showing the contribution amount, fees, payout, group size and frequency so a member can decide which circle to join. Only active schemes are exposed publicly.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Equb Schemes"
+                ],
+                "summary": "Get Scheme (Public)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Scheme ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Scheme retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSchemeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Scheme not found",
                         "schema": {
                             "$ref": "#/definitions/github_com_emad_internal_delivery_http_common.APIResponse"
                         }
@@ -18687,6 +20035,19 @@
                 }
             }
         },
+        "github_com_emad_internal_config.EqubAdminFeeCommissionConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "min_payout": {
+                    "description": "MinPayout suppresses commissions below this amount.",
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
         "github_com_emad_internal_config.FeesConfig": {
             "type": "object",
             "required": [
@@ -18752,6 +20113,14 @@
             "properties": {
                 "agent_commission": {
                     "$ref": "#/definitions/github_com_emad_internal_config.AgentCommissionConfig"
+                },
+                "equb_admin_fee_commission": {
+                    "description": "EqubAdminFeeCommission governs the agent's share of the admin fee collected on a completed Equb contribution payment by a member they registered.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_emad_internal_config.EqubAdminFeeCommissionConfig"
+                        }
+                    ]
                 },
                 "fees": {
                     "$ref": "#/definitions/github_com_emad_internal_config.FeesConfig"
@@ -20267,6 +21636,10 @@
                 "commission_rate": {
                     "type": "number"
                 },
+                "commission_type": {
+                    "description": "CommissionType is "payment", "activation" or "equb_admin_fee".",
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -20320,6 +21693,10 @@
                     "type": "integer"
                 },
                 "approved_amount": {
+                    "type": "number"
+                },
+                "equb_admin_fee_earnings": {
+                    "description": "EqubAdminFeeEarnings is the share of TotalEarnings that came from Equb admin fees on the agent's members' completed contribution payments.",
                     "type": "number"
                 },
                 "paid_amount": {
@@ -20917,6 +22294,18 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.AssignEqubGroupManagerRequest": {
+            "type": "object",
+            "required": [
+                "manager_user_id"
+            ],
+            "properties": {
+                "manager_user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.AssignPermissionsRequest": {
             "type": "object",
             "required": [
@@ -21463,6 +22852,67 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.CloneEqubGroupRequest": {
+            "type": "object",
+            "properties": {
+                "carry_over_missed_payments": {
+                    "description": "CarryOverMissedPayments brings each member's missed-payment history forward, so a repeat defaulter does not get a clean slate simply because the cycle rolled over. An unserved ban is rebased onto the new cycle's round numbering and serves out its remaining rounds. Defaults to true.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "code": {
+                    "description": "Code is allocated automatically when omitted, exactly as it is on create.",
+                    "type": "string",
+                    "example": "EQG00007"
+                },
+                "copy_members": {
+                    "description": "CopyMembers carries the source group's active members over, keeping their positions. Defaults to true -- the next cycle is normally the same people.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "max_members": {
+                    "description": "MaxMembers defaults to the source group's. Lowering it below the number of members actually copied is rejected.",
+                    "type": "integer",
+                    "example": 12
+                },
+                "name": {
+                    "description": "Name defaults to the source group's name with the new cycle appended, e.g. "Bole Weekly - Cycle 2".",
+                    "type": "string",
+                    "example": "Bole Weekly - Cycle 2"
+                },
+                "start_date": {
+                    "description": "StartDate is optional and only pre-fills the draft; activation still takes the start date it runs on.",
+                    "type": "string",
+                    "example": "2026-10-01"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.CloneEqubGroupResponse": {
+            "type": "object",
+            "properties": {
+                "bans_carried_over": {
+                    "type": "integer"
+                },
+                "group": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupResponse"
+                },
+                "members_copied": {
+                    "description": "MembersCopied is how many active members came across; BansCarriedOver how many of them arrived still serving a ban.",
+                    "type": "integer"
+                },
+                "next_step": {
+                    "description": "NextStep is what the caller has to do to start the cycle running.",
+                    "type": "string"
+                },
+                "previous_group_code": {
+                    "type": "string"
+                },
+                "previous_group_id": {
+                    "description": "PreviousGroupID and PreviousGroupCode identify the cycle this one continues.",
+                    "type": "string"
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.CollectionEfficiencyReport": {
             "type": "object",
             "properties": {
@@ -21622,17 +23072,43 @@
         "github_com_emad_internal_usecase_dto.CreateEqubGroupRequest": {
             "type": "object",
             "required": [
-                "code",
                 "equb_scheme_id",
                 "max_members",
                 "name"
             ],
             "properties": {
+                "accepted_guarantee_types_override": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_fee_override": {
+                    "type": "string",
+                    "example": "60"
+                },
+                "agent_admin_fee_share": {
+                    "type": "string",
+                    "example": "40"
+                },
+                "broker_admin_fee_share": {
+                    "type": "string",
+                    "example": "20"
+                },
+                "broker_user_id": {
+                    "description": "BrokerUserID is required whenever broker_admin_fee_share is above zero.",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "code": {
+                    "description": "Optional. Left out, the server allocates the next free EQG00001-style code.",
                     "type": "string",
                     "maxLength": 50,
-                    "minLength": 2,
                     "example": "EMAD-1000-001"
+                },
+                "contribution_amount_override": {
+                    "type": "string",
+                    "example": "1200"
                 },
                 "equb_scheme_id": {
                     "type": "string",
@@ -21641,6 +23117,24 @@
                 "expected_end_date": {
                     "type": "string",
                     "example": "2027-03-01"
+                },
+                "frequency_override": {
+                    "type": "string",
+                    "enum": [
+                        "daily",
+                        "weekly",
+                        "biweekly",
+                        "monthly",
+                        "quarterly",
+                        "semi_annual",
+                        "annual"
+                    ],
+                    "example": "monthly"
+                },
+                "guarantee_required_override": {
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "max_members": {
                     "type": "integer",
@@ -21652,9 +23146,32 @@
                     "minLength": 2,
                     "example": "EMAD-1000-001"
                 },
+                "payout_amount_override": {
+                    "type": "string",
+                    "example": "240000"
+                },
+                "sacco_admin_fee_share": {
+                    "description": "How this group's admin fee is divided, in percent. All three are required and must total exactly 100.",
+                    "type": "string",
+                    "example": "40"
+                },
                 "start_date": {
                     "type": "string",
                     "example": "2026-09-01"
+                },
+                "takaful_fee_override": {
+                    "type": "string",
+                    "example": "50"
+                },
+                "total_rounds_override": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "example": 24
+                },
+                "winners_per_round_override": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "example": 5
                 }
             }
         },
@@ -21695,7 +23212,6 @@
         "github_com_emad_internal_usecase_dto.CreateEqubSchemeRequest": {
             "type": "object",
             "required": [
-                "code",
                 "contribution_amount",
                 "frequency",
                 "members_per_group",
@@ -21705,16 +23221,22 @@
                 "winners_per_round"
             ],
             "properties": {
+                "accepted_guarantee_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "admin_fee": {
                     "type": "number",
                     "minimum": 0,
                     "example": 50
                 },
                 "code": {
+                    "description": "Optional. Left out, the server allocates the next free EQS00001-style code. Supplied, it is used verbatim and must be unique. `alphanum` -- no hyphens.",
                     "type": "string",
                     "maxLength": 50,
-                    "minLength": 2,
-                    "example": "EQ-1000"
+                    "example": "EQ1000"
                 },
                 "contribution_amount": {
                     "type": "number",
@@ -21737,6 +23259,11 @@
                         "annual"
                     ],
                     "example": "weekly"
+                },
+                "guarantee_required": {
+                    "description": "The payout-security policy groups on this scheme inherit unless they override it. Omitted means required, and every guarantee type accepted — the behaviour an Equb had before this became a stated term.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "members_per_group": {
                     "type": "integer",
@@ -22498,6 +24025,322 @@
                 }
             }
         },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeCommissionListResponse": {
+            "type": "object",
+            "properties": {
+                "commissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeCommissionResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_earned": {
+                    "description": "TotalEarned is the all-time Equb admin-fee earnings, not just this page.",
+                    "type": "number"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeCommissionResponse": {
+            "type": "object",
+            "properties": {
+                "admin_fee_amount": {
+                    "description": "AdminFeeAmount is the admin fee the payment collected — the base this commission is a percentage of.",
+                    "type": "number"
+                },
+                "agent_user_id": {
+                    "type": "string"
+                },
+                "commission_amount": {
+                    "type": "number"
+                },
+                "commission_rate": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "equb_group_id": {
+                    "type": "string"
+                },
+                "equb_round_id": {
+                    "description": "EqubRoundID is set only when the payment settled a single round; a payment covering catch-ups across several rounds leaves it null.",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "recipient_role": {
+                    "description": "RecipientRole is "agent" or "broker" — which side of the group's split this row came from.",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeGroupResponse": {
+            "type": "object",
+            "properties": {
+                "fee_per_member_per_round": {
+                    "description": "FeePerMemberPerRound is the flat fee this group currently charges, resolved from the scheme and the group's override. Historic rounds are reported at the fee they were actually charged, which may differ.",
+                    "type": "string"
+                },
+                "group_code": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeMemberSummary"
+                    }
+                },
+                "rounds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeRoundSummary"
+                    }
+                },
+                "split": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeSplit"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeLine": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "collected": {
+                    "type": "boolean"
+                },
+                "contribution_id": {
+                    "type": "string"
+                },
+                "is_catch_up": {
+                    "type": "boolean"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeMemberResponse": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeLine"
+                    }
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeMemberSummary": {
+            "type": "object",
+            "properties": {
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "paid_count": {
+                    "type": "integer"
+                },
+                "rounds": {
+                    "type": "integer"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeRoundResponse": {
+            "type": "object",
+            "properties": {
+                "contribution_due_date": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeLine"
+                    }
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "split": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeSplit"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeRoundSummary": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "integer"
+                },
+                "paid_count": {
+                    "type": "integer"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubAdminFeeTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeSplit": {
+            "type": "object",
+            "properties": {
+                "agent_amount": {
+                    "type": "string"
+                },
+                "agent_share_percent": {
+                    "type": "string"
+                },
+                "broker_amount": {
+                    "type": "string"
+                },
+                "broker_share_percent": {
+                    "type": "string"
+                },
+                "sacco_amount": {
+                    "type": "string"
+                },
+                "sacco_share_percent": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubAdminFeeTotals": {
+            "type": "object",
+            "properties": {
+                "charged": {
+                    "type": "string"
+                },
+                "collected": {
+                    "type": "string"
+                },
+                "outstanding": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_emad_internal_usecase_dto.EqubBatchContributionRequest": {
             "type": "object",
             "required": [
@@ -22651,6 +24494,12 @@
                 "collected_at": {
                     "type": "string"
                 },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
                 "member_id": {
                     "type": "string"
                 },
@@ -22661,6 +24510,12 @@
                     "type": "string"
                 },
                 "reference_number": {
+                    "type": "string"
+                },
+                "scheme_id": {
+                    "type": "string"
+                },
+                "scheme_name": {
                     "type": "string"
                 },
                 "status": {
@@ -22695,6 +24550,67 @@
                 },
                 "total_pending": {
                     "type": "number"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubContributionAttachmentListResponse": {
+            "type": "object",
+            "properties": {
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubContributionAttachmentResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubContributionAttachmentResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "equb_contribution_id": {
+                    "type": "string"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "file_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_image": {
+                    "type": "boolean"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "uploaded_by": {
+                    "type": "string"
                 }
             }
         },
@@ -23095,16 +25011,180 @@
                 }
             }
         },
-        "github_com_emad_internal_usecase_dto.EqubGroupDetailResponse": {
+        "github_com_emad_internal_usecase_dto.EqubFeeLine": {
             "type": "object",
             "properties": {
-                "code": {
+                "admin_fee": {
+                    "description": "AdminFee is the flat fee this contribution was charged, already resolved against the group override at the time the round was created.",
+                    "type": "string"
+                },
+                "collected": {
+                    "description": "Collected reports whether the fees were actually taken. A waived contribution settles its round but is never collected.",
+                    "type": "boolean"
+                },
+                "contribution_amount": {
+                    "description": "ContributionAmount is the member's saving itself, without any fee on top.",
+                    "type": "string"
+                },
+                "contribution_id": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
+                "group_code": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "is_catch_up": {
+                    "type": "boolean"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "member_name": {
+                    "type": "string"
+                },
+                "membership_number": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "round_number": {
+                    "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "scheme_code": {
+                    "type": "string"
+                },
+                "scheme_id": {
+                    "type": "string"
+                },
+                "scheme_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "takaful_fee": {
+                    "description": "TakafulFee is the insurance contribution that rides alongside the saving.",
+                    "type": "string"
+                },
+                "total_amount": {
+                    "description": "TotalAmount is the whole ask: ContributionAmount + AdminFee + TakafulFee.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubFeesLedgerResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubFeeLine"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubFeesTotals"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubFeesTotals": {
+            "type": "object",
+            "properties": {
+                "admin_fee_charged": {
+                    "type": "string"
+                },
+                "admin_fee_collected": {
+                    "type": "string"
+                },
+                "contribution_charged": {
+                    "type": "string"
+                },
+                "contribution_collected": {
+                    "type": "string"
+                },
+                "contributions": {
+                    "type": "integer"
+                },
+                "members": {
+                    "type": "integer"
+                },
+                "rounds": {
+                    "type": "integer"
+                },
+                "takaful_fee_charged": {
+                    "type": "string"
+                },
+                "takaful_fee_collected": {
+                    "type": "string"
+                },
+                "total_charged": {
+                    "type": "string"
+                },
+                "total_collected": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubGroupDetailResponse": {
+            "type": "object",
+            "properties": {
+                "accepted_guarantee_types_override": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_fee_override": {
+                    "type": "string",
+                    "example": "60"
+                },
+                "agent_admin_fee_share": {
+                    "type": "string"
+                },
+                "broker_admin_fee_share": {
+                    "type": "string"
+                },
+                "broker_user_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "contribution_amount_override": {
+                    "type": "string",
+                    "example": "1200"
+                },
+                "created_at": {
+                    "type": "string"
+                },
                 "created_by": {
+                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact details, and is absent on the public browse endpoints and on a group that has no manager at all.",
                     "type": "string"
                 },
                 "current_members": {
@@ -23112,6 +25192,17 @@
                 },
                 "current_round": {
                     "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubRoundResponse"
+                },
+                "cycle_number": {
+                    "type": "integer"
+                },
+                "effective_terms": {
+                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with the overrides above already applied. Read this rather than equb_scheme.*, which is the template and not necessarily what this group charges or pays.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubTermsResponse"
+                        }
+                    ]
                 },
                 "equb_scheme": {
                     "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSchemeResponse"
@@ -23122,8 +25213,29 @@
                 "expected_end_date": {
                     "type": "string"
                 },
+                "frequency_override": {
+                    "type": "string",
+                    "enum": [
+                        "daily",
+                        "weekly",
+                        "biweekly",
+                        "monthly",
+                        "quarterly",
+                        "semi_annual",
+                        "annual"
+                    ],
+                    "example": "monthly"
+                },
+                "guarantee_required_override": {
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "type": "boolean",
+                    "example": true
+                },
                 "id": {
                     "type": "string"
+                },
+                "manager": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupManagerInfo"
                 },
                 "max_members": {
                     "type": "integer"
@@ -23134,11 +25246,23 @@
                 "name": {
                     "type": "string"
                 },
+                "payout_amount_override": {
+                    "type": "string",
+                    "example": "240000"
+                },
+                "previous_group_id": {
+                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new group, linked back to this one. CycleNumber counts from 1, and PreviousGroupID is absent on a first cycle.",
+                    "type": "string"
+                },
                 "recent_winners": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubWinnerResponse"
                     }
+                },
+                "sacco_admin_fee_share": {
+                    "description": "The admin fee split, in percent. Always totals 100.",
+                    "type": "string"
                 },
                 "start_date": {
                     "type": "string"
@@ -23146,7 +25270,64 @@
                 "status": {
                     "type": "string"
                 },
+                "takaful_fee_override": {
+                    "type": "string",
+                    "example": "50"
+                },
+                "total_rounds_override": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "example": 24
+                },
                 "updated_at": {
+                    "type": "string"
+                },
+                "winners_per_round_override": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "example": 5
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubGroupManagerInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubGroupManagerResponse": {
+            "type": "object",
+            "properties": {
+                "changed": {
+                    "description": "Changed is false when the named user was already the manager; the request is idempotent, so nothing was written and nothing was audited.",
+                    "type": "boolean"
+                },
+                "group_code": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "manager_user_id": {
+                    "description": "ManagerUserID is the group's manager after the change.",
+                    "type": "string"
+                },
+                "previous_manager_user_id": {
+                    "description": "PreviousManagerUserID is who held it before, absent if the group had no manager at all.",
                     "type": "string"
                 }
             }
@@ -23154,17 +25335,52 @@
         "github_com_emad_internal_usecase_dto.EqubGroupResponse": {
             "type": "object",
             "properties": {
+                "accepted_guarantee_types_override": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_fee_override": {
+                    "type": "string",
+                    "example": "60"
+                },
+                "agent_admin_fee_share": {
+                    "type": "string"
+                },
+                "broker_admin_fee_share": {
+                    "type": "string"
+                },
+                "broker_user_id": {
+                    "type": "string"
+                },
                 "code": {
                     "type": "string"
+                },
+                "contribution_amount_override": {
+                    "type": "string",
+                    "example": "1200"
                 },
                 "created_at": {
                     "type": "string"
                 },
                 "created_by": {
+                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact details, and is absent on the public browse endpoints and on a group that has no manager at all.",
                     "type": "string"
                 },
                 "current_members": {
                     "type": "integer"
+                },
+                "cycle_number": {
+                    "type": "integer"
+                },
+                "effective_terms": {
+                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with the overrides above already applied. Read this rather than equb_scheme.*, which is the template and not necessarily what this group charges or pays.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubTermsResponse"
+                        }
+                    ]
                 },
                 "equb_scheme": {
                     "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSchemeResponse"
@@ -23175,13 +25391,46 @@
                 "expected_end_date": {
                     "type": "string"
                 },
+                "frequency_override": {
+                    "type": "string",
+                    "enum": [
+                        "daily",
+                        "weekly",
+                        "biweekly",
+                        "monthly",
+                        "quarterly",
+                        "semi_annual",
+                        "annual"
+                    ],
+                    "example": "monthly"
+                },
+                "guarantee_required_override": {
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "type": "boolean",
+                    "example": true
+                },
                 "id": {
                     "type": "string"
+                },
+                "manager": {
+                    "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupManagerInfo"
                 },
                 "max_members": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "payout_amount_override": {
+                    "type": "string",
+                    "example": "240000"
+                },
+                "previous_group_id": {
+                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new group, linked back to this one. CycleNumber counts from 1, and PreviousGroupID is absent on a first cycle.",
+                    "type": "string"
+                },
+                "sacco_admin_fee_share": {
+                    "description": "The admin fee split, in percent. Always totals 100.",
                     "type": "string"
                 },
                 "start_date": {
@@ -23190,8 +25439,22 @@
                 "status": {
                     "type": "string"
                 },
+                "takaful_fee_override": {
+                    "type": "string",
+                    "example": "50"
+                },
+                "total_rounds_override": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "example": 24
+                },
                 "updated_at": {
                     "type": "string"
+                },
+                "winners_per_round_override": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "example": 5
                 }
             }
         },
@@ -23692,6 +25955,13 @@
         "github_com_emad_internal_usecase_dto.EqubMyWinResponse": {
             "type": "object",
             "properties": {
+                "accepted_guarantee_types": {
+                    "description": "AcceptedGuaranteeTypes are the kinds of guarantee this group will honour, so the member can be told up front what will actually be taken. Always present.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "group_id": {
                     "type": "string"
                 },
@@ -23707,7 +25977,7 @@
                     ]
                 },
                 "guarantee_required": {
-                    "description": "GuaranteeRequired is true while no approved guarantee is on file — the usual reason a winner has not been paid.",
+                    "description": "GuaranteeRequired is true while this group requires a guarantee and no approved one is on file — the usual reason a winner has not been paid. It is false on a group configured not to need one, where the member is not being asked to provide anything.",
                     "type": "boolean"
                 },
                 "next_step": {
@@ -23744,6 +26014,17 @@
         "github_com_emad_internal_usecase_dto.EqubPayInitiatedResponse": {
             "type": "object",
             "properties": {
+                "attachment_warning": {
+                    "description": "Set when a file was sent but could not be filed. The collection still stands and is still charged; this says the evidence did not make it, and where to send it instead. Absent means every file was filed.",
+                    "type": "string"
+                },
+                "attachments": {
+                    "description": "The proof filed in the same request as the collection, when one was sent. The money is already recorded and reserved at this point, so this is a report of what became of the file, never a condition of the collection having happened.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSharedContributionAttachmentResponse"
+                    }
+                },
                 "group_id": {
                     "type": "string"
                 },
@@ -23791,6 +26072,10 @@
             "properties": {
                 "amount": {
                     "type": "number"
+                },
+                "contribution_id": {
+                    "description": "The contribution this round resolved to. The attachment endpoint is keyed on the contribution, so a caller that wants to file proof against this round after collecting does not have to look the row back up.",
+                    "type": "string"
                 },
                 "is_catch_up": {
                     "type": "boolean"
@@ -24012,6 +26297,10 @@
                         "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubRoundMemberPayment"
                     }
                 },
+                "not_ready_reason": {
+                    "description": "NotReadyReason is empty when the round can be drawn. Otherwise it names the one condition still unmet - contributions outstanding, or a collection window that has not opened or not yet closed.",
+                    "type": "string"
+                },
                 "paid_count": {
                     "type": "integer"
                 },
@@ -24084,6 +26373,12 @@
         "github_com_emad_internal_usecase_dto.EqubSchemeResponse": {
             "type": "object",
             "properties": {
+                "accepted_guarantee_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "admin_fee": {
                     "type": "number"
                 },
@@ -24104,6 +26399,10 @@
                 },
                 "frequency": {
                     "type": "string"
+                },
+                "guarantee_required": {
+                    "description": "The payout-security policy groups on this scheme inherit unless they say otherwise.",
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -24131,6 +26430,42 @@
                 },
                 "winners_per_round": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubSharedContributionAttachmentResponse": {
+            "type": "object",
+            "properties": {
+                "contribution_ids": {
+                    "description": "ContributionIDs is every contribution the file is filed against. Each has its own attachment row pointing at this one stored object, so deleting one of them leaves the others readable.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "file_url": {
+                    "type": "string"
+                },
+                "is_image": {
+                    "type": "boolean"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "uploaded_by": {
+                    "type": "string"
                 }
             }
         },
@@ -24341,6 +26676,49 @@
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "github_com_emad_internal_usecase_dto.EqubTermsResponse": {
+            "type": "object",
+            "properties": {
+                "accepted_guarantee_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_fee": {
+                    "type": "string"
+                },
+                "contribution_amount": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "type": "string"
+                },
+                "guarantee_required": {
+                    "description": "The payout-security policy this group runs on: whether a winner is paid only after staff approve a guarantee, and which kinds of guarantee are accepted when one is required.",
+                    "type": "boolean"
+                },
+                "members_per_group": {
+                    "type": "integer"
+                },
+                "payout_amount": {
+                    "type": "string"
+                },
+                "takaful_fee": {
+                    "type": "string"
+                },
+                "total_per_round": {
+                    "description": "TotalPerRound is what one member hands over per round: contribution plus both fees, which ride on top of the contribution rather than coming out of it.",
+                    "type": "string"
+                },
+                "total_rounds": {
+                    "type": "integer"
+                },
+                "winners_per_round": {
+                    "type": "integer"
                 }
             }
         },
@@ -28810,15 +31188,63 @@
         "github_com_emad_internal_usecase_dto.UpdateEqubGroupRequest": {
             "type": "object",
             "properties": {
+                "accepted_guarantee_types_override": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_fee_override": {
+                    "type": "string",
+                    "example": "60"
+                },
+                "agent_admin_fee_share": {
+                    "type": "string",
+                    "example": "40"
+                },
+                "broker_admin_fee_share": {
+                    "type": "string",
+                    "example": "20"
+                },
+                "broker_user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "clear_term_overrides": {
+                    "description": "ClearTermOverrides drops every override first, returning the group to its scheme. Applied before the fields above, so one request can clear the old set and state a new one.",
+                    "type": "boolean",
+                    "example": false
+                },
                 "code": {
                     "type": "string",
                     "maxLength": 50,
-                    "minLength": 2,
                     "example": "EMAD-1000-001"
+                },
+                "contribution_amount_override": {
+                    "type": "string",
+                    "example": "1200"
                 },
                 "expected_end_date": {
                     "type": "string",
                     "example": "2027-03-01"
+                },
+                "frequency_override": {
+                    "type": "string",
+                    "enum": [
+                        "daily",
+                        "weekly",
+                        "biweekly",
+                        "monthly",
+                        "quarterly",
+                        "semi_annual",
+                        "annual"
+                    ],
+                    "example": "monthly"
+                },
+                "guarantee_required_override": {
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "max_members": {
                     "type": "integer",
@@ -28830,9 +31256,32 @@
                     "minLength": 2,
                     "example": "EMAD-1000-001"
                 },
+                "payout_amount_override": {
+                    "type": "string",
+                    "example": "240000"
+                },
+                "sacco_admin_fee_share": {
+                    "description": "The admin fee split is changed as a unit: send all three shares or none. A partial update cannot be validated against the 100% rule, so it is refused.",
+                    "type": "string",
+                    "example": "40"
+                },
                 "start_date": {
                     "type": "string",
                     "example": "2026-09-01"
+                },
+                "takaful_fee_override": {
+                    "type": "string",
+                    "example": "50"
+                },
+                "total_rounds_override": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "example": 24
+                },
+                "winners_per_round_override": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "example": 5
                 }
             }
         },
@@ -28848,10 +31297,22 @@
                 "winners_per_round"
             ],
             "properties": {
+                "accepted_guarantee_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "admin_fee": {
                     "type": "number",
                     "minimum": 0,
                     "example": 50
+                },
+                "code": {
+                    "description": "Optional, and the one field on this request that is not full-replace: left out, the scheme keeps the code it has. It is never regenerated on update -- a code that changed itself because a caller edited the name would break every receipt and conversation already using it.",
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "EQ1000"
                 },
                 "contribution_amount": {
                     "type": "number",
@@ -28874,6 +31335,11 @@
                         "annual"
                     ],
                     "example": "weekly"
+                },
+                "guarantee_required": {
+                    "description": "The payout-security policy. Unlike the rest of this request these are not full-replace: leaving one out keeps whatever the scheme already has. A plain bool would decode an omitted field as false, so an update from a client that predates these fields would quietly switch guarantee checks off for the scheme and every group inheriting it.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "members_per_group": {
                     "type": "integer",

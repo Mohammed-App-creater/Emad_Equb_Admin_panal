@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Info } from "lucide-react";
 import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { useStaff, useRoles } from "@/hooks/ekub";
+import { useStaffPage, useRoles } from "@/hooks/ekub";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import type { StaffMember, RoleDef } from "@/types/ekub";
 
@@ -22,21 +24,25 @@ const roleBadge: Record<StaffMember["role"], string> = {
 function StaffInner() {
   const t = useTranslations("staff");
   const tc = useTranslations("common");
-  const { data: staff, isLoading } = useStaff();
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [search, setSearch] = useState("");
+  const { data: staffPage, isLoading } = useStaffPage(search || undefined, page, perPage);
+  const staff = staffPage?.items;
   const { data: roles, isLoading: rolesLoading } = useRoles();
 
   const roleLabel = (r: StaffMember["role"]) => r.replace("_", " ");
 
   const staffCols: DataTableColumn<StaffMember>[] = [
-    { id: "name", header: t("name"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
-    { id: "role", header: t("role"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${roleBadge[r.role]}`}>{roleLabel(r.role)}</Badge> },
-    { id: "branch", header: t("branch"), mobile: "detail", cell: (r) => <span className="text-sm">{r.branch}</span> },
-    { id: "email", header: t("email"), mobile: "detail", cell: (r) => <span className="text-sm">{r.email}</span> },
-    { id: "phone", header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone}</span> },
+    { id: "name", sortValue: (r) => r.name, header: t("name"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
+    { id: "role", sortValue: (r) => r.role, header: t("role"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${roleBadge[r.role]}`}>{roleLabel(r.role)}</Badge> },
+    { id: "branch", sortValue: (r) => r.branch, header: t("branch"), mobile: "detail", cell: (r) => <span className="text-sm">{r.branch}</span> },
+    { id: "email", sortValue: (r) => r.email, header: t("email"), mobile: "detail", cell: (r) => <span className="text-sm">{r.email}</span> },
+    { id: "phone", sortValue: (r) => r.phone, header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone}</span> },
   ];
 
   const roleCols: DataTableColumn<RoleDef>[] = [
-    { id: "name", header: t("roleName"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
+    { id: "name", sortValue: (r) => r.name, header: t("roleName"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
     { id: "perms", header: t("permissions"), mobile: "detail", cell: (r) => (
       <div className="flex flex-wrap gap-1">
         {r.permissions.map((p) => (
@@ -63,6 +69,8 @@ function StaffInner() {
 
         <TabsContent value="staff">
           <DataTable
+            pagination={{ page, pageSize: perPage, total: staffPage?.total ?? 0, onPageChange: setPage, onPageSizeChange: (n) => { setPerPage(n); setPage(1); } }}
+            filters={{ facets: [{ id: "role", label: t("role"), get: (r) => r.role, labelOf: (v) => roleLabel(v as StaffMember["role"]) }], extra: (<div className="relative sm:w-64"><Input className="h-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={tc("search")} /></div>) }}
             columns={staffCols}
             data={staff ?? []}
             rowKey={(r) => r.id}
@@ -78,7 +86,7 @@ function StaffInner() {
               <CardTitle className="text-base">{t("tabRoles")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <DataTable columns={roleCols} data={roles ?? []} rowKey={(r) => r.id} isLoading={rolesLoading} bare emptyTitle={tc("noData")} />
+              <DataTable filters={{ search: { keys: (r) => [r.name, ...r.permissions] } }} columns={roleCols} data={roles ?? []} rowKey={(r) => r.id} isLoading={rolesLoading} bare emptyTitle={tc("noData")} />
             </CardContent>
           </Card>
         </TabsContent>

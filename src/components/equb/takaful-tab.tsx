@@ -59,17 +59,17 @@ export function TakafulTab({ equb }: { equb: Equb }) {
   const [refundReason, setRefundReason] = useState("");
   const [distributing, setDistributing] = useState(false);
 
-  const memberName = (id: string) => members?.find((m) => m.memberId === id)?.name ?? id;
+  const memberName = (id: string) => members?.find((m) => m.memberId === id)?.name ?? tc("unknownMember");
   const err = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
   const settled = (s: TakafulSettlement) =>
     toast({ title: t("settlementDone"), description: `${t("total")}: ${formatCurrency(s.totalAmount)} · ${t("remaining")}: ${formatCurrency(s.remainingBalance)}` });
 
   const columns: DataTableColumn<TakafulTxn>[] = [
-    { id: "member", header: t("member"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.memberId ? memberName(r.memberId) : "—"}</span> },
-    { id: "type", header: t("type"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${typeBadge[r.type] ?? "bg-muted text-muted-foreground"}`}>{r.type}</Badge> },
-    { id: "amount", header: t("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
-    { id: "ref", header: t("reference"), mobile: "detail", cell: (r) => <span className="font-mono text-xs">{r.reference || "—"}</span> },
-    { id: "date", header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDateTime(r.createdAt)}</span> },
+    { id: "member", sortValue: (r) => r.memberId ? memberName(r.memberId) : null, header: t("member"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.memberId ? memberName(r.memberId) : "—"}</span> },
+    { id: "type", sortValue: (r) => r.type, header: t("type"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${typeBadge[r.type] ?? "bg-muted text-muted-foreground"}`}>{r.type}</Badge> },
+    { id: "amount", sortValue: (r) => r.amount, header: t("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
+    { id: "ref", sortValue: (r) => r.reference, header: t("reference"), mobile: "detail", cell: (r) => <span className="font-mono text-xs">{r.reference || "—"}</span> },
+    { id: "date", sortValue: (r) => r.createdAt, header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDateTime(r.createdAt)}</span> },
   ];
 
   return (
@@ -99,7 +99,10 @@ export function TakafulTab({ equb }: { equb: Equb }) {
         </Card>
       </div>
 
-      <DataTable columns={columns} data={txns ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
+      <DataTable
+        defaultSort={{ id: "date", dir: "desc" }}
+        filters={{ search: { keys: (r) => [r.memberId ? memberName(r.memberId) : null, r.reference] }, facets: [{ id: "type", label: t("type"), get: (r) => r.type }] }}
+        columns={columns} data={txns ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
 
       {/* Submit claim */}
       <Modal open={claiming} onOpenChange={setClaiming} title={t("claim")} className="max-w-md">

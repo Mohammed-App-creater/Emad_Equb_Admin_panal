@@ -43,16 +43,16 @@ function TakafulInner() {
   const balancesLoading = balances.some((b) => b.isLoading);
 
   const columns: DataTableColumn<Row>[] = [
-    { id: "equb", header: t("equb"), mobile: "title", cell: (r) => (
+    { id: "equb", sortValue: (r) => r.name, header: t("equb"), mobile: "title", cell: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.name}</p>
         <p className="font-mono text-xs text-muted-foreground">{r.code}</p>
       </div>
     ) },
-    { id: "category", header: te("category"), mobile: "detail", cell: (r) => <span className="text-sm">{r.category?.name ?? "—"}</span> },
-    { id: "members", header: te("members"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{r.currentMembers}</span> },
-    { id: "balance", header: t("balance"), mobile: "detail", align: "right", cell: (r) => <span className="font-semibold text-primary">{r.balance === undefined ? "…" : formatCurrency(r.balance)}</span> },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="lifecycle" /> },
+    { id: "category", sortValue: (r) => r.category?.name ?? null, header: te("category"), mobile: "detail", cell: (r) => <span className="text-sm">{r.category?.name ?? "—"}</span> },
+    { id: "members", sortValue: (r) => r.currentMembers, header: te("members"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{r.currentMembers}</span> },
+    { id: "balance", sortValue: (r) => r.balance ?? null, header: t("balance"), mobile: "detail", align: "right", cell: (r) => <span className="font-semibold text-primary">{r.balance === undefined ? "…" : formatCurrency(r.balance)}</span> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="lifecycle" /> },
   ];
 
   return (
@@ -74,7 +74,9 @@ function TakafulInner() {
         <CardHeader><CardTitle className="text-base">{t("byEqub")}</CardTitle></CardHeader>
         <CardContent>
           <DataTable
-            bare
+        defaultSort={{ by: (r) => r.createdAt, dir: "desc" }}
+        bare
+            filters={{ search: { keys: (r) => [r.name, r.code, r.category?.name] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status }] }}
             columns={columns}
             data={rows}
             rowKey={(r) => r.id}

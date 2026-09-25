@@ -7,6 +7,15 @@ import type {
   CreateEqubGuaranteeRequest,
   CreateEqubSchemeRequest,
   EqubAdminDashboardResponse,
+  CloneEqubGroupRequest,
+  CloneEqubGroupResponse,
+  EqubContributionAttachmentListResponse,
+  EqubContributionAttachmentResponse,
+  EqubFeesLedgerResponse,
+  FeeLedgerParams,
+  EqubAdminFeeGroupResponse,
+  EqubAdminFeeMemberResponse,
+  EqubAdminFeeRoundResponse,
   EqubDrawCandidateResponse,
   EqubDrawPreviewResponse,
   EqubEmergencyDrawResponse,
@@ -14,7 +23,14 @@ import type {
   EqubGroupResponse,
   EqubGuaranteeResponse,
   EqubMemberResponse,
+  EqubMemberStandingResponse,
+  EqubPayInitiatedResponse,
+  EqubPayRoundsRequest,
   EqubPayoutResponse,
+  PaymentUpdateStatusRequest,
+  EqubCatchUpPaymentResponse,
+  EqubCollectionsSummaryResponse,
+  MyCollectionsParams,
   EqubRoundResponse,
   EqubSchemeResponse,
   EqubTakafulClaimResponse,
@@ -24,10 +40,12 @@ import type {
   ListEqubGroupsParams,
   ListEqubMembersParams,
   ListEqubRoundsParams,
+  PaginationMeta,
   LoginRequest,
   LoginResponse,
   MemberRegistrationRequestResponse,
   MemberSummaryResponse,
+  SaccoMemberResponse,
   UpdateEqubGroupRequest,
   UpdateEqubSchemeRequest,
   UserResponse,
@@ -43,6 +61,15 @@ const unwrap = async <T>(p: Promise<{ data: ApiEnvelope<T> }>): Promise<T> =>
 const list = async <T>(p: Promise<{ data: ApiEnvelope<T[] | null> }>): Promise<T[]> =>
   (await unwrap(p)) ?? [];
 
+/** One page of a list plus the envelope's pagination meta. */
+export interface PagedResult<T> { items: T[]; meta: PaginationMeta }
+const paged = async <T>(p: Promise<{ data: ApiEnvelope<T[] | null> }>, page: number, perPage: number): Promise<PagedResult<T>> => {
+  const env = (await p).data;
+  const items = env.data ?? [];
+  const meta = env.meta ?? { page, per_page: perPage, total: items.length, total_pages: 1 };
+  return { items, meta };
+};
+
 const realEqubApi = {
   // ---- Auth ----
   async login(payload: LoginRequest): Promise<LoginResponse> {
@@ -52,6 +79,9 @@ const realEqubApi = {
   // ---- Schemes (Equb Categories) ----
   async listSchemes(params?: { status?: string; search?: string; page?: number; per_page?: number }): Promise<EqubSchemeResponse[]> {
     return list<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.SCHEMES.LIST, { params }));
+  },
+  async listSchemesPage(params: { status?: string; search?: string; page: number; per_page: number }): Promise<PagedResult<EqubSchemeResponse>> {
+    return paged<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.SCHEMES.LIST, { params }), params.page, params.per_page);
   },
   async createScheme(body: CreateEqubSchemeRequest): Promise<EqubSchemeResponse> {
     return unwrap<EqubSchemeResponse>(api.post(EQUB_ENDPOINTS.SCHEMES.CREATE, body));
@@ -69,6 +99,9 @@ const realEqubApi = {
   // ---- Groups (Equbs) ----
   async listGroups(params?: ListEqubGroupsParams): Promise<EqubGroupResponse[]> {
     return list<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.LIST, { params }));
+  },
+  async listGroupsPage(params: ListEqubGroupsParams & { page: number; per_page: number }): Promise<PagedResult<EqubGroupResponse>> {
+    return paged<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.LIST, { params }), params.page, params.per_page);
   },
   async getGroup(id: string): Promise<EqubGroupResponse> {
     return unwrap<EqubGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.DETAIL(id)));
@@ -94,6 +127,9 @@ const realEqubApi = {
   async assignManager(id: string, managerUserId: string): Promise<EqubGroupManagerResponse> {
     return unwrap<EqubGroupManagerResponse>(api.put(EQUB_ENDPOINTS.GROUPS.MANAGER(id), { manager_user_id: managerUserId }));
   },
+  async cloneGroup(id: string, body: CloneEqubGroupRequest): Promise<CloneEqubGroupResponse> {
+    return unwrap<CloneEqubGroupResponse>(api.post(EQUB_ENDPOINTS.GROUPS.CLONE(id), body));
+  },
   async autoCancel(): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.AUTO_CANCEL, {}));
   },
@@ -104,6 +140,9 @@ const realEqubApi = {
   // ---- Group members ----
   async listGroupMembers(groupId: string, params?: ListEqubMembersParams): Promise<EqubMemberResponse[]> {
     return list<EqubMemberResponse>(api.get(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { params }));
+  },
+  async listGroupMembersPage(groupId: string, params: ListEqubMembersParams & { page: number; per_page: number }): Promise<PagedResult<EqubMemberResponse>> {
+    return paged<EqubMemberResponse>(api.get(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { params }), params.page, params.per_page);
   },
   async addMember(groupId: string, memberId: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GROUPS.MEMBERS(groupId), { member_id: memberId }));
@@ -126,6 +165,10 @@ const realEqubApi = {
     return list<MemberSummaryResponse>(api.get(EQUB_ENDPOINTS.MEMBERS.LIST, { params: { search, limit, page: 1 } }));
   },
 
+  async getMember(id: string): Promise<SaccoMemberResponse> {
+    return unwrap<SaccoMemberResponse>(api.get(EQUB_ENDPOINTS.MEMBERS.DETAIL(id)));
+  },
+
   // ---- Rounds / draws ----
   async listRounds(groupId: string, params?: ListEqubRoundsParams): Promise<EqubRoundResponse[]> {
     return list<EqubRoundResponse>(api.get(EQUB_ENDPOINTS.GROUPS.ROUNDS(groupId), { params }));
@@ -142,6 +185,47 @@ const realEqubApi = {
   async listWinners(roundId: string): Promise<EqubWinnerResponse[]> {
     return list<EqubWinnerResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.WINNERS(roundId)));
   },
+  async refreshReadiness(): Promise<unknown> {
+    return unwrap(api.post(EQUB_ENDPOINTS.ROUNDS.REFRESH_READINESS, {}));
+  },
+
+  // ---- SACCO-wide fee ledger ----
+  async feeLedger(params: FeeLedgerParams): Promise<EqubFeesLedgerResponse> {
+    return unwrap<EqubFeesLedgerResponse>(api.get(EQUB_ENDPOINTS.FEES, { params }));
+  },
+
+  // ---- Contribution attachments ----
+  async listRoundAttachments(roundId: string): Promise<EqubContributionAttachmentListResponse> {
+    return unwrap<EqubContributionAttachmentListResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.ATTACHMENTS(roundId)));
+  },
+  async listContributionAttachments(contributionId: string): Promise<EqubContributionAttachmentListResponse> {
+    return unwrap<EqubContributionAttachmentListResponse>(api.get(EQUB_ENDPOINTS.CONTRIBUTION_ATTACHMENTS.LIST(contributionId)));
+  },
+  async uploadContributionAttachment(contributionId: string, file: File, description?: string): Promise<EqubContributionAttachmentResponse> {
+    const form = new FormData();
+    form.append("file", file);
+    if (description) form.append("description", description);
+    return unwrap<EqubContributionAttachmentResponse>(api.post(EQUB_ENDPOINTS.CONTRIBUTION_ATTACHMENTS.UPLOAD(contributionId), form, { headers: { "Content-Type": "multipart/form-data" } }));
+  },
+  async deleteContributionAttachment(contributionId: string, attachmentId: string): Promise<unknown> {
+    return unwrap(api.delete(EQUB_ENDPOINTS.CONTRIBUTION_ATTACHMENTS.DELETE(contributionId, attachmentId)));
+  },
+  /** Fetches the file as a blob (the list's file_url is short-lived). */
+  async downloadContributionAttachment(contributionId: string, attachmentId: string): Promise<Blob> {
+    const res = await api.get(EQUB_ENDPOINTS.CONTRIBUTION_ATTACHMENTS.DOWNLOAD(contributionId, attachmentId), { responseType: "blob" });
+    return res.data as Blob;
+  },
+
+  // ---- Admin fee ledgers ----
+  async groupAdminFees(groupId: string): Promise<EqubAdminFeeGroupResponse> {
+    return unwrap<EqubAdminFeeGroupResponse>(api.get(EQUB_ENDPOINTS.GROUPS.ADMIN_FEES(groupId)));
+  },
+  async roundAdminFees(roundId: string): Promise<EqubAdminFeeRoundResponse> {
+    return unwrap<EqubAdminFeeRoundResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.ADMIN_FEES(roundId)));
+  },
+  async memberAdminFees(groupId: string, memberId: string): Promise<EqubAdminFeeMemberResponse> {
+    return unwrap<EqubAdminFeeMemberResponse>(api.get(EQUB_ENDPOINTS.GROUPS.MEMBER_ADMIN_FEES(groupId, memberId)));
+  },
   async drawCandidates(drawId: string): Promise<EqubDrawCandidateResponse[]> {
     return list<EqubDrawCandidateResponse>(api.get(EQUB_ENDPOINTS.ROUNDS.DRAW_CANDIDATES(drawId)));
   },
@@ -156,13 +240,16 @@ const realEqubApi = {
   async rejectGuarantee(guaranteeId: string, reviewNote: string): Promise<unknown> {
     return unwrap(api.post(EQUB_ENDPOINTS.GUARANTEES.REJECT(guaranteeId), { review_note: reviewNote }));
   },
+  async approveWinner(winnerId: string): Promise<EqubWinnerResponse> {
+    return unwrap<EqubWinnerResponse>(api.post(EQUB_ENDPOINTS.APPROVE_WINNER(winnerId), {}));
+  },
   async processPayout(winnerId: string): Promise<EqubPayoutResponse> {
     return unwrap<EqubPayoutResponse>(api.post(EQUB_ENDPOINTS.PAYOUT(winnerId), {}));
   },
 
   // ---- Hardship / emergency draws ----
   async listEmergencyDraws(groupId: string, params?: { status?: string }): Promise<EqubEmergencyDrawResponse[]> {
-    return list<EqubEmergencyDrawResponse>(api.get(EQUB_ENDPOINTS.EMERGENCY_DRAWS.LIST(groupId), { params }));
+    return list<EqubEmergencyDrawResponse>(api.get(EQUB_ENDPOINTS.EMERGENCY_DRAWS.LIST(groupId), { params: { ...params, page: 1, per_page: 200 } }));
   },
   async submitEmergencyDraw(groupId: string, memberId: string, reason: string, evidence?: string): Promise<EqubEmergencyDrawResponse> {
     return unwrap<EqubEmergencyDrawResponse>(
@@ -178,7 +265,11 @@ const realEqubApi = {
 
   // ---- Takaful ----
   async listTakaful(groupId: string): Promise<EqubTakafulTransactionResponse[]> {
-    return list<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId)));
+    // The ledger is filtered and paged in the browser, so ask for all of it.
+    return list<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page: 1, per_page: 1000 } }));
+  },
+  async listTakafulPage(groupId: string, page: number, perPage: number): Promise<PagedResult<EqubTakafulTransactionResponse>> {
+    return paged<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page, per_page: perPage } }), page, perPage);
   },
   async takafulBalance(groupId: string): Promise<{ balance: number }> {
     return unwrap<{ balance: number }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
@@ -215,8 +306,22 @@ const realEqubApi = {
   async listUsers(params?: Record<string, unknown>): Promise<UserResponse[]> {
     return list<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }));
   },
+  async listUsersPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<UserResponse>> {
+    return paged<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }), params.page, params.per_page);
+  },
   async listRoles(): Promise<Array<{ id: string; name: string; permissions?: Array<{ name?: string; slug?: string }> }>> {
     return list(api.get(EQUB_ENDPOINTS.USERS.ROLES));
+  },
+
+  // ---- Recording a contribution for a member ----
+  async collectContribution(groupId: string, memberId: string, body: EqubPayRoundsRequest): Promise<EqubPayInitiatedResponse> {
+    return unwrap<EqubPayInitiatedResponse>(api.post(EQUB_ENDPOINTS.MANAGER.COLLECT(groupId, memberId), body));
+  },
+  async updatePaymentStatus(paymentId: string, body: PaymentUpdateStatusRequest): Promise<unknown> {
+    return unwrap(api.patch(EQUB_ENDPOINTS.PAYMENTS.STATUS(paymentId), body));
+  },
+  async memberStanding(groupId: string, memberId: string): Promise<EqubMemberStandingResponse> {
+    return unwrap<EqubMemberStandingResponse>(api.get(EQUB_ENDPOINTS.MANAGER.STANDING(groupId, memberId)));
   },
 
   // ---- Manager (portfolio role) ----
@@ -226,8 +331,11 @@ const realEqubApi = {
   async managerSchemes(): Promise<EqubSchemeResponse[]> {
     return list<EqubSchemeResponse>(api.get(EQUB_ENDPOINTS.MANAGER.MY_SCHEMES));
   },
-  async catchUpAmount(groupId: string, memberId: string): Promise<unknown> {
-    return unwrap(api.get(EQUB_ENDPOINTS.MANAGER.CATCH_UP(groupId, memberId)));
+  async catchUpAmount(groupId: string, memberId: string): Promise<EqubCatchUpPaymentResponse> {
+    return unwrap<EqubCatchUpPaymentResponse>(api.get(EQUB_ENDPOINTS.MANAGER.CATCH_UP(groupId, memberId)));
+  },
+  async myCollections(params?: MyCollectionsParams): Promise<EqubCollectionsSummaryResponse> {
+    return unwrap<EqubCollectionsSummaryResponse>(api.get(EQUB_ENDPOINTS.MANAGER.MY_COLLECTIONS, { params }));
   },
 };
 

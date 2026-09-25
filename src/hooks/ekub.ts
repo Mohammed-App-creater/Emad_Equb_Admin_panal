@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ekubService } from "@/services/ekub";
 import type {
   ApplicationStatus,
@@ -29,6 +29,9 @@ export const qk = {
   emergency: (id: string) => ["equb-emergency", id] as const,
   takaful: (id: string) => ["equb-takaful", id] as const,
   takafulBalance: (id: string) => ["equb-takaful-balance", id] as const,
+  adminFees: (id: string) => ["equb-admin-fees", id] as const,
+  roundAdminFees: (roundId: string) => ["round-admin-fees", roundId] as const,
+  memberAdminFees: (id: string, memberId: string) => ["member-admin-fees", id, memberId] as const,
 };
 
 // ---- Equb Categories ----
@@ -56,8 +59,26 @@ export const useDeleteCategory = () => {
 export const useEqubs = (filters?: EqubListFilters) =>
   useQuery({ queryKey: qk.equbs(filters), queryFn: () => ekubService.listEqubs(filters) });
 
+// Server-paged lists: keys extend the unpaged ones so the same invalidations apply.
+export const useEqubsPage = (filters: EqubListFilters, page: number, perPage: number) =>
+  useQuery({ queryKey: [...qk.equbs(filters), "page", page, perPage], queryFn: () => ekubService.listEqubsPage(filters, page, perPage), placeholderData: keepPreviousData });
+export const useCategoriesPage = (params: { status?: string; search?: string }, page: number, perPage: number) =>
+  useQuery({ queryKey: [...qk.categories, params, "page", page, perPage], queryFn: () => ekubService.listCategoriesPage(params, page, perPage), placeholderData: keepPreviousData });
+export const useEqubMembersPage = (equbId: string, status: string | undefined, page: number, perPage: number) =>
+  useQuery({ queryKey: [...qk.members(equbId, status), "page", page, perPage], queryFn: () => ekubService.listEqubMembersPage(equbId, status, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
+export const useTakafulPage = (equbId: string, page: number, perPage: number) =>
+  useQuery({ queryKey: [...qk.takaful(equbId), "page", page, perPage], queryFn: () => ekubService.listTakafulPage(equbId, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
+export const useStaffPage = (search: string | undefined, page: number, perPage: number) =>
+  useQuery({ queryKey: ["staff", "page", search ?? "", page, perPage], queryFn: () => ekubService.listStaffPage(search, page, perPage), placeholderData: keepPreviousData });
+
 export const useEqub = (id: string) =>
   useQuery({ queryKey: qk.equb(id), queryFn: () => ekubService.getEqub(id), enabled: !!id });
+
+/** Admin dashboards of several Equbs at once (portfolio Dashboard page). */
+export const useEqubDashboards = (ids: string[]) =>
+  useQueries({
+    queries: ids.map((id) => ({ queryKey: qk.dashboard(id), queryFn: () => ekubService.getEqubDashboard(id), retry: false })),
+  });
 
 export const useEqubDashboard = (id: string | null | undefined) =>
   useQuery({ queryKey: qk.dashboard(id ?? ""), queryFn: () => ekubService.getEqubDashboard(id!), enabled: !!id });
@@ -101,6 +122,10 @@ export const useAssignManager = () => {
 export const useStaffUserSearch = (query: string, enabled = true) =>
   useQuery({ queryKey: ["staff-user-search", query], queryFn: () => ekubService.searchStaffUsers(query), enabled });
 
+export const useCloneEqub = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (v: { id: string; input: import("@/types/ekub").CloneEqubInput }) => ekubService.cloneEqub(v.id, v.input), onSuccess: () => invEqub(qc) });
+};
 export const useAutoCancel = () => {
   const qc = useQueryClient();
   return useMutation({ mutationFn: () => ekubService.autoCancel(), onSuccess: () => invEqub(qc) });
@@ -109,6 +134,9 @@ export const useAutoCancel = () => {
 // ---- Equb members ----
 export const useEqubMembers = (equbId: string, status?: string) =>
   useQuery({ queryKey: qk.members(equbId, status), queryFn: () => ekubService.listEqubMembers(equbId, status), enabled: !!equbId });
+
+export const useMemberProfile = (memberId: string) =>
+  useQuery({ queryKey: ["member-profile", memberId], queryFn: () => ekubService.getMemberProfile(memberId), enabled: !!memberId, retry: false });
 
 export const useMemberSearch = (query: string) =>
   useQuery({ queryKey: qk.memberSearch(query), queryFn: () => ekubService.searchMembers(query), enabled: query.trim().length >= 2 });
@@ -143,11 +171,100 @@ export const useSwapPositions = () => {
 export const useRounds = (equbId: string, status?: string) =>
   useQuery({ queryKey: qk.rounds(equbId, status), queryFn: () => ekubService.listRounds(equbId, status), enabled: !!equbId });
 
+/** Full detail (member payments, totals) of several rounds; the list endpoint only carries counts. */
+export const useRoundDetails = (roundIds: string[]) =>
+  useQueries({
+    queries: roundIds.map((id) => ({ queryKey: qk.round(id), queryFn: () => ekubService.getRound(id) })),
+  });
+
 export const useRound = (roundId: string) =>
   useQuery({ queryKey: qk.round(roundId), queryFn: () => ekubService.getRound(roundId), enabled: !!roundId });
 
 export const useDrawPreview = (roundId: string, enabled = true) =>
   useQuery({ queryKey: qk.drawPreview(roundId), queryFn: () => ekubService.getDrawPreview(roundId), enabled: enabled && !!roundId });
+
+export const useRefreshReadiness = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => ekubService.refreshReadiness(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["equb-rounds"] });
+      qc.invalidateQueries({ queryKey: ["round"] });
+      qc.invalidateQueries({ queryKey: ["draw-preview"] });
+      qc.invalidateQueries({ queryKey: ["equb-dashboard"] });
+    },
+  });
+};
+
+// ---- Recording a contribution ----
+export const useMemberStanding = (equbId: string, memberId: string | null) =>
+  useQuery({ queryKey: ["member-standing", equbId, memberId ?? ""], queryFn: () => ekubService.getMemberStanding(equbId, memberId!), enabled: !!equbId && !!memberId, retry: false });
+
+// A payment moves round totals, readiness, fees, takaful and standing.
+const invAfterPayment = (qc: QC, equbId: string) => {
+  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId]]) {
+    qc.invalidateQueries({ queryKey: key as readonly unknown[] });
+  }
+};
+export const useRecordPayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { equbId: string; memberId: string; input: import("@/types/ekub").RecordPaymentInput }) => ekubService.recordPayment(v.equbId, v.memberId, v.input),
+    onSuccess: (_d, v) => invAfterPayment(qc, v.equbId),
+  });
+};
+
+
+export const useConfirmPayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { equbId?: string; paymentId: string; notes?: string }) => ekubService.confirmPayment(v.paymentId, v.notes),
+    onSuccess: (_d, v) => {
+      if (v.equbId) invAfterPayment(qc, v.equbId);
+      else for (const key of [["equb-rounds"], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members"], ["member-standing"], ["equb-admin-fees"], ["equb-dashboard"], ["my-collections"], ["catch-up"]]) qc.invalidateQueries({ queryKey: key });
+    },
+  });
+};
+export const useCatchUp = (equbId: string, memberId: string | null) =>
+  useQuery({ queryKey: ["catch-up", equbId, memberId ?? ""], queryFn: () => ekubService.getCatchUp(equbId, memberId!), enabled: !!equbId && !!memberId, retry: false });
+
+export const useMyCollections = (filters: import("@/types/ekub").CollectionsFilters) =>
+  useQuery({ queryKey: ["my-collections", filters], queryFn: () => ekubService.listMyCollections(filters) });
+
+// ---- SACCO-wide fee ledger ----
+export const useFeeLedger = (filters: import("@/types/ekub").FeeLedgerFilters, page: number, perPage: number) =>
+  useQuery({ queryKey: ["fee-ledger", filters, page, perPage], queryFn: () => ekubService.getFeeLedger(filters, page, perPage), placeholderData: keepPreviousData });
+
+// ---- Contribution attachments ----
+export const useRoundAttachments = (roundId: string) =>
+  useQuery({ queryKey: ["round-attachments", roundId], queryFn: () => ekubService.listRoundAttachments(roundId), enabled: !!roundId, staleTime: 60_000 });
+export const useUploadAttachment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { roundId: string; contributionId: string; file: File; description?: string }) => ekubService.uploadAttachment(v.contributionId, v.file, v.description),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }),
+  });
+};
+export const useDeleteAttachment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { roundId: string; contributionId: string; attachmentId: string }) => ekubService.deleteAttachment(v.contributionId, v.attachmentId),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }),
+  });
+};
+
+// ---- Admin fee ledgers ----
+export const useEqubAdminFees = (equbId: string) =>
+  useQuery({ queryKey: qk.adminFees(equbId), queryFn: () => ekubService.getEqubAdminFees(equbId), enabled: !!equbId });
+/** Admin-fee ledgers of several Equbs at once (general Admin fees page). */
+export const useEqubAdminFeesMany = (equbIds: string[]) =>
+  useQueries({
+    queries: equbIds.map((id) => ({ queryKey: qk.adminFees(id), queryFn: () => ekubService.getEqubAdminFees(id) })),
+  });
+export const useRoundAdminFees = (roundId: string) =>
+  useQuery({ queryKey: qk.roundAdminFees(roundId), queryFn: () => ekubService.getRoundAdminFees(roundId), enabled: !!roundId });
+export const useMemberAdminFees = (equbId: string, memberId: string | null) =>
+  useQuery({ queryKey: qk.memberAdminFees(equbId, memberId ?? ""), queryFn: () => ekubService.getMemberAdminFees(equbId, memberId!), enabled: !!equbId && !!memberId });
 
 export const useExecuteDraw = () => {
   const qc = useQueryClient();
@@ -198,6 +315,13 @@ export const useRejectGuarantee = () => {
     onSuccess: (_d, v) => invWinners(qc, v.equbId, v.roundId),
   });
 };
+export const useApproveWinner = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { equbId: string; roundId?: string; winnerId: string }) => ekubService.approveWinner(v.winnerId),
+    onSuccess: (_d, v) => invWinners(qc, v.equbId, v.roundId),
+  });
+};
 export const useProcessPayout = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -230,6 +354,12 @@ export const useTakaful = (equbId: string) =>
   useQuery({ queryKey: qk.takaful(equbId), queryFn: () => ekubService.listTakaful(equbId), enabled: !!equbId });
 export const useTakafulBalance = (equbId: string) =>
   useQuery({ queryKey: qk.takafulBalance(equbId), queryFn: () => ekubService.getTakafulBalance(equbId), enabled: !!equbId });
+
+/** Takaful ledgers of several Equbs at once (Dashboard fund movements). */
+export const useTakafulLedgers = (equbIds: string[]) =>
+  useQueries({
+    queries: equbIds.map((id) => ({ queryKey: qk.takaful(id), queryFn: () => ekubService.listTakaful(id) })),
+  });
 
 /** Takaful balance of several Equbs at once (general Takaful page). */
 export const useTakafulBalances = (equbIds: string[]) =>
