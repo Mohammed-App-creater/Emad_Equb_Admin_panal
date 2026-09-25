@@ -850,7 +850,15 @@
     "catchUpLine": "የማካካሻ ዕዳ፡ {rounds} የቀሩ ዙር(ሮች) × {per} = {total}። ቀጣዩ ዙር #{next} ነው።",
     "confirmNow": "ክፍያ አረጋግጥ",
     "confirmed": "ክፍያ ተረጋግጧል",
-    "later": "በመጠባበቅ ተው"
+    "later": "በመጠባበቅ ተው",
+    "catchUp": "ማካካሻ",
+    "selectCatchUp": "ማካካሻ ምረጥ ({count})",
+    "selectAllOwed": "ሁሉንም ዕዳ ምረጥ",
+    "selectNone": "ምርጫ አጽዳ",
+    "proof": "የክፍያ ማስረጃ",
+    "proofHint": "የባንክ ደረሰኝ ወይም የጥሬ ገንዘብ ደረሰኝ ፎቶ። አንድ ፋይል የተመረጡትን {count} ዙር(ሮች) ሁሉ ይሸፍናል። JPEG፣ PNG፣ WebP፣ HEIC ወይም PDF፣ እስከ 10MB።",
+    "proofNotePlaceholder": "ማስታወሻ (ለምሳሌ ለዙር 2–3 ማካካሻ፣ የCBE ዝውውር ደረሰኝ)",
+    "proofNotFiled": "ክፍያ ተመዝግቧል፣ ግን ማስረጃው አልተያያዘም"
   },
   "contributions": {
     "wholeEqub": "ጠቅላላ እቁብ",

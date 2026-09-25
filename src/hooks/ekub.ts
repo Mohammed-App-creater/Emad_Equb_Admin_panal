@@ -202,7 +202,7 @@ export const useMemberStanding = (equbId: string, memberId: string | null) =>
 
 // A payment moves round totals, readiness, fees, takaful and standing.
 const invAfterPayment = (qc: QC, equbId: string) => {
-  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId]]) {
+  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId], ["round-attachments"]]) {
     qc.invalidateQueries({ queryKey: key as readonly unknown[] });
   }
 };

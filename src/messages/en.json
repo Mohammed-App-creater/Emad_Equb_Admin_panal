@@ -850,7 +850,15 @@
     "catchUpLine": "Catch-up owed: {rounds} missed round(s) × {per} = {total}. Next round is #{next}.",
     "confirmNow": "Confirm payment",
     "confirmed": "Payment confirmed",
-    "later": "Leave pending"
+    "later": "Leave pending",
+    "catchUp": "Catch-up",
+    "selectCatchUp": "Select catch-up ({count})",
+    "selectAllOwed": "Select all owed",
+    "selectNone": "Clear selection",
+    "proof": "Proof of payment",
+    "proofHint": "Bank slip or photo of the cash receipt. One file covers all {count} selected round(s). JPEG, PNG, WebP, HEIC or PDF, up to 10MB.",
+    "proofNotePlaceholder": "Note (e.g. catch-up for rounds 2–3, CBE transfer slip)",
+    "proofNotFiled": "Payment recorded, but the proof was not filed"
   },
   "contributions": {
     "wholeEqub": "Whole Equb",

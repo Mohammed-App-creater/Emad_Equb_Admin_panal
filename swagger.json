@@ -537,7 +537,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "The authenticated agent's share of the Equb admin fees their members paid. Every time a member this agent registered completes an Equb contribution payment, the agent earns a configured share (50% by default) of the <b>admin fee</b> that payment collected — not of the contribution itself. Each entry shows the admin fee it was calculated from, the rate applied, the Equb group and (where the payment settled a single round) the round. Resolves to the caller, so an agent cannot read anyone else's figures.",
+                "description": "The authenticated agent's share of the Equb admin fees their members paid. Every time a member this agent registered completes an Equb contribution payment, the agent earns a configured share (50% by default) of the \u003cb\u003eadmin fee\u003c/b\u003e that payment collected — not of the contribution itself. Each entry shows the admin fee it was calculated from, the rate applied, the Equb group and (where the payment settled a single round) the round. Resolves to the caller, so an agent cannot read anyone else's figures.",
                 "produces": [
                     "application/json"
                 ],
@@ -2570,7 +2570,7 @@
         },
         "/auth/login": {
             "post": {
-                "description": "Authenticates a staff or administrator using email/phone and password. The "identifier" field accepts either an email address or phone number. Returns a valid JWT token and complete user profile.",
+                "description": "Authenticates a staff or administrator using email/phone and password. The \"identifier\" field accepts either an email address or phone number. Returns a valid JWT token and complete user profile.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3746,7 +3746,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Scans all active groups and marks contributions that have passed their due date as <b>overdue</b>. Overdue members may be barred from upcoming draws (see missed-payment rules) while still owing their contributions. Returns the count of contributions updated.",
+                "description": "Scans all active groups and marks contributions that have passed their due date as \u003cb\u003eoverdue\u003c/b\u003e. Overdue members may be barred from upcoming draws (see missed-payment rules) while still owing their contributions. Returns the count of contributions updated.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3792,7 +3792,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the attachments filed against one contribution, newest first. Each record carries a <code>file_url</code> minted for this response and valid for a limited time - do not cache it; re-read or use the download endpoint instead. <code>is_image</code> says whether the file can be rendered inline rather than offered as a download.",
+                "description": "Returns the attachments filed against one contribution, newest first. Each record carries a \u003ccode\u003efile_url\u003c/code\u003e minted for this response and valid for a limited time - do not cache it; re-read or use the download endpoint instead. \u003ccode\u003eis_image\u003c/code\u003e says whether the file can be rendered inline rather than offered as a download.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3845,7 +3845,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Files an optional attachment against one contribution - a bank slip, a photo of a cash receipt, a screenshot of a transfer. Sent as <b>multipart/form-data</b> with the file in <code>file</code> and an optional <code>description</code>. Accepts JPEG, PNG, GIF, WebP, HEIC and PDF up to 10MB, stored in object storage. A contribution may carry at most 10 attachments.<br><br>Attachments are <b>evidence, never state</b>: nothing about settlement, round readiness or the draw reads them - a contribution is settled by a completed payment, not by a picture of one. Uploading is therefore allowed whatever state the contribution is in, which is what lets a member file proof of a payment that has not landed yet.",
+                "description": "Files an optional attachment against one contribution - a bank slip, a photo of a cash receipt, a screenshot of a transfer. Sent as \u003cb\u003emultipart/form-data\u003c/b\u003e with the file in \u003ccode\u003efile\u003c/code\u003e and an optional \u003ccode\u003edescription\u003c/code\u003e. Accepts JPEG, PNG, GIF, WebP, HEIC and PDF up to 10MB, stored in object storage. A contribution may carry at most 10 attachments.\u003cbr\u003e\u003cbr\u003eAttachments are \u003cb\u003eevidence, never state\u003c/b\u003e: nothing about settlement, round readiness or the draw reads them - a contribution is settled by a completed payment, not by a picture of one. Uploading is therefore allowed whatever state the contribution is in, which is what lets a member file proof of a payment that has not landed yet.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -4211,7 +4211,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the fee ledger for whatever scope the query names: every fee that rides on a contribution - the <b>contribution itself</b>, the <b>admin fee</b> and the <b>Takaful fee</b> - and the total ask, one line per member per round.<br><br><b>Scopes the query understands</b> (all optional, and freely combinable - the ledger is their intersection):<br>- <b>no filter at all</b> — the whole SACCO's ledger<br>- <code>scheme_id</code> — every group and round under one scheme<br>- <code>group_id</code> — every round and contribution inside one group<br>- <code>round_id</code> — one round's contributions<br>- <code>contribution_id</code> — a single contribution, the finest unit, which is how one member's exact fee position for one round is read<br>- <code>member_id</code> — one member's contributions under whatever else is set<br>- <code>status</code> — one contribution state (<code>paid</code>, <code>pending</code>, <code>overdue</code>, <code>waived</code>); omit for every state<br><br><b>Charged vs collected.</b> A fee is <b>charged</b> on every matching contribution and <b>collected</b> only once that contribution is <b>paid</b> - a waived contribution settles its round but yields no cash, and an overdue one has not yielded it yet, so <code>collected</code> can sit below <code>charged</code>. The per-type <code>*_charged</code>/<code>*_collected</code> totals and the <code>total_charged</code>/<code>total_collected</code> pair cover the <b>whole filtered set</b>, not just the returned page. Each <code>admin_fee</code> is read off the contribution rather than recomputed from the scheme, so a group whose fee was overridden mid-cycle still reports each round at what it actually charged.<br><br><b>Access:</b> administrators reach any scope; a manager's group in the path is ownership-checked and pinned to their group; a member's request is scoped to their own contributions only.",
+                "description": "Returns the fee ledger for whatever scope the query names: every fee that rides on a contribution - the \u003cb\u003econtribution itself\u003c/b\u003e, the \u003cb\u003eadmin fee\u003c/b\u003e and the \u003cb\u003eTakaful fee\u003c/b\u003e - and the total ask, one line per member per round.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eScopes the query understands\u003c/b\u003e (all optional, and freely combinable - the ledger is their intersection):\u003cbr\u003e- \u003cb\u003eno filter at all\u003c/b\u003e — the whole SACCO's ledger\u003cbr\u003e- \u003ccode\u003escheme_id\u003c/code\u003e — every group and round under one scheme\u003cbr\u003e- \u003ccode\u003egroup_id\u003c/code\u003e — every round and contribution inside one group\u003cbr\u003e- \u003ccode\u003eround_id\u003c/code\u003e — one round's contributions\u003cbr\u003e- \u003ccode\u003econtribution_id\u003c/code\u003e — a single contribution, the finest unit, which is how one member's exact fee position for one round is read\u003cbr\u003e- \u003ccode\u003emember_id\u003c/code\u003e — one member's contributions under whatever else is set\u003cbr\u003e- \u003ccode\u003estatus\u003c/code\u003e — one contribution state (\u003ccode\u003epaid\u003c/code\u003e, \u003ccode\u003epending\u003c/code\u003e, \u003ccode\u003eoverdue\u003c/code\u003e, \u003ccode\u003ewaived\u003c/code\u003e); omit for every state\u003cbr\u003e\u003cbr\u003e\u003cb\u003eCharged vs collected.\u003c/b\u003e A fee is \u003cb\u003echarged\u003c/b\u003e on every matching contribution and \u003cb\u003ecollected\u003c/b\u003e only once that contribution is \u003cb\u003epaid\u003c/b\u003e - a waived contribution settles its round but yields no cash, and an overdue one has not yielded it yet, so \u003ccode\u003ecollected\u003c/code\u003e can sit below \u003ccode\u003echarged\u003c/code\u003e. The per-type \u003ccode\u003e*_charged\u003c/code\u003e/\u003ccode\u003e*_collected\u003c/code\u003e totals and the \u003ccode\u003etotal_charged\u003c/code\u003e/\u003ccode\u003etotal_collected\u003c/code\u003e pair cover the \u003cb\u003ewhole filtered set\u003c/b\u003e, not just the returned page. Each \u003ccode\u003eadmin_fee\u003c/code\u003e is read off the contribution rather than recomputed from the scheme, so a group whose fee was overridden mid-cycle still reports each round at what it actually charged.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eAccess:\u003c/b\u003e administrators reach any scope; a manager's group in the path is ownership-checked and pinned to their group; a member's request is scoped to their own contributions only.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4315,7 +4315,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a paginated list of Equb groups, optionally filtered by scheme (equb_scheme_id), lifecycle status (draft / active / completed / cancelled) or searched by name or code. Use this to manage all groups currently running or configured across the SACCO.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case. Every manager on the page is resolved in a single lookup, so page size does not multiply the cost.",
+                "description": "Returns a paginated list of Equb groups, optionally filtered by scheme (equb_scheme_id), lifecycle status (draft / active / completed / cancelled) or searched by name or code. Use this to manage all groups currently running or configured across the SACCO.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e names the group's manager — the user in \u003ccode\u003ecreated_by\u003c/code\u003e, which is what every ownership check under \u003ccode\u003e/equb/manager/**\u003c/code\u003e matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; \u003ccode\u003ecreated_by\u003c/code\u003e still identifies them in that case. Every manager on the page is resolved in a single lookup, so page size does not multiply the cost.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4402,7 +4402,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a new Equb group under a given scheme. The group inherits its financial and membership rules from the scheme unless it states its own: send any of <code>contribution_amount_override</code>, <code>admin_fee_override</code>, <code>takaful_fee_override</code>, <code>payout_amount_override</code>, <code>winners_per_round_override</code>, <code>frequency_override</code> or <code>total_rounds_override</code> to depart from the template, and omit them to inherit. A group that overrides anything must state a set that adds up: the payout must equal the contribution times <code>max_members</code>, and the winners per round must fit in <code>max_members</code>. The resolved figures come back as <code>effective_terms</code>. <code>code</code> is optional: leave it out (or send it empty) and the server allocates the next free <code>EQG00001</code>-style code; supply one and it is used verbatim and must be unique. Groups are created in <b>draft</b> status and must be activated before members can cycle through rounds. A member can belong to at most one active group at a time.",
+                "description": "Creates a new Equb group under a given scheme. The group inherits its financial and membership rules from the scheme unless it states its own: send any of \u003ccode\u003econtribution_amount_override\u003c/code\u003e, \u003ccode\u003eadmin_fee_override\u003c/code\u003e, \u003ccode\u003etakaful_fee_override\u003c/code\u003e, \u003ccode\u003epayout_amount_override\u003c/code\u003e, \u003ccode\u003ewinners_per_round_override\u003c/code\u003e, \u003ccode\u003efrequency_override\u003c/code\u003e or \u003ccode\u003etotal_rounds_override\u003c/code\u003e to depart from the template, and omit them to inherit. A group that overrides anything must state a set that adds up: the payout must equal the contribution times \u003ccode\u003emax_members\u003c/code\u003e, and the winners per round must fit in \u003ccode\u003emax_members\u003c/code\u003e. The resolved figures come back as \u003ccode\u003eeffective_terms\u003c/code\u003e. \u003ccode\u003ecode\u003c/code\u003e is optional: leave it out (or send it empty) and the server allocates the next free \u003ccode\u003eEQG00001\u003c/code\u003e-style code; supply one and it is used verbatim and must be unique. Groups are created in \u003cb\u003edraft\u003c/b\u003e status and must be activated before members can cycle through rounds. A member can belong to at most one active group at a time.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4459,7 +4459,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a single Equb group by its ID, including its inherited scheme details, current membership count and lifecycle status. Use this to review a group's configuration and progress.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case.",
+                "description": "Returns a single Equb group by its ID, including its inherited scheme details, current membership count and lifecycle status. Use this to review a group's configuration and progress.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e names the group's manager — the user in \u003ccode\u003ecreated_by\u003c/code\u003e, which is what every ownership check under \u003ccode\u003e/equb/manager/**\u003c/code\u003e matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; \u003ccode\u003ecreated_by\u003c/code\u003e still identifies them in that case.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4512,7 +4512,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Updates an existing Equb group's configuration, such as its name, code (omit or blank it to keep the current one — it is never regenerated), expected end date or anonymity setting, and the terms it overrides from its scheme. Only <b>draft</b> groups can be edited: activation freezes the terms into the group's round and contribution rows. An omitted override is left as it is, never cleared -- send <code>clear_term_overrides: true</code> to return the group to its scheme, optionally alongside a new set. The whole resolved set is re-checked after the update, so a change to <code>max_members</code> that leaves an existing payout override stale is refused.",
+                "description": "Updates an existing Equb group's configuration, such as its name, code (omit or blank it to keep the current one — it is never regenerated), expected end date or anonymity setting, and the terms it overrides from its scheme. Only \u003cb\u003edraft\u003c/b\u003e groups can be edited: activation freezes the terms into the group's round and contribution rows. An omitted override is left as it is, never cleared -- send \u003ccode\u003eclear_term_overrides: true\u003c/code\u003e to return the group to its scheme, optionally alongside a new set. The whole resolved set is re-checked after the update, so a change to \u003ccode\u003emax_members\u003c/code\u003e that leaves an existing payout override stale is refused.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4617,7 +4617,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Activates a draft Equb group by assigning a start date, which begins its round cycle. Members must join before activation. After activation the group is considered <b>active</b>, and members are bound to it until every round is complete (no early exit).",
+                "description": "Activates a draft Equb group by assigning a start date, which begins its round cycle. Members must join before activation. After activation the group is considered \u003cb\u003eactive\u003c/b\u003e, and members are bound to it until every round is complete (no early exit).",
                 "consumes": [
                     "application/json"
                 ],
@@ -4736,7 +4736,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Admin fee ledger for a whole Equb group. The admin fee is a <b>flat amount</b> each member pays on top of their contribution every round - a member hands over contribution + admin fee + takaful fee - set by the scheme and optionally overridden by the group. It is never a percentage of the contribution. Returns the fee charged and the fee actually collected (only a <b>paid</b> contribution has yielded its fee), broken down per round and per member, plus how the collected total divides between the SACCO, the agent and the broker under this group's shares.",
+                "description": "Admin fee ledger for a whole Equb group. The admin fee is a \u003cb\u003eflat amount\u003c/b\u003e each member pays on top of their contribution every round - a member hands over contribution + admin fee + takaful fee - set by the scheme and optionally overridden by the group. It is never a percentage of the contribution. Returns the fee charged and the fee actually collected (only a \u003cb\u003epaid\u003c/b\u003e contribution has yielded its fee), broken down per round and per member, plus how the collected total divides between the SACCO, the agent and the broker under this group's shares.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4855,7 +4855,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates the next cycle of a finished group: a new <b>draft</b> group carrying the same scheme, term overrides, admin fee split, broker, manager and active member roster, linked back to the one it continues. Activate it with a start date to generate its rounds and contributions.<br><br>Only a <b>completed</b> or <b>cancelled</b> group can start a next cycle. A group runs once, and a next cycle is a new group rather than a reopened one - not for tidiness, but because winners are scoped per group: re-running the finished group in place would start with every member already in its winner set, so the "previously won" exclusion would lift on round one and never re-apply, letting one member win twice while another won nothing. A new group starts with an empty winner set, its own Takaful fund and its own admin fee ledger, and leaves the finished cycle intact and reportable.<br><br>Every field is optional and inherited from the source group when omitted. Missed-payment history carries over by default so a repeat defaulter does not get a clean slate simply because the cycle rolled over; an unserved ban is rebased onto the new cycle's round numbering and serves out only its remaining rounds.",
+                "description": "Creates the next cycle of a finished group: a new \u003cb\u003edraft\u003c/b\u003e group carrying the same scheme, term overrides, admin fee split, broker, manager and active member roster, linked back to the one it continues. Activate it with a start date to generate its rounds and contributions.\u003cbr\u003e\u003cbr\u003eOnly a \u003cb\u003ecompleted\u003c/b\u003e or \u003cb\u003ecancelled\u003c/b\u003e group can start a next cycle. A group runs once, and a next cycle is a new group rather than a reopened one - not for tidiness, but because winners are scoped per group: re-running the finished group in place would start with every member already in its winner set, so the \"previously won\" exclusion would lift on round one and never re-apply, letting one member win twice while another won nothing. A new group starts with an empty winner set, its own Takaful fund and its own admin fee ledger, and leaves the finished cycle intact and reportable.\u003cbr\u003e\u003cbr\u003eEvery field is optional and inherited from the source group when omitted. Missed-payment history carries over by default so a repeat defaulter does not get a clean slate simply because the cycle rolled over; an unserved ban is rebased onto the new cycle's round numbering and serves out only its remaining rounds.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5011,7 +5011,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Submits an emergency draw request so a member can draw ahead of their scheduled position due to exceptional circumstances, providing a reason and optional supporting evidence. The request is created in <b>pending</b> status and must be reviewed before it can take effect.",
+                "description": "Submits an emergency draw request so a member can draw ahead of their scheduled position due to exceptional circumstances, providing a reason and optional supporting evidence. The request is created in \u003cb\u003epending\u003c/b\u003e status and must be reviewed before it can take effect.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5139,7 +5139,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Hands a group to a manager. The manager is the user every ownership check under <code>/equb/manager/**</code> matches against, so this is what lets a group outlive the person who created it — previously a group whose manager had left could only ever be operated by an admin. <br><br>Admin-only, and deliberately not offered to managers: one who could reassign their own group could hand it to anyone. <br><br>Works at any group status: a manager leaving mid-cycle is the case this exists for, and refusing to reassign an active group would leave its members with nobody able to run their draws. Idempotent — naming the manager a group already has writes nothing and returns <code>changed: false</code>. The change is written to the audit log, which is the only record of who held the group before.",
+                "description": "Hands a group to a manager. The manager is the user every ownership check under \u003ccode\u003e/equb/manager/**\u003c/code\u003e matches against, so this is what lets a group outlive the person who created it — previously a group whose manager had left could only ever be operated by an admin. \u003cbr\u003e\u003cbr\u003eAdmin-only, and deliberately not offered to managers: one who could reassign their own group could hand it to anyone. \u003cbr\u003e\u003cbr\u003eWorks at any group status: a manager leaving mid-cycle is the case this exists for, and refusing to reassign an active group would leave its members with nobody able to run their draws. Idempotent — naming the manager a group already has writes nothing and returns \u003ccode\u003echanged: false\u003c/code\u003e. The change is written to the audit log, which is the only record of who held the group before.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5418,7 +5418,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Removes a member from an Equb group. Important rule: a member of an <b>active</b> group cannot exit until every round is complete — the operation is rejected for active groups. Removal is only permitted while the group is still being assembled (draft).",
+                "description": "Removes a member from an Equb group. Important rule: a member of an \u003cb\u003eactive\u003c/b\u003e group cannot exit until every round is complete — the operation is rejected for active groups. Removal is only permitted while the group is still being assembled (draft).",
                 "consumes": [
                     "application/json"
                 ],
@@ -6369,7 +6369,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Executes the draw for a round to select the round's winner(s) from eligible members using a secure random algorithm. The draw snapshots candidate eligibility (contribution paid, not suspended/overdue/proviously won) at execution time, records them, and returns both the draw record and the selected winners. Each winner's payout is <b>ContributionAmt × MembersPerGroup</b>.",
+                "description": "Executes the draw for a round to select the round's winner(s) from eligible members using a secure random algorithm. The draw snapshots candidate eligibility (contribution paid, not suspended/overdue/proviously won) at execution time, records them, and returns both the draw record and the selected winners. Each winner's payout is \u003cb\u003eContributionAmt × MembersPerGroup\u003c/b\u003e.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6618,7 +6618,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a new Equb scheme, which is the reusable template that configures every group's rules. The scheme defines the fixed contribution amount, the flat admin fee and Takaful fee that are added on top of each contribution, the payout a winner receives, the group size, and how many winners are selected per round. <br><br>Key business rules:<br>- The member pays <b>ContributionAmt + AdminFee + TakafulFee</b> each round; fees are NOT deducted from the contribution.<br>- The winner's payout must equal <b>ContributionAmt × MembersPerGroup</b> (payout math is validated).<br>- MembersPerGroup × WinnersPerRound determines membership and draw configuration.<br>- <code>code</code> is optional. Leave it out (or send it empty) and the server allocates the next free <code>EQS00001</code>-style code. Supply one and it is used verbatim and must be unique — letters and digits only, no hyphens.",
+                "description": "Creates a new Equb scheme, which is the reusable template that configures every group's rules. The scheme defines the fixed contribution amount, the flat admin fee and Takaful fee that are added on top of each contribution, the payout a winner receives, the group size, and how many winners are selected per round. \u003cbr\u003e\u003cbr\u003eKey business rules:\u003cbr\u003e- The member pays \u003cb\u003eContributionAmt + AdminFee + TakafulFee\u003c/b\u003e each round; fees are NOT deducted from the contribution.\u003cbr\u003e- The winner's payout must equal \u003cb\u003eContributionAmt × MembersPerGroup\u003c/b\u003e (payout math is validated).\u003cbr\u003e- MembersPerGroup × WinnersPerRound determines membership and draw configuration.\u003cbr\u003e- \u003ccode\u003ecode\u003c/code\u003e is optional. Leave it out (or send it empty) and the server allocates the next free \u003ccode\u003eEQS00001\u003c/code\u003e-style code. Supply one and it is used verbatim and must be unique — letters and digits only, no hyphens.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6728,7 +6728,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Updates an existing Equb scheme's configuration. Changes affect future groups created from this scheme; the same payout-math validation applies — the winner's payout must still equal <b>ContributionAmt × MembersPerGroup</b>. Editing fees (admin/Takaful) changes what each member pays per round for new groups. <code>code</code> is optional here and is the one field that is not full-replace: omit it and the scheme keeps the code it has, which is never regenerated — a code that changed itself when someone edited the name would break every receipt already carrying it.",
+                "description": "Updates an existing Equb scheme's configuration. Changes affect future groups created from this scheme; the same payout-math validation applies — the winner's payout must still equal \u003cb\u003eContributionAmt × MembersPerGroup\u003c/b\u003e. Editing fees (admin/Takaful) changes what each member pays per round for new groups. \u003ccode\u003ecode\u003c/code\u003e is optional here and is the one field that is not full-replace: omit it and the scheme keeps the code it has, which is never regenerated — a code that changed itself when someone edited the name would break every receipt already carrying it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6833,7 +6833,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Approves a winner for payout on a group whose terms set <b>guarantee_required</b> to false, so the winner is released without putting up a guarantee. On a group that does require a guarantee this is refused — there the guarantee is the approval, and the winner's guarantee must be approved instead. The winner moves to <b>approved</b> and becomes eligible for payout.",
+                "description": "Approves a winner for payout on a group whose terms set \u003cb\u003eguarantee_required\u003c/b\u003e to false, so the winner is released without putting up a guarantee. On a group that does require a guarantee this is refused — there the guarantee is the approval, and the winner's guarantee must be approved instead. The winner moves to \u003cb\u003eapproved\u003c/b\u003e and becomes eligible for payout.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6894,7 +6894,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a guarantee for a winner before the payout can be processed. The guarantee can be member-backed, cheque, or collateral, and must be approved before the winner's payout proceeds. Guarantee type is one of member / cheque / collateral, and must be among the types the winner's group accepts (see the group's <b>effective_terms.accepted_guarantee_types</b>). On a group configured not to require a guarantee, submit one only if the winner volunteers it; it is never needed to be paid.",
+                "description": "Creates a guarantee for a winner before the payout can be processed. The guarantee can be member-backed, cheque, or collateral, and must be approved before the winner's payout proceeds. Guarantee type is one of member / cheque / collateral, and must be among the types the winner's group accepts (see the group's \u003cb\u003eeffective_terms.accepted_guarantee_types\u003c/b\u003e). On a group configured not to require a guarantee, submit one only if the winner volunteers it; it is never needed to be paid.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6958,7 +6958,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Processes the payout for an approved winner. The payout amount is the winner's payout (ContributionAmt × MembersPerGroup) and is issued through the existing payment system. Whether a guarantee is required is a term of the winner's group (<b>effective_terms.guarantee_required</b>): when required, the payout is refused unless the winner's guarantee is on file and approved; when not required, the winner is released via <b>POST .../approve</b> instead. After payment clears the winner moves to <b>paid</b>.",
+                "description": "Processes the payout for an approved winner. The payout amount is the winner's payout (ContributionAmt × MembersPerGroup) and is issued through the existing payment system. Whether a guarantee is required is a term of the winner's group (\u003cb\u003eeffective_terms.guarantee_required\u003c/b\u003e): when required, the payout is refused unless the winner's guarantee is on file and approved; when not required, the winner is released via \u003cb\u003ePOST .../approve\u003c/b\u003e instead. After payment clears the winner moves to \u003cb\u003epaid\u003c/b\u003e.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7094,7 +7094,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns a paginated list of Equb groups owned by the current manager, optionally filtered by scheme, status or searched by name/code. Managers can then operate on their own groups via the manager-scoped routes. Ownership is <code>created_by</code>, and an admin can reassign it with <code>PUT /equb/admin/groups/{id}/manager</code>.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case.",
+                "description": "Returns a paginated list of Equb groups owned by the current manager, optionally filtered by scheme, status or searched by name/code. Managers can then operate on their own groups via the manager-scoped routes. Ownership is \u003ccode\u003ecreated_by\u003c/code\u003e, and an admin can reassign it with \u003ccode\u003ePUT /equb/admin/groups/{id}/manager\u003c/code\u003e.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e names the group's manager — the user in \u003ccode\u003ecreated_by\u003c/code\u003e, which is what every ownership check under \u003ccode\u003e/equb/manager/**\u003c/code\u003e matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; \u003ccode\u003ecreated_by\u003c/code\u003e still identifies them in that case.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7245,7 +7245,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "For an agent or manager collecting in the field. Records a payment on behalf of a member for one or more rounds — the server works out the amount owed, so no amount is sent. The staff user who collected the money is recorded on the payment and written to the audit log. Like the member's own payment, the contribution settles once the payment is confirmed.<br><br>Send <b>multipart/form-data</b> instead of JSON to file proof of the collection in the same request: the rounds as repeated <code>round_ids</code> fields, plus <code>method</code>, <code>reference</code>, and optionally <code>file</code> with <code>description</code>. A member settles a run of rounds with one payment, so one slip covers all of them: the file is stored once and filed against every contribution this request collects for, and <code>attachments[].contribution_ids</code> names them. The file is filed only after the collection is recorded, so a file that cannot be stored leaves the collection intact and is reported in <code>attachment_warning</code>.",
+                "description": "For an agent or manager collecting in the field. Records a payment on behalf of a member for one or more rounds — the server works out the amount owed, so no amount is sent. The staff user who collected the money is recorded on the payment and written to the audit log. Like the member's own payment, the contribution settles once the payment is confirmed.\u003cbr\u003e\u003cbr\u003eSend \u003cb\u003emultipart/form-data\u003c/b\u003e instead of JSON to file proof of the collection in the same request: the rounds as repeated \u003ccode\u003eround_ids\u003c/code\u003e fields, plus \u003ccode\u003emethod\u003c/code\u003e, \u003ccode\u003ereference\u003c/code\u003e, and optionally \u003ccode\u003efile\u003c/code\u003e with \u003ccode\u003edescription\u003c/code\u003e. A member settles a run of rounds with one payment, so one slip covers all of them: the file is stored once and filed against every contribution this request collects for, and \u003ccode\u003eattachments[].contribution_ids\u003c/code\u003e names them. The file is filed only after the collection is recorded, so a file that cannot be stored leaves the collection intact and is reported in \u003ccode\u003eattachment_warning\u003c/code\u003e.",
                 "consumes": [
                     "application/json",
                     "multipart/form-data"
@@ -7645,7 +7645,7 @@
         },
         "/equb/member/groups": {
             "get": {
-                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e is deliberately \u003cb\u003enot\u003c/b\u003e included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7729,7 +7729,7 @@
         },
         "/equb/member/groups/{id}": {
             "get": {
-                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e is deliberately \u003cb\u003enot\u003c/b\u003e included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7885,7 +7885,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the list of groups the authenticated member currently belongs to, with their status and role. Use this to render a member's "My Groups" list.",
+                "description": "Returns the list of groups the authenticated member currently belongs to, with their status and role. Use this to render a member's \"My Groups\" list.",
                 "consumes": [
                     "application/json"
                 ],
@@ -7934,7 +7934,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns detailed information about a group the member belongs to — including the scheme's rules, the member's position, current round, and their standing in the group. Use this for the member's group detail screen.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> names the group's manager — the user in <code>created_by</code>, which is what every ownership check under <code>/equb/manager/**</code> matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; <code>created_by</code> still identifies them in that case. For a member that is who is collecting from them, and who to contact about a problem.",
+                "description": "Returns detailed information about a group the member belongs to — including the scheme's rules, the member's position, current round, and their standing in the group. Use this for the member's group detail screen.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e names the group's manager — the user in \u003ccode\u003ecreated_by\u003c/code\u003e, which is what every ownership check under \u003ccode\u003e/equb/manager/**\u003c/code\u003e matches against — with their name and contact details. Absent when the group has no manager assigned, or when the name could not be resolved; \u003ccode\u003ecreated_by\u003c/code\u003e still identifies them in that case. For a member that is who is collecting from them, and who to contact about a problem.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8468,7 +8468,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the member's position in the group's draw order and, where relevant, their expected winning round. Use this for the "when will I receive my payout" view. After every active member has won once, the cycle may re-start for further rounds.",
+                "description": "Returns the member's position in the group's draw order and, where relevant, their expected winning round. Use this for the \"when will I receive my payout\" view. After every active member has won once, the cycle may re-start for further rounds.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8607,7 +8607,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns everything needed to check that a round's draw was fair, without trusting the operator. The <b>seed commitment</b> is published when the round is created — before anyone knows who will be eligible. After the draw the <b>seed</b> itself is revealed, along with the exact candidate pool and the selection input. Hash the seed, confirm it matches the commitment, then re-run the documented algorithm to reproduce the winners. The <code>how_to_verify</code> field spells out the steps.",
+                "description": "Returns everything needed to check that a round's draw was fair, without trusting the operator. The \u003cb\u003eseed commitment\u003c/b\u003e is published when the round is created — before anyone knows who will be eligible. After the draw the \u003cb\u003eseed\u003c/b\u003e itself is revealed, along with the exact candidate pool and the selection input. Hash the seed, confirm it matches the commitment, then re-run the documented algorithm to reproduce the winners. The \u003ccode\u003ehow_to_verify\u003c/code\u003e field spells out the steps.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8669,7 +8669,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the rules and scheme details for one of the member's groups — contribution, fees, payout, frequency, and any group-specific settings. Use this for the member's "rules / terms" screen so they understand what they have committed to.",
+                "description": "Returns the rules and scheme details for one of the member's groups — contribution, fees, payout, frequency, and any group-specific settings. Use this for the member's \"rules / terms\" screen so they understand what they have committed to.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8724,7 +8724,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the upcoming payment schedule for one of the member's groups — the future rounds, their due dates and the amounts due. Each payment is <b>ContributionAmt + AdminFee + TakafulFee</b>. Use this for the member's "what I owe going forward" view.",
+                "description": "Returns the upcoming payment schedule for one of the member's groups — the future rounds, their due dates and the amounts due. Each payment is \u003cb\u003eContributionAmt + AdminFee + TakafulFee\u003c/b\u003e. Use this for the member's \"what I owe going forward\" view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8779,7 +8779,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Whether the member is in good standing: missed payments, any warning or ban, what is still owed, and whether they will be in the next draw. <code>what_to_do</code> is plain-language guidance safe to show verbatim, and <code>status</code> is one of <code>good</code>, <code>warning</code>, <code>banned</code>, <code>owing</code>. A lapsed ban reports <code>banned: false</code> — the response describes the effect now, not the stored flag.",
+                "description": "Whether the member is in good standing: missed payments, any warning or ban, what is still owed, and whether they will be in the next draw. \u003ccode\u003ewhat_to_do\u003c/code\u003e is plain-language guidance safe to show verbatim, and \u003ccode\u003estatus\u003c/code\u003e is one of \u003ccode\u003egood\u003c/code\u003e, \u003ccode\u003ewarning\u003c/code\u003e, \u003ccode\u003ebanned\u003c/code\u003e, \u003ccode\u003eowing\u003c/code\u003e. A lapsed ban reports \u003ccode\u003ebanned: false\u003c/code\u003e — the response describes the effect now, not the stored flag.",
                 "produces": [
                     "application/json"
                 ],
@@ -8962,7 +8962,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the list of winners for a specific round in one of the member's groups, showing who won and the payout. Accepts the round via the required <b>round_id</b> query parameter. Use this to show the member who took each round's pot.",
+                "description": "Returns the list of winners for a specific round in one of the member's groups, showing who won and the payout. Accepts the round via the required \u003cb\u003eround_id\u003c/b\u003e query parameter. Use this to show the member who took each round's pot.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9066,7 +9066,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "The full state of a single win: the guarantee, the payout, and <code>next_step</code> guidance written for the member. Returns 404 for a win belonging to someone else.",
+                "description": "The full state of a single win: the guarantee, the payout, and \u003ccode\u003enext_step\u003c/code\u003e guidance written for the member. Returns 404 for a win belonging to someone else.",
                 "produces": [
                     "application/json"
                 ],
@@ -9188,7 +9188,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Marks a specific contribution as paid for the current member, referencing their payment in the payment system. The full amount due is <b>ContributionAmt + AdminFee + TakafulFee</b> (per the scheme). Use this as the single-contribution "pay now" action.",
+                "description": "Marks a specific contribution as paid for the current member, referencing their payment in the payment system. The full amount due is \u003cb\u003eContributionAmt + AdminFee + TakafulFee\u003c/b\u003e (per the scheme). Use this as the single-contribution \"pay now\" action.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9286,7 +9286,7 @@
         },
         "/equb/member/schemes": {
             "get": {
-                "description": "Returns a paginated list of Equb schemes that are visible to members browsing available saving circles. Only schemes in <b>active</b> status are surfaced here; results can be filtered by status, or searched by name or code.",
+                "description": "Returns a paginated list of Equb schemes that are visible to members browsing available saving circles. Only schemes in \u003cb\u003eactive\u003c/b\u003e status are surfaced here; results can be filtered by status, or searched by name or code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9481,7 +9481,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns all of the member's upcoming payment dues across all their groups — the next contribution due for each group and its due date. Use this for the member's consolidated "what's due soon" view.",
+                "description": "Returns all of the member's upcoming payment dues across all their groups — the next contribution due for each group and its due date. Use this for the member's consolidated \"what's due soon\" view.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9527,7 +9527,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Returns the member's complete winning history across all their groups — each round they won, the group, and the payout received. Use this for the member's "my winnings" screen. Note a member may only win again after the whole cycle of members has each won once (re-entry).",
+                "description": "Returns the member's complete winning history across all their groups — each round they won, the group, and the payout received. Use this for the member's \"my winnings\" screen. Note a member may only win again after the whole cycle of members has each won once (re-entry).",
                 "consumes": [
                     "application/json"
                 ],
@@ -9568,7 +9568,7 @@
         },
         "/equb/public/groups": {
             "get": {
-                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "description": "Returns a paginated list of Equb groups that are open for members to browse and join, optionally filtered by scheme, status or searched by name/code. Only public/active groups are exposed for self-service joining.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e is deliberately \u003cb\u003enot\u003c/b\u003e included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9652,7 +9652,7 @@
         },
         "/equb/public/groups/{id}": {
             "get": {
-                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.<br><br><b>Read amounts from <code>effective_terms</code>, not <code>equb_scheme</code>.</b> A group may override any of its scheme's terms, so <code>equb_scheme</code> is the template while <code>effective_terms</code> is what this group actually charges and pays, with the overrides already applied. <code>total_per_round</code> there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a <code>*_override</code> field, absent when the group inherits.<br><br><code>manager</code> is deliberately <b>not</b> included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
+                "description": "Returns a single Equb group by ID that is visible for members to review before joining, including its inherited scheme rules and current membership. Only public groups are returned.\u003cbr\u003e\u003cbr\u003e\u003cb\u003eRead amounts from \u003ccode\u003eeffective_terms\u003c/code\u003e, not \u003ccode\u003eequb_scheme\u003c/code\u003e.\u003c/b\u003e A group may override any of its scheme's terms, so \u003ccode\u003eequb_scheme\u003c/code\u003e is the template while \u003ccode\u003eeffective_terms\u003c/code\u003e is what this group actually charges and pays, with the overrides already applied. \u003ccode\u003etotal_per_round\u003c/code\u003e there is the whole ask on a member: contribution plus admin and Takaful fees, which ride on top of the contribution rather than coming out of it. Any term the group states for itself also appears as a \u003ccode\u003e*_override\u003c/code\u003e field, absent when the group inherits.\u003cbr\u003e\u003cbr\u003e\u003ccode\u003emanager\u003c/code\u003e is deliberately \u003cb\u003enot\u003c/b\u003e included here: this endpoint is unauthenticated, so the manager's contact details are not part of what an anonymous browser can read. Use the admin or manager routes for that.",
                 "consumes": [
                     "application/json"
                 ],
@@ -9702,7 +9702,7 @@
         },
         "/equb/public/schemes": {
             "get": {
-                "description": "Returns a paginated list of Equb schemes that are visible to members browsing available saving circles. Only schemes in <b>active</b> status are surfaced here; results can be filtered by status, or searched by name or code.",
+                "description": "Returns a paginated list of Equb schemes that are visible to members browsing available saving circles. Only schemes in \u003cb\u003eactive\u003c/b\u003e status are surfaced here; results can be filtered by status, or searched by name or code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -13196,7 +13196,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Create a share payment using the share product template. Product group, payment type, and validation are derived from the "share" product template.",
+                "description": "Create a share payment using the share product template. Product group, payment type, and validation are derived from the \"share\" product template.",
                 "consumes": [
                     "application/json"
                 ],
@@ -14072,7 +14072,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "Creates a payment of type <b>equb_contribution</b> for the authenticated member. This is the payment the Equb endpoints accept as proof of payment: once it has completed, pass its ID to <code>/equb/member/pay</code> or the advance-payment endpoint to settle one or more rounds. The amount must cover every round being settled, and each payment can only be applied once.",
+                "description": "Creates a payment of type \u003cb\u003eequb_contribution\u003c/b\u003e for the authenticated member. This is the payment the Equb endpoints accept as proof of payment: once it has completed, pass its ID to \u003ccode\u003e/equb/member/pay\u003c/code\u003e or the advance-payment endpoint to settle one or more rounds. The amount must cover every round being settled, and each payment can only be applied once.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18188,7 +18188,7 @@
                     {
                         "type": "integer",
                         "default": 1,
-                        "description": "Page number (must be >= 1)",
+                        "description": "Page number (must be \u003e= 1)",
                         "name": "page",
                         "in": "query"
                     },
@@ -18422,7 +18422,7 @@
                     {
                         "type": "integer",
                         "default": 1,
-                        "description": "Page number (must be >= 1)",
+                        "description": "Page number (must be \u003e= 1)",
                         "name": "page",
                         "in": "query"
                     },
@@ -20115,7 +20115,7 @@
                     "$ref": "#/definitions/github_com_emad_internal_config.AgentCommissionConfig"
                 },
                 "equb_admin_fee_commission": {
-                    "description": "EqubAdminFeeCommission governs the agent's share of the admin fee collected on a completed Equb contribution payment by a member they registered.",
+                    "description": "EqubAdminFeeCommission governs the agent's share of the admin fee collected on a\ncompleted Equb contribution payment by a member they registered.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_emad_internal_config.EqubAdminFeeCommissionConfig"
@@ -20248,39 +20248,39 @@
             ],
             "properties": {
                 "address": {
-                    "description": "The address of the branch required: true min length: 2 max length: 100 example: Bole Road, Addis Ababa",
+                    "description": "The address of the branch\nrequired: true\nmin length: 2\nmax length: 100\nexample: Bole Road, Addis Ababa",
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
                 },
                 "branch_code": {
-                    "description": "The branch code required: false example: BRN001",
+                    "description": "The branch code\nrequired: false\nexample: BRN001",
                     "type": "string"
                 },
                 "branch_type": {
-                    "description": "The type of branch example: Main, Sub, ATM",
+                    "description": "The type of branch\nexample: Main, Sub, ATM",
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 2
                 },
                 "city": {
-                    "description": "The city where the branch is located required: true min length: 2 max length: 100 example: Addis Ababa",
+                    "description": "The city where the branch is located\nrequired: true\nmin length: 2\nmax length: 100\nexample: Addis Ababa",
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
                 },
                 "country": {
-                    "description": "The country where the branch is located required: true min length: 2 max length: 100 example: Ethiopia",
+                    "description": "The country where the branch is located\nrequired: true\nmin length: 2\nmax length: 100\nexample: Ethiopia",
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
                 },
                 "created_at": {
-                    "description": "The date and time when the branch was created read only: true example: 2023-07-22T10:00:00Z",
+                    "description": "The date and time when the branch was created\nread only: true\nexample: 2023-07-22T10:00:00Z",
                     "type": "string"
                 },
                 "email": {
-                    "description": "The email of the branch required: true example: branch@example.com",
+                    "description": "The email of the branch\nrequired: true\nexample: branch@example.com",
                     "type": "string"
                 },
                 "employees": {
@@ -20291,19 +20291,19 @@
                     }
                 },
                 "id": {
-                    "description": "The unique identifier for the branch required: true example: d5f6c6e8-1f26-44e1-8e7a-6a779d39d9fa",
+                    "description": "The unique identifier for the branch\nrequired: true\nexample: d5f6c6e8-1f26-44e1-8e7a-6a779d39d9fa",
                     "type": "string"
                 },
                 "is_head_quarter": {
-                    "description": "The flag indicating if the branch is the head quarter Required: true",
+                    "description": "The flag indicating if the branch is the head quarter\nRequired: true",
                     "type": "boolean"
                 },
                 "latitude": {
-                    "description": "Latitude for the branch location example: 9.145",
+                    "description": "Latitude for the branch location\nexample: 9.145",
                     "type": "number"
                 },
                 "longitude": {
-                    "description": "Longitude for the branch location example: 40.489673",
+                    "description": "Longitude for the branch location\nexample: 40.489673",
                     "type": "number"
                 },
                 "manager": {
@@ -20315,7 +20315,7 @@
                     ]
                 },
                 "manager_id": {
-                    "description": "The foreign key for the branch manager required: false example: d5f6c6e8-1f26-44e1-8e7a-6a779d39d9fa",
+                    "description": "The foreign key for the branch manager\nrequired: false\nexample: d5f6c6e8-1f26-44e1-8e7a-6a779d39d9fa",
                     "type": "string"
                 },
                 "members": {
@@ -20325,42 +20325,42 @@
                     }
                 },
                 "name": {
-                    "description": "The name of the branch required: true min length: 2 max length: 100 example: Main Branch",
+                    "description": "The name of the branch\nrequired: true\nmin length: 2\nmax length: 100\nexample: Main Branch",
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
                 },
                 "opening_date": {
-                    "description": "The opening date of the branch example: 2022-01-01T00:00:00Z",
+                    "description": "The opening date of the branch\nexample: 2022-01-01T00:00:00Z",
                     "type": "string"
                 },
                 "operational_hours": {
-                    "description": "The operational hours of the branch example: "Mon-Fri 9am-5pm, Sat 10am-2pm"",
+                    "description": "The operational hours of the branch\nexample: \"Mon-Fri 9am-5pm, Sat 10am-2pm\"",
                     "type": "string",
                     "maxLength": 200,
                     "minLength": 5
                 },
                 "phone_number": {
-                    "description": "The phone number of the branch required: true min length: 10 example: +1234567890",
+                    "description": "The phone number of the branch\nrequired: true\nmin length: 10\nexample: +1234567890",
                     "type": "string",
                     "minLength": 9
                 },
                 "region": {
-                    "description": "The region where the branch is located required: true min length: 2 max length: 100 example: Oromia",
+                    "description": "The region where the branch is located\nrequired: true\nmin length: 2\nmax length: 100\nexample: Oromia",
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
                 },
                 "status": {
-                    "description": "The status of the branch example: true",
+                    "description": "The status of the branch\nexample: true",
                     "type": "boolean"
                 },
                 "updated_at": {
-                    "description": "The date and time when the branch was last updated read only: true example: 2023-07-22T10:00:00Z",
+                    "description": "The date and time when the branch was last updated\nread only: true\nexample: 2023-07-22T10:00:00Z",
                     "type": "string"
                 },
                 "zip_code": {
-                    "description": "The zip code for the branch example: 12345",
+                    "description": "The zip code for the branch\nexample: 12345",
                     "type": "string"
                 }
             }
@@ -21637,7 +21637,7 @@
                     "type": "number"
                 },
                 "commission_type": {
-                    "description": "CommissionType is "payment", "activation" or "equb_admin_fee".",
+                    "description": "CommissionType is \"payment\", \"activation\" or \"equb_admin_fee\".",
                     "type": "string"
                 },
                 "created_at": {
@@ -21696,7 +21696,7 @@
                     "type": "number"
                 },
                 "equb_admin_fee_earnings": {
-                    "description": "EqubAdminFeeEarnings is the share of TotalEarnings that came from Equb admin fees on the agent's members' completed contribution payments.",
+                    "description": "EqubAdminFeeEarnings is the share of TotalEarnings that came from Equb admin\nfees on the agent's members' completed contribution payments.",
                     "type": "number"
                 },
                 "paid_amount": {
@@ -22252,7 +22252,7 @@
             ],
             "properties": {
                 "approved_amount": {
-                    "description": "ApprovedAmount is the final sanctioned loan amount (may differ from requested). Must be > 0 and typically within member eligibility.",
+                    "description": "ApprovedAmount is the final sanctioned loan amount (may differ from requested).\nMust be \u003e 0 and typically within member eligibility.",
                     "type": "number",
                     "example": 1000000
                 },
@@ -22262,7 +22262,7 @@
                     "example": "Approved after verification of contribution history"
                 },
                 "profit_margin": {
-                    "description": "ProfitMargin is the profit percentage to apply (overrides product default if provided). If omitted, uses the SavingType's profit ladder for the chosen duration. Must be non-negative. Example: 15.5 means 15.5% profit on financed amount.",
+                    "description": "ProfitMargin is the profit percentage to apply (overrides product default if provided).\nIf omitted, uses the SavingType's profit ladder for the chosen duration.\nMust be non-negative.\nExample: 15.5 means 15.5% profit on financed amount.",
                     "type": "number",
                     "minimum": 0,
                     "example": 15.5
@@ -22856,7 +22856,7 @@
             "type": "object",
             "properties": {
                 "carry_over_missed_payments": {
-                    "description": "CarryOverMissedPayments brings each member's missed-payment history forward, so a repeat defaulter does not get a clean slate simply because the cycle rolled over. An unserved ban is rebased onto the new cycle's round numbering and serves out its remaining rounds. Defaults to true.",
+                    "description": "CarryOverMissedPayments brings each member's missed-payment history forward, so\na repeat defaulter does not get a clean slate simply because the cycle rolled\nover. An unserved ban is rebased onto the new cycle's round numbering and serves\nout its remaining rounds. Defaults to true.",
                     "type": "boolean",
                     "example": true
                 },
@@ -22866,22 +22866,22 @@
                     "example": "EQG00007"
                 },
                 "copy_members": {
-                    "description": "CopyMembers carries the source group's active members over, keeping their positions. Defaults to true -- the next cycle is normally the same people.",
+                    "description": "CopyMembers carries the source group's active members over, keeping their\npositions. Defaults to true -- the next cycle is normally the same people.",
                     "type": "boolean",
                     "example": true
                 },
                 "max_members": {
-                    "description": "MaxMembers defaults to the source group's. Lowering it below the number of members actually copied is rejected.",
+                    "description": "MaxMembers defaults to the source group's. Lowering it below the number of\nmembers actually copied is rejected.",
                     "type": "integer",
                     "example": 12
                 },
                 "name": {
-                    "description": "Name defaults to the source group's name with the new cycle appended, e.g. "Bole Weekly - Cycle 2".",
+                    "description": "Name defaults to the source group's name with the new cycle appended, e.g.\n\"Bole Weekly - Cycle 2\".",
                     "type": "string",
                     "example": "Bole Weekly - Cycle 2"
                 },
                 "start_date": {
-                    "description": "StartDate is optional and only pre-fills the draft; activation still takes the start date it runs on.",
+                    "description": "StartDate is optional and only pre-fills the draft; activation still takes the\nstart date it runs on.",
                     "type": "string",
                     "example": "2026-10-01"
                 }
@@ -22897,7 +22897,7 @@
                     "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubGroupResponse"
                 },
                 "members_copied": {
-                    "description": "MembersCopied is how many active members came across; BansCarriedOver how many of them arrived still serving a ban.",
+                    "description": "MembersCopied is how many active members came across; BansCarriedOver how many\nof them arrived still serving a ban.",
                     "type": "integer"
                 },
                 "next_step": {
@@ -23132,7 +23132,7 @@
                     "example": "monthly"
                 },
                 "guarantee_required_override": {
-                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and\nwhich kinds of guarantee it accepts (member / cheque / collateral). Left out,\nthe group runs the scheme's policy. Set guarantee_required_override to false\nfor a group that does not want a guarantee before payout.",
                     "type": "boolean",
                     "example": true
                 },
@@ -23151,7 +23151,7 @@
                     "example": "240000"
                 },
                 "sacco_admin_fee_share": {
-                    "description": "How this group's admin fee is divided, in percent. All three are required and must total exactly 100.",
+                    "description": "How this group's admin fee is divided, in percent. All three are required and\nmust total exactly 100.",
                     "type": "string",
                     "example": "40"
                 },
@@ -23233,7 +23233,7 @@
                     "example": 50
                 },
                 "code": {
-                    "description": "Optional. Left out, the server allocates the next free EQS00001-style code. Supplied, it is used verbatim and must be unique. `alphanum` -- no hyphens.",
+                    "description": "Optional. Left out, the server allocates the next free EQS00001-style code.\nSupplied, it is used verbatim and must be unique. `alphanum` -- no hyphens.",
                     "type": "string",
                     "maxLength": 50,
                     "example": "EQ1000"
@@ -23261,7 +23261,7 @@
                     "example": "weekly"
                 },
                 "guarantee_required": {
-                    "description": "The payout-security policy groups on this scheme inherit unless they override it. Omitted means required, and every guarantee type accepted — the behaviour an Equb had before this became a stated term.",
+                    "description": "The payout-security policy groups on this scheme inherit unless they override\nit. Omitted means required, and every guarantee type accepted — the behaviour\nan Equb had before this became a stated term.",
                     "type": "boolean",
                     "example": true
                 },
@@ -23308,31 +23308,31 @@
             ],
             "properties": {
                 "duration_months": {
-                    "description": "DurationMonths is the repayment period in months. Must be within the SavingType's repayment period range (e.g., 3-60 months).",
+                    "description": "DurationMonths is the repayment period in months.\nMust be within the SavingType's repayment period range (e.g., 3-60 months).",
                     "type": "integer",
                     "maximum": 60,
                     "minimum": 1,
                     "example": 12
                 },
                 "member_id": {
-                    "description": "MemberID is the UUID of the member applying for the loan. Must be a valid UUID string.",
+                    "description": "MemberID is the UUID of the member applying for the loan.\nMust be a valid UUID string.",
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "purpose": {
-                    "description": "Purpose describes the use of funds (e.g., "Business capital", "House renovation"). Minimum 10 characters, maximum 500.",
+                    "description": "Purpose describes the use of funds (e.g., \"Business capital\", \"House renovation\").\nMinimum 10 characters, maximum 500.",
                     "type": "string",
                     "maxLength": 500,
                     "minLength": 10,
                     "example": "Working capital for inventory purchase"
                 },
                 "requested_amount": {
-                    "description": "RequestedAmount is the total loan amount the member wishes to borrow. Must be > 0 and not exceed the SavingType's ceiling.",
+                    "description": "RequestedAmount is the total loan amount the member wishes to borrow.\nMust be \u003e 0 and not exceed the SavingType's ceiling.",
                     "type": "number",
                     "example": 1000000
                 },
                 "saving_contract_id": {
-                    "description": "SavingContractID is the UUID of the member's active savings contract. The contract must be in 'active' status and have sufficient balance.",
+                    "description": "SavingContractID is the UUID of the member's active savings contract.\nThe contract must be in 'active' status and have sufficient balance.",
                     "type": "string",
                     "example": "b2c3d4e5-f6a7-8901-b234-567890abcd12"
                 }
@@ -23351,12 +23351,12 @@
             ],
             "properties": {
                 "contribution_amount": {
-                    "description": "ContributionAmount is the upfront amount the member provides. Example: 200000 (200,000 ETB for 20% contribution)",
+                    "description": "ContributionAmount is the upfront amount the member provides.\nExample: 200000 (200,000 ETB for 20% contribution)",
                     "type": "number",
                     "example": 200000
                 },
                 "financed_amount": {
-                    "description": "FinancedAmount is optional. If provided, it overrides the calculated financed amount. This allows users to accept or modify the SACCO financing amount. Example: 800000",
+                    "description": "FinancedAmount is optional. If provided, it overrides the calculated financed amount.\nThis allows users to accept or modify the SACCO financing amount.\nExample: 800000",
                     "type": "number",
                     "example": 800000
                 },
@@ -23366,24 +23366,24 @@
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "period": {
-                    "description": "Period is the total contract duration in months. Example: 12",
+                    "description": "Period is the total contract duration in months.\nExample: 12",
                     "type": "integer",
                     "example": 12
                 },
                 "repayment_day_of_month": {
-                    "description": "RepaymentDayOfMonth specifies the day of the month when payments are due. Example: 12",
+                    "description": "RepaymentDayOfMonth specifies the day of the month when payments are due.\nExample: 12",
                     "type": "integer",
                     "maximum": 31,
                     "minimum": 1,
                     "example": 12
                 },
                 "repayment_interval_months": {
-                    "description": "RepaymentIntervalMonths specifies how often payments are made. 1 = monthly, 2 = every 2 months, 3 = every 3 months, 4 = every 4 months, 12 = yearly, 120 = every 10 years Example: 1",
+                    "description": "RepaymentIntervalMonths specifies how often payments are made.\n1 = monthly, 2 = every 2 months, 3 = every 3 months, 4 = every 4 months, 12 = yearly, 120 = every 10 years\nExample: 1",
                     "type": "integer",
                     "example": 1
                 },
                 "requested_amount": {
-                    "description": "RequestedAmount is the total value of the item or financing requested. Example: 1000000 (1,000,000 ETB for a car)",
+                    "description": "RequestedAmount is the total value of the item or financing requested.\nExample: 1000000 (1,000,000 ETB for a car)",
                     "type": "number",
                     "example": 1000000
                 },
@@ -23412,21 +23412,21 @@
             ],
             "properties": {
                 "borrower_contribution_max": {
-                    "description": "BorrowerContributionMax is the maximum percentage of the loan amount the member must save. Must be >= BorrowerContributionMin. Example: 50 (means up to 50% down payment)",
+                    "description": "BorrowerContributionMax is the maximum percentage of the loan amount\nthe member must save. Must be \u003e= BorrowerContributionMin.\nExample: 50 (means up to 50% down payment)",
                     "type": "number",
                     "maximum": 100,
                     "minimum": 0,
                     "example": 50
                 },
                 "borrower_contribution_min": {
-                    "description": "BorrowerContributionMin is the minimum percentage of the loan amount the member must save in their savings contract before eligibility. Must be between 0 and 100 (inclusive). Example: 20 (means 20% down payment minimum)",
+                    "description": "BorrowerContributionMin is the minimum percentage of the loan amount\nthe member must save in their savings contract before eligibility.\nMust be between 0 and 100 (inclusive).\nExample: 20 (means 20% down payment minimum)",
                     "type": "number",
                     "maximum": 100,
                     "minimum": 0,
                     "example": 20
                 },
                 "category": {
-                    "description": "Category defines the Islamic finance contract type. - Murabeha: Cost-plus financing (trade) - Ijarah: Leasing arrangement - Salam: Advance payment for future delivery - Istisna: Manufacturing/construction financing",
+                    "description": "Category defines the Islamic finance contract type.\n- Murabeha: Cost-plus financing (trade)\n- Ijarah: Leasing arrangement\n- Salam: Advance payment for future delivery\n- Istisna: Manufacturing/construction financing",
                     "type": "string",
                     "enum": [
                         "Murabeha",
@@ -23437,24 +23437,24 @@
                     "example": "Murabeha"
                 },
                 "ceiling": {
-                    "description": "Ceiling is the maximum loan amount allowed for this product (must be > 0). All loan applications under this product are capped at this amount. Example: 3000000 (3 million ETB)",
+                    "description": "Ceiling is the maximum loan amount allowed for this product (must be \u003e 0).\nAll loan applications under this product are capped at this amount.\nExample: 3000000 (3 million ETB)",
                     "type": "number",
                     "example": 3000000
                 },
                 "description": {
-                    "description": "Description provides detailed product information (max 5000 characters). Example: "Short-term trade financing for importing goods with 20% member contribution."",
+                    "description": "Description provides detailed product information (max 5000 characters).\nExample: \"Short-term trade financing for importing goods with 20% member contribution.\"",
                     "type": "string",
                     "maxLength": 5000,
                     "example": "Trade financing solution for working capital needs"
                 },
                 "growth_percentage_per_period": {
-                    "description": "GrowthPercentagePerPeriod is the percentage increment applied each growth period. Example: 5 means 5% per growth period.",
+                    "description": "GrowthPercentagePerPeriod is the percentage increment applied each growth period.\nExample: 5 means 5% per growth period.",
                     "type": "number",
                     "minimum": 0,
                     "example": 5
                 },
                 "growth_period": {
-                    "description": "GrowthPeriod is the interval unit for applying growth increments ("month" or "year"). Defaults to "month" when GrowthPercentagePerPeriod is set and this field is empty.",
+                    "description": "GrowthPeriod is the interval unit for applying growth increments (\"month\" or \"year\").\nDefaults to \"month\" when GrowthPercentagePerPeriod is set and this field is empty.",
                     "type": "string",
                     "enum": [
                         "month",
@@ -23463,29 +23463,29 @@
                     "example": "month"
                 },
                 "name": {
-                    "description": "Name is the human-readable product name (required, 2-255 characters). Example: "Murabaha - Trade Financing"",
+                    "description": "Name is the human-readable product name (required, 2-255 characters).\nExample: \"Murabaha - Trade Financing\"",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 2,
                     "example": "Murabaha - Trade Financing"
                 },
                 "odoo_product_id": {
-                    "description": "OdooProductID is the optional external product identifier from Odoo ERP. If provided, it must reference an existing product template. Example: "FIN_MURABAHA_TRADE"",
+                    "description": "OdooProductID is the optional external product identifier from Odoo ERP.\nIf provided, it must reference an existing product template.\nExample: \"FIN_MURABAHA_TRADE\"",
                     "type": "string",
                     "example": "FIN_MURABAHA_TRADE"
                 },
                 "profit_growth": {
-                    "description": "ProfitGrowth defines the profit margin ladder. Keys are duration descriptors, values are percentage profit margins (e.g., 5.5 means 5.5%). VALIDATION RULES (strictly enforced): - Must contain at least one entry. - Keys must be valid period strings: "3 month", "1 year", "6m", "2y", etc. - Duplicate month durations across different keys are rejected. Example rejection: "3 month" and "3 months" both resolve to 3 months. - All profit margins must be >= 0. - Margins must be NON-DECREASING with longer periods. Example valid: {"3 month": 5, "6 month": 10, "1 year": 15} Example invalid: {"3 month": 10, "6 month": 5} (decreasing) Profit margin is applied to the financed amount (loan - contribution). Example: For a 1M loan with 20% contribution (200k), financed = 800k. 6-month margin of 10% → profit = 80k, total repay = 880k. Example: {"3 month": 5, "6 month": 10, "1 year": 20}",
+                    "description": "ProfitGrowth defines the profit margin ladder. Keys are duration descriptors,\nvalues are percentage profit margins (e.g., 5.5 means 5.5%).\n\nVALIDATION RULES (strictly enforced):\n- Must contain at least one entry.\n- Keys must be valid period strings: \"3 month\", \"1 year\", \"6m\", \"2y\", etc.\n- Duplicate month durations across different keys are rejected.\n  Example rejection: \"3 month\" and \"3 months\" both resolve to 3 months.\n- All profit margins must be \u003e= 0.\n- Margins must be NON-DECREASING with longer periods.\n  Example valid: {\"3 month\": 5, \"6 month\": 10, \"1 year\": 15}\n  Example invalid: {\"3 month\": 10, \"6 month\": 5} (decreasing)\n\nProfit margin is applied to the financed amount (loan - contribution).\nExample: For a 1M loan with 20% contribution (200k), financed = 800k.\n         6-month margin of 10% → profit = 80k, total repay = 880k.\nExample: {\"3 month\": 5, \"6 month\": 10, \"1 year\": 20}",
                     "type": "object",
-                    "x-example": "{"3 month":5,"6 month":10,"1 year":20}"
+                    "x-example": "{\"3 month\":5,\"6 month\":10,\"1 year\":20}"
                 },
                 "repayment_period_max": {
-                    "description": "RepaymentPeriodMax is the maximum repayment duration in the specified unit. Must be > 0 and >= RepaymentPeriodMin.",
+                    "description": "RepaymentPeriodMax is the maximum repayment duration in the specified unit.\nMust be \u003e 0 and \u003e= RepaymentPeriodMin.",
                     "type": "integer",
                     "example": 12
                 },
                 "repayment_period_max_unit": {
-                    "description": "RepaymentPeriodMaxUnit specifies the unit for RepaymentPeriodMax. Only "month" or "year" are allowed.",
+                    "description": "RepaymentPeriodMaxUnit specifies the unit for RepaymentPeriodMax.\nOnly \"month\" or \"year\" are allowed.",
                     "type": "string",
                     "enum": [
                         "month",
@@ -23494,12 +23494,12 @@
                     "example": "year"
                 },
                 "repayment_period_min": {
-                    "description": "RepaymentPeriodMin is the minimum repayment duration in the specified unit. Must be > 0 and <= RepaymentPeriodMax.",
+                    "description": "RepaymentPeriodMin is the minimum repayment duration in the specified unit.\nMust be \u003e 0 and \u003c= RepaymentPeriodMax.",
                     "type": "integer",
                     "example": 3
                 },
                 "repayment_period_min_unit": {
-                    "description": "RepaymentPeriodMinUnit specifies the unit for RepaymentPeriodMin. Only "month" or "year" are allowed.",
+                    "description": "RepaymentPeriodMinUnit specifies the unit for RepaymentPeriodMin.\nOnly \"month\" or \"year\" are allowed.",
                     "type": "string",
                     "enum": [
                         "month",
@@ -23552,7 +23552,7 @@
                     "type": "integer"
                 },
                 "product_combination": {
-                    "description": "e.g. "regular_saving,share"",
+                    "description": "e.g. \"regular_saving,share\"",
                     "type": "string"
                 }
             }
@@ -24056,7 +24056,7 @@
             "type": "object",
             "properties": {
                 "admin_fee_amount": {
-                    "description": "AdminFeeAmount is the admin fee the payment collected — the base this commission is a percentage of.",
+                    "description": "AdminFeeAmount is the admin fee the payment collected — the base this\ncommission is a percentage of.",
                     "type": "number"
                 },
                 "agent_user_id": {
@@ -24078,7 +24078,7 @@
                     "type": "string"
                 },
                 "equb_round_id": {
-                    "description": "EqubRoundID is set only when the payment settled a single round; a payment covering catch-ups across several rounds leaves it null.",
+                    "description": "EqubRoundID is set only when the payment settled a single round; a payment\ncovering catch-ups across several rounds leaves it null.",
                     "type": "string"
                 },
                 "id": {
@@ -24100,7 +24100,7 @@
                     "type": "string"
                 },
                 "recipient_role": {
-                    "description": "RecipientRole is "agent" or "broker" — which side of the group's split this row came from.",
+                    "description": "RecipientRole is \"agent\" or \"broker\" — which side of the group's split this\nrow came from.",
                     "type": "string"
                 },
                 "status": {
@@ -24112,7 +24112,7 @@
             "type": "object",
             "properties": {
                 "fee_per_member_per_round": {
-                    "description": "FeePerMemberPerRound is the flat fee this group currently charges, resolved from the scheme and the group's override. Historic rounds are reported at the fee they were actually charged, which may differ.",
+                    "description": "FeePerMemberPerRound is the flat fee this group currently charges, resolved\nfrom the scheme and the group's override. Historic rounds are reported at the\nfee they were actually charged, which may differ.",
                     "type": "string"
                 },
                 "group_code": {
@@ -24542,7 +24542,7 @@
                     "type": "string"
                 },
                 "total_collected": {
-                    "description": "TotalCollected is everything recorded; TotalConfirmed is the part already confirmed by someone with approval rights. The difference is what is still outstanding.",
+                    "description": "TotalCollected is everything recorded; TotalConfirmed is the part already confirmed\nby someone with approval rights. The difference is what is still outstanding.",
                     "type": "number"
                 },
                 "total_confirmed": {
@@ -24857,7 +24857,7 @@
                     "type": "boolean"
                 },
                 "in_seeded_pool": {
-                    "description": "InSeededPool is false for members who were eligible but occupied a priority slot, and for members excluded altogether. Only the seeded pool is what the algorithm selects from.",
+                    "description": "InSeededPool is false for members who were eligible but occupied a priority slot,\nand for members excluded altogether. Only the seeded pool is what the algorithm\nselects from.",
                     "type": "boolean"
                 },
                 "member_id": {
@@ -24885,11 +24885,11 @@
                     }
                 },
                 "commitment_verified": {
-                    "description": "CommitmentVerified is the server recomputing the check the member should perform themselves. It is a convenience, not the proof — the proof is the two values above.",
+                    "description": "CommitmentVerified is the server recomputing the check the member should perform\nthemselves. It is a convenience, not the proof — the proof is the two values above.",
                     "type": "boolean"
                 },
                 "committed_in_advance": {
-                    "description": "CommittedInAdvance is false when the seed had to be generated at draw time because the round predates provable fairness. Such a draw is reproducible but the operator was not bound in advance, and the weaker guarantee is stated rather than hidden.",
+                    "description": "CommittedInAdvance is false when the seed had to be generated at draw time because\nthe round predates provable fairness. Such a draw is reproducible but the operator\nwas not bound in advance, and the weaker guarantee is stated rather than hidden.",
                     "type": "boolean"
                 },
                 "draw_id": {
@@ -24911,7 +24911,7 @@
                     }
                 },
                 "priority_slots": {
-                    "description": "PrioritySlots counts winner slots assigned to approved emergency requests instead of drawn. Those winners are not explained by the seed.",
+                    "description": "PrioritySlots counts winner slots assigned to approved emergency requests instead\nof drawn. Those winners are not explained by the seed.",
                     "type": "integer"
                 },
                 "revealed_seed": {
@@ -24953,7 +24953,7 @@
                     "type": "integer"
                 },
                 "source": {
-                    "description": "Source is "drawn" when the seed selected them, or "priority" when the slot was assigned by an approved emergency request.",
+                    "description": "Source is \"drawn\" when the seed selected them, or \"priority\" when the slot was\nassigned by an approved emergency request.",
                     "type": "string"
                 }
             }
@@ -25015,11 +25015,11 @@
             "type": "object",
             "properties": {
                 "admin_fee": {
-                    "description": "AdminFee is the flat fee this contribution was charged, already resolved against the group override at the time the round was created.",
+                    "description": "AdminFee is the flat fee this contribution was charged, already resolved\nagainst the group override at the time the round was created.",
                     "type": "string"
                 },
                 "collected": {
-                    "description": "Collected reports whether the fees were actually taken. A waived contribution settles its round but is never collected.",
+                    "description": "Collected reports whether the fees were actually taken. A waived contribution\nsettles its round but is never collected.",
                     "type": "boolean"
                 },
                 "contribution_amount": {
@@ -25184,7 +25184,7 @@
                     "type": "string"
                 },
                 "created_by": {
-                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact details, and is absent on the public browse endpoints and on a group that has no manager at all.",
+                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact\ndetails, and is absent on the public browse endpoints and on a group that has\nno manager at all.",
                     "type": "string"
                 },
                 "current_members": {
@@ -25197,7 +25197,7 @@
                     "type": "integer"
                 },
                 "effective_terms": {
-                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with the overrides above already applied. Read this rather than equb_scheme.*, which is the template and not necessarily what this group charges or pays.",
+                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with\nthe overrides above already applied. Read this rather than equb_scheme.*,\nwhich is the template and not necessarily what this group charges or pays.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubTermsResponse"
@@ -25227,7 +25227,7 @@
                     "example": "monthly"
                 },
                 "guarantee_required_override": {
-                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and\nwhich kinds of guarantee it accepts (member / cheque / collateral). Left out,\nthe group runs the scheme's policy. Set guarantee_required_override to false\nfor a group that does not want a guarantee before payout.",
                     "type": "boolean",
                     "example": true
                 },
@@ -25251,7 +25251,7 @@
                     "example": "240000"
                 },
                 "previous_group_id": {
-                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new group, linked back to this one. CycleNumber counts from 1, and PreviousGroupID is absent on a first cycle.",
+                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new\ngroup, linked back to this one. CycleNumber counts from 1, and PreviousGroupID\nis absent on a first cycle.",
                     "type": "string"
                 },
                 "recent_winners": {
@@ -25310,7 +25310,7 @@
             "type": "object",
             "properties": {
                 "changed": {
-                    "description": "Changed is false when the named user was already the manager; the request is idempotent, so nothing was written and nothing was audited.",
+                    "description": "Changed is false when the named user was already the manager; the request is\nidempotent, so nothing was written and nothing was audited.",
                     "type": "boolean"
                 },
                 "group_code": {
@@ -25327,7 +25327,7 @@
                     "type": "string"
                 },
                 "previous_manager_user_id": {
-                    "description": "PreviousManagerUserID is who held it before, absent if the group had no manager at all.",
+                    "description": "PreviousManagerUserID is who held it before, absent if the group had no\nmanager at all.",
                     "type": "string"
                 }
             }
@@ -25365,7 +25365,7 @@
                     "type": "string"
                 },
                 "created_by": {
-                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact details, and is absent on the public browse endpoints and on a group that has no manager at all.",
+                    "description": "CreatedBy is the group's manager. Manager resolves it to a name and contact\ndetails, and is absent on the public browse endpoints and on a group that has\nno manager at all.",
                     "type": "string"
                 },
                 "current_members": {
@@ -25375,7 +25375,7 @@
                     "type": "integer"
                 },
                 "effective_terms": {
-                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with the overrides above already applied. Read this rather than equb_scheme.*, which is the template and not necessarily what this group charges or pays.",
+                    "description": "EffectiveTerms is what the group actually runs on — the scheme's terms with\nthe overrides above already applied. Read this rather than equb_scheme.*,\nwhich is the template and not necessarily what this group charges or pays.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubTermsResponse"
@@ -25405,7 +25405,7 @@
                     "example": "monthly"
                 },
                 "guarantee_required_override": {
-                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and\nwhich kinds of guarantee it accepts (member / cheque / collateral). Left out,\nthe group runs the scheme's policy. Set guarantee_required_override to false\nfor a group that does not want a guarantee before payout.",
                     "type": "boolean",
                     "example": true
                 },
@@ -25426,7 +25426,7 @@
                     "example": "240000"
                 },
                 "previous_group_id": {
-                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new group, linked back to this one. CycleNumber counts from 1, and PreviousGroupID is absent on a first cycle.",
+                    "description": "A group runs once. Starting the same arrangement again is the next cycle: a new\ngroup, linked back to this one. CycleNumber counts from 1, and PreviousGroupID\nis absent on a first cycle.",
                     "type": "string"
                 },
                 "sacco_admin_fee_share": {
@@ -25692,7 +25692,7 @@
             "type": "object",
             "properties": {
                 "banned": {
-                    "description": "Banned reflects the ban as it applies to the round now open, not merely the flag on the record: a lapsed ban reports false.",
+                    "description": "Banned reflects the ban as it applies to the round now open, not merely the flag\non the record: a lapsed ban reports false.",
                     "type": "boolean"
                 },
                 "banned_until_round": {
@@ -25760,7 +25760,7 @@
                     }
                 },
                 "fund_balance": {
-                    "description": "FundBalance is the group's whole fund; MyContribution is this member's share of what went in.",
+                    "description": "FundBalance is the group's whole fund; MyContribution is this member's share of\nwhat went in.",
                     "type": "number"
                 },
                 "group_id": {
@@ -25956,7 +25956,7 @@
             "type": "object",
             "properties": {
                 "accepted_guarantee_types": {
-                    "description": "AcceptedGuaranteeTypes are the kinds of guarantee this group will honour, so the member can be told up front what will actually be taken. Always present.",
+                    "description": "AcceptedGuaranteeTypes are the kinds of guarantee this group will honour, so\nthe member can be told up front what will actually be taken. Always present.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -25977,7 +25977,7 @@
                     ]
                 },
                 "guarantee_required": {
-                    "description": "GuaranteeRequired is true while this group requires a guarantee and no approved one is on file — the usual reason a winner has not been paid. It is false on a group configured not to need one, where the member is not being asked to provide anything.",
+                    "description": "GuaranteeRequired is true while this group requires a guarantee and no\napproved one is on file — the usual reason a winner has not been paid. It is\nfalse on a group configured not to need one, where the member is not being\nasked to provide anything.",
                     "type": "boolean"
                 },
                 "next_step": {
@@ -26015,11 +26015,11 @@
             "type": "object",
             "properties": {
                 "attachment_warning": {
-                    "description": "Set when a file was sent but could not be filed. The collection still stands and is still charged; this says the evidence did not make it, and where to send it instead. Absent means every file was filed.",
+                    "description": "Set when a file was sent but could not be filed. The collection still stands and\nis still charged; this says the evidence did not make it, and where to send it\ninstead. Absent means every file was filed.",
                     "type": "string"
                 },
                 "attachments": {
-                    "description": "The proof filed in the same request as the collection, when one was sent. The money is already recorded and reserved at this point, so this is a report of what became of the file, never a condition of the collection having happened.",
+                    "description": "The proof filed in the same request as the collection, when one was sent. The\nmoney is already recorded and reserved at this point, so this is a report of\nwhat became of the file, never a condition of the collection having happened.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_emad_internal_usecase_dto.EqubSharedContributionAttachmentResponse"
@@ -26074,7 +26074,7 @@
                     "type": "number"
                 },
                 "contribution_id": {
-                    "description": "The contribution this round resolved to. The attachment endpoint is keyed on the contribution, so a caller that wants to file proof against this round after collecting does not have to look the row back up.",
+                    "description": "The contribution this round resolved to. The attachment endpoint is keyed on\nthe contribution, so a caller that wants to file proof against this round after\ncollecting does not have to look the row back up.",
                     "type": "string"
                 },
                 "is_catch_up": {
@@ -26298,7 +26298,7 @@
                     }
                 },
                 "not_ready_reason": {
-                    "description": "NotReadyReason is empty when the round can be drawn. Otherwise it names the one condition still unmet - contributions outstanding, or a collection window that has not opened or not yet closed.",
+                    "description": "NotReadyReason is empty when the round can be drawn. Otherwise it names the one\ncondition still unmet - contributions outstanding, or a collection window that\nhas not opened or not yet closed.",
                     "type": "string"
                 },
                 "paid_count": {
@@ -26401,7 +26401,7 @@
                     "type": "string"
                 },
                 "guarantee_required": {
-                    "description": "The payout-security policy groups on this scheme inherit unless they say otherwise.",
+                    "description": "The payout-security policy groups on this scheme inherit unless they say\notherwise.",
                     "type": "boolean"
                 },
                 "id": {
@@ -26437,7 +26437,7 @@
             "type": "object",
             "properties": {
                 "contribution_ids": {
-                    "description": "ContributionIDs is every contribution the file is filed against. Each has its own attachment row pointing at this one stored object, so deleting one of them leaves the others readable.",
+                    "description": "ContributionIDs is every contribution the file is filed against. Each has its own\nattachment row pointing at this one stored object, so deleting one of them leaves\nthe others readable.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -26698,7 +26698,7 @@
                     "type": "string"
                 },
                 "guarantee_required": {
-                    "description": "The payout-security policy this group runs on: whether a winner is paid only after staff approve a guarantee, and which kinds of guarantee are accepted when one is required.",
+                    "description": "The payout-security policy this group runs on: whether a winner is paid\nonly after staff approve a guarantee, and which kinds of guarantee are\naccepted when one is required.",
                     "type": "boolean"
                 },
                 "members_per_group": {
@@ -26711,7 +26711,7 @@
                     "type": "string"
                 },
                 "total_per_round": {
-                    "description": "TotalPerRound is what one member hands over per round: contribution plus both fees, which ride on top of the contribution rather than coming out of it.",
+                    "description": "TotalPerRound is what one member hands over per round: contribution plus both\nfees, which ride on top of the contribution rather than coming out of it.",
                     "type": "string"
                 },
                 "total_rounds": {
@@ -27153,7 +27153,7 @@
                     "type": "integer"
                 },
                 "period": {
-                    "description": ""0-30", "31-60", "61-90", "90+"",
+                    "description": "\"0-30\", \"31-60\", \"61-90\", \"90+\"",
                     "type": "string"
                 },
                 "total_amount": {
@@ -27405,7 +27405,7 @@
                     "example": 1.6
                 },
                 "max_eligible_amount": {
-                    "description": "MaxEligibleAmount is the highest loan amount the member can qualify for based on current savings balance and product rules.",
+                    "description": "MaxEligibleAmount is the highest loan amount the member can qualify for\nbased on current savings balance and product rules.",
                     "type": "number",
                     "example": 800000
                 },
@@ -28553,7 +28553,7 @@
                     }
                 },
                 "share_installment_pending": {
-                    "description": "ShareInstallmentPending is true when the member purchased 1-99 shares and still has an outstanding installment plan, blocking activation until fully paid.",
+                    "description": "ShareInstallmentPending is true when the member purchased 1-99 shares and still\nhas an outstanding installment plan, blocking activation until fully paid.",
                     "type": "boolean"
                 },
                 "status": {
@@ -28834,7 +28834,7 @@
                     "type": "string"
                 },
                 "changed_by": {
-                    "description": ""self", "admin", "reset"",
+                    "description": "\"self\", \"admin\", \"reset\"",
                     "type": "string"
                 },
                 "id": {
@@ -28844,7 +28844,7 @@
                     "type": "string"
                 },
                 "method": {
-                    "description": ""web", "mobile", "sms"",
+                    "description": "\"web\", \"mobile\", \"sms\"",
                     "type": "string"
                 },
                 "user_agent": {
@@ -28859,7 +28859,7 @@
             ],
             "properties": {
                 "amount": {
-                    "description": "Amount is the down payment contribution. Must equal or exceed the required minimum down payment percentage defined by the SavingType. Required down payment = RequestedAmount * (BorrowerContributionMin / 100).",
+                    "description": "Amount is the down payment contribution. Must equal or exceed the required\nminimum down payment percentage defined by the SavingType.\nRequired down payment = RequestedAmount * (BorrowerContributionMin / 100).",
                     "type": "number",
                     "example": 200000
                 }
@@ -28953,7 +28953,7 @@
                     "type": "string"
                 },
                 "description": {
-                    "description": "Description & Notes",
+                    "description": "Description \u0026 Notes",
                     "type": "string"
                 },
                 "exchange_rate": {
@@ -28969,7 +28969,7 @@
                     "type": "string"
                 },
                 "gateway_provider": {
-                    "description": "Payment Gateway & Processing",
+                    "description": "Payment Gateway \u0026 Processing",
                     "type": "string"
                 },
                 "gateway_txn_id": {
@@ -29006,7 +29006,7 @@
                     "$ref": "#/definitions/github_com_emad_internal_domain.PaymentCategory"
                 },
                 "payment_location": {
-                    "description": "Geographic & Location Data",
+                    "description": "Geographic \u0026 Location Data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.PaymentLocationRequest"
@@ -29072,7 +29072,7 @@
                     "type": "number"
                 },
                 "transaction_id": {
-                    "description": "Identification & Tracking",
+                    "description": "Identification \u0026 Tracking",
                     "type": "string"
                 },
                 "user_agent": {
@@ -29200,7 +29200,7 @@
                     "type": "string"
                 },
                 "created_by": {
-                    "description": "Audit & Control",
+                    "description": "Audit \u0026 Control",
                     "type": "string"
                 },
                 "currency": {
@@ -29210,7 +29210,7 @@
                     "type": "object"
                 },
                 "description": {
-                    "description": "Description & Notes",
+                    "description": "Description \u0026 Notes",
                     "type": "string"
                 },
                 "exchange_rate": {
@@ -29229,7 +29229,7 @@
                     "type": "string"
                 },
                 "gateway_provider": {
-                    "description": "Payment Gateway & Processing",
+                    "description": "Payment Gateway \u0026 Processing",
                     "type": "string"
                 },
                 "gateway_response": {
@@ -29297,7 +29297,7 @@
                     "$ref": "#/definitions/github_com_emad_internal_domain.PaymentCategory"
                 },
                 "payment_location": {
-                    "description": "Geographic & Location Data",
+                    "description": "Geographic \u0026 Location Data",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_emad_internal_usecase_dto.PaymentLocationResponse"
@@ -29343,11 +29343,11 @@
                     "type": "string"
                 },
                 "reconciled_at": {
-                    "description": "Reconciliation & Settlement",
+                    "description": "Reconciliation \u0026 Settlement",
                     "type": "string"
                 },
                 "reference_number": {
-                    "description": "Identification & Tracking",
+                    "description": "Identification \u0026 Tracking",
                     "type": "string"
                 },
                 "refunded_at": {
@@ -29357,7 +29357,7 @@
                     "type": "string"
                 },
                 "risk_score": {
-                    "description": "Risk & Compliance",
+                    "description": "Risk \u0026 Compliance",
                     "type": "integer"
                 },
                 "saving_contract_id": {
@@ -30105,7 +30105,7 @@
                     "type": "number"
                 },
                 "status": {
-                    "description": ""pending", "paid", "overdue", "waived"",
+                    "description": "\"pending\", \"paid\", \"overdue\", \"waived\"",
                     "type": "string"
                 },
                 "total_amount": {
@@ -31211,7 +31211,7 @@
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "clear_term_overrides": {
-                    "description": "ClearTermOverrides drops every override first, returning the group to its scheme. Applied before the fields above, so one request can clear the old set and state a new one.",
+                    "description": "ClearTermOverrides drops every override first, returning the group to its\nscheme. Applied before the fields above, so one request can clear the old set\nand state a new one.",
                     "type": "boolean",
                     "example": false
                 },
@@ -31242,7 +31242,7 @@
                     "example": "monthly"
                 },
                 "guarantee_required_override": {
-                    "description": "Whether this group pays a winner only after staff approve a guarantee, and which kinds of guarantee it accepts (member / cheque / collateral). Left out, the group runs the scheme's policy. Set guarantee_required_override to false for a group that does not want a guarantee before payout.",
+                    "description": "Whether this group pays a winner only after staff approve a guarantee, and\nwhich kinds of guarantee it accepts (member / cheque / collateral). Left out,\nthe group runs the scheme's policy. Set guarantee_required_override to false\nfor a group that does not want a guarantee before payout.",
                     "type": "boolean",
                     "example": true
                 },
@@ -31261,7 +31261,7 @@
                     "example": "240000"
                 },
                 "sacco_admin_fee_share": {
-                    "description": "The admin fee split is changed as a unit: send all three shares or none. A partial update cannot be validated against the 100% rule, so it is refused.",
+                    "description": "The admin fee split is changed as a unit: send all three shares or none. A\npartial update cannot be validated against the 100% rule, so it is refused.",
                     "type": "string",
                     "example": "40"
                 },
@@ -31309,7 +31309,7 @@
                     "example": 50
                 },
                 "code": {
-                    "description": "Optional, and the one field on this request that is not full-replace: left out, the scheme keeps the code it has. It is never regenerated on update -- a code that changed itself because a caller edited the name would break every receipt and conversation already using it.",
+                    "description": "Optional, and the one field on this request that is not full-replace: left\nout, the scheme keeps the code it has. It is never regenerated on update --\na code that changed itself because a caller edited the name would break every\nreceipt and conversation already using it.",
                     "type": "string",
                     "maxLength": 50,
                     "example": "EQ1000"
@@ -31337,7 +31337,7 @@
                     "example": "weekly"
                 },
                 "guarantee_required": {
-                    "description": "The payout-security policy. Unlike the rest of this request these are not full-replace: leaving one out keeps whatever the scheme already has. A plain bool would decode an omitted field as false, so an update from a client that predates these fields would quietly switch guarantee checks off for the scheme and every group inheriting it.",
+                    "description": "The payout-security policy. Unlike the rest of this request these are not\nfull-replace: leaving one out keeps whatever the scheme already has. A plain\nbool would decode an omitted field as false, so an update from a client that\npredates these fields would quietly switch guarantee checks off for the\nscheme and every group inheriting it.",
                     "type": "boolean",
                     "example": true
                 },
@@ -31467,7 +31467,7 @@
                 },
                 "profit_growth": {
                     "type": "object",
-                    "x-example": "{"3 month":5,"6 month":10,"1 year":20}"
+                    "x-example": "{\"3 month\":5,\"6 month\":10,\"1 year\":20}"
                 },
                 "repayment_period_max": {
                     "type": "integer",
@@ -32042,7 +32042,7 @@
     },
     "securityDefinitions": {
         "Bearer": {
-            "description": "To access the protected endpoints, you need to include a valid JWT token in the `Authorization` header. Use the format `Bearer <token>` for the token.",
+            "description": "To access the protected endpoints, you need to include a valid JWT token in the `Authorization` header. Use the format `Bearer \u003ctoken\u003e` for the token.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

@@ -88,13 +88,18 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const payments = round.memberPayments.filter((p) => (filter === "all" ? true : filter === "paid" ? isPaid(p) : !isPaid(p)));
   const paidCount = round.memberPayments.length ? round.memberPayments.filter(isPaid).length : round.paidCount;
   const unpaidCount = round.memberPayments.length ? round.memberPayments.length - paidCount : round.unpaidCount;
-  const canDraw = (preview ? preview.canExecute : round.canExecuteDraw) && !round.notReadyReason;
+  // The draw preview is the backend's live verdict — trust it when present.
+  // Without one, fall back to the round's own flag and not-ready reason.
+  const canDraw = preview ? preview.canExecute : round.canExecuteDraw && !round.notReadyReason;
   // The round's own not-ready reason names the one unmet draw condition.
-  const blockReason = round.notReadyReason || preview?.reason || "";
+  const blockReason = canDraw ? "" : (preview ? preview.reason : "") || round.notReadyReason || "";
+  // The preview lists members by id only; take names/phones from the round's payments.
+  const byMember = new Map(round.memberPayments.map((p) => [p.memberId, p]));
+  const withName = <M extends { memberId: string; name: string; phone: string }>(m: M): M => ({ ...m, name: m.name || byMember.get(m.memberId)?.name || "—", phone: m.phone || byMember.get(m.memberId)?.phone || "" });
   // Prefer the backend's eligibility lists; when it sends none, derive them
   // from this round's member payments so the draw dialog is never blank.
-  const apiEligible = preview?.eligible?.length ? preview.eligible : round.eligibleMembers;
-  const apiExcluded = preview?.excluded?.length ? preview.excluded : round.excludedMembers;
+  const apiEligible = (preview?.eligible?.length ? preview.eligible : round.eligibleMembers).map(withName);
+  const apiExcluded = (preview?.excluded?.length ? preview.excluded : round.excludedMembers).map(withName);
   const derived = apiEligible.length === 0 && apiExcluded.length === 0;
   const eligible = derived
     ? round.memberPayments.filter(isPaid).map((p) => ({ memberId: p.memberId, name: p.name, phone: p.phone, position: 0, contributionPaid: true, previouslyWon: false, eligible: true }))

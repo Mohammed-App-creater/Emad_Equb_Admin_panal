@@ -142,6 +142,10 @@ export const EQUB_ENDPOINTS = {
   },
 
   // ---- Staff & roles (FR-8.7, NFR-4) ----
+  // Agents are staff users (id = user id), used for manager / broker pickers.
+  AGENTS: {
+    LIST: "/agents", // ?search=&status=true&page=&per_page=
+  },
   USERS: {
     LIST: "/users",
     ROLES: "/users/roles",

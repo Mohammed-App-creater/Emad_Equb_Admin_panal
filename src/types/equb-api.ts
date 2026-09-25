@@ -39,6 +39,19 @@ export interface UserResponse {
   permissions?: string[];
   roles?: { id: string; name: string; description?: string }[];
 }
+/** Subset of GET /agents' AgentResponse used by the staff pickers. `id` is the user id. */
+export interface AgentSummaryResponse {
+  id: string;
+  full_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  job_title?: string;
+  status: boolean;
+  is_agent?: boolean;
+  roles?: { id: string; name: string }[];
+}
 export interface LoginResponse {
   token: string;
   refresh_token: string;
@@ -680,15 +693,29 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 /** POST /equb/manager/my-groups/{group_id}/members/{member_id}/collect — the server works out the amount. */
 export interface EqubPayRoundsRequest {
   round_ids: string[];
+  /** Required when collecting missed rounds, so the server books it as back-pay. */
+  is_catch_up?: boolean;
   method?: PaymentMethod;
   reference?: string;
+  description?: string;
 }
 export interface EqubPayInitiatedResponse {
   group_id: string;
   payment_id: string;
   status: string; // settles once the payment is confirmed
-  total_amount: number;
+  total_amount?: number;
+  /** Newer responses name the total `amount`. */
+  amount?: number;
   rounds: unknown[];
+  /** The proof sent with the collection (multipart), filed against every contribution collected. */
+  attachments?: { id: string; file_name: string; contribution_ids?: string[] }[];
+  /** Set when a file was sent but could not be filed; the collection still stands. */
+  attachment_warning?: string;
+}
+/** Optional proof sent in the same collect request (multipart/form-data). */
+export interface CollectProof {
+  file: File;
+  description?: string;
 }
 export const PAYMENT_STATUSES = ["pending", "processing", "completed", "failed", "cancelled", "refunded", "held", "reversed"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];

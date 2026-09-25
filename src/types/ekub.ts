@@ -475,11 +475,19 @@ export interface RecordPaymentInput {
   roundIds: string[];
   method: string;
   reference?: string;
+  /** True when the rounds being paid are missed (back-pay) rounds. */
+  isCatchUp?: boolean;
+  /** Free-text note on the collection. */
+  description?: string;
+  /** Optional slip / receipt, filed against every round in this payment. */
+  proof?: { file: File; description?: string };
 }
 export interface RecordedPayment {
   paymentId: string;
   status: string;
   totalAmount: number;
+  attachmentsFiled: number;
+  attachmentWarning?: string;
 }
 
 // ---- Staff collections (what I collected) ---------------------------------

@@ -1203,6 +1203,16 @@ export const mockEqubApi: EqubApi = {
     const onlyActive = params?.status === true || params?.status === "true";
     return clone(staffUsers.filter((u) => (!onlyActive || u.status) && matches(q, u.full_name, u.email, u.phone)));
   },
+  async listAgents(params) {
+    await delay(150);
+    const onlyActive = params.status === "true";
+    return clone(
+      staffUsers
+        .filter((u) => (u.roles ?? []).some((r) => /agent|manager/i.test(r.name)))
+        .filter((u) => (!onlyActive || u.status) && matches(params.search, u.full_name, u.email, u.phone))
+        .map((u) => ({ id: u.id, full_name: u.full_name, first_name: u.first_name, last_name: u.last_name, email: u.email, phone: u.phone, status: u.status, is_agent: true, roles: u.roles }))
+    );
+  },
   async listUsersPage(params) {
     await delay(150);
     return paginate(clone(staffUsers.filter((u) => matches(params.search, u.full_name, u.email, u.phone))), params.page, params.per_page);
@@ -1210,7 +1220,7 @@ export const mockEqubApi: EqubApi = {
   async listRoles() { await delay(); return []; },
 
   // ---- Recording a contribution (staff) ----
-  async collectContribution(groupId, memberId, body) {
+  async collectContribution(groupId, memberId, body, proof) {
     await delay(400);
     const g = group(groupId);
     if (g.status !== "active") fail("Payments can only be recorded for an active Equb");
@@ -1240,7 +1250,22 @@ export const mockEqubApi: EqubApi = {
     setTimeout(() => settlePendingPayment(paymentId, "completed"), 6000);
     void t;
     void paidAt;
-    return { group_id: groupId, payment_id: paymentId, status: "pending", total_amount: rows.reduce((a, r) => a + r.amount, 0), rounds: rows };
+    // One slip covers every round in the request: stored once, filed against each contribution.
+    let attachments: { id: string; file_name: string; contribution_ids: string[] }[] | undefined;
+    if (proof) {
+      const dataUrl = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error("read failed")); fr.readAsDataURL(proof.file); });
+      const ids: string[] = [];
+      for (const row of rows) {
+        const r = db.rounds.find((x) => x.id === row.round_id)!;
+        const p = r.payments.find((x) => x.member_id === memberId)!;
+        ids.push(p.id);
+        db.attachments.push({ id: uid("att"), equb_contribution_id: p.id, member_id: memberId, member_name: dirById(memberId)?.full ?? memberId, round_id: r.id, round_number: r.round_number, file_name: proof.file.name, file_size: proof.file.size, mime_type: proof.file.type, file_url: "", is_image: proof.file.type.startsWith("image/"), description: proof.description ?? "", uploaded_by: "u-admin", created_at: now(), data_url: dataUrl });
+      }
+      attachments = [{ id: uid("att"), file_name: proof.file.name, contribution_ids: ids }];
+    }
+    // Mirror the server: marking back-pay rounds requires is_catch_up.
+    if (rows.some((r) => r.round_number < (groupRounds(groupId).find((x) => x.status === "open")?.round_number ?? 0)) && !body.is_catch_up) fail("is_catch_up must be true when collecting missed rounds");
+    return { group_id: groupId, payment_id: paymentId, status: "pending", amount: rows.reduce((a, r) => a + r.amount, 0), total_amount: rows.reduce((a, r) => a + r.amount, 0), rounds: rows, attachments };
   },
   async updatePaymentStatus(paymentId, body) {
     await delay(300);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Wallet, AlertTriangle, CheckCircle2, Info, Loader2, Clock } from "lucide-react";
+import { Wallet, AlertTriangle, CheckCircle2, Info, Loader2, Clock, Paperclip, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +56,8 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const [selected, setSelected] = useState<string[]>(target.roundIds ?? []);
   const [method, setMethod] = useState<string>("cash");
   const [reference, setReference] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofNote, setProofNote] = useState("");
   const [result, setResult] = useState<RecordedPayment | null>(null);
   const { has } = useEkubAccess();
   const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
@@ -78,6 +80,11 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const member = members?.find((m) => m.memberId === memberId);
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  // Catch-up = rounds owed from before the round now open.
+  const openRoundNo = (rounds ?? []).find((r) => r.status === "open")?.roundNumber;
+  const isCatchUpRound = (n: number) => openRoundNo !== undefined && n < openRoundNo;
+  const catchUpIds = owed.filter(({ round }) => isCatchUpRound(round.roundNumber)).map(({ round }) => round.id);
+  const allOwedIds = owed.map(({ round }) => round.id);
   const needsReference = method !== "cash";
   const valid = !!equbId && !!memberId && selected.length > 0 && (!needsReference || reference.trim().length > 0);
 
@@ -85,11 +92,23 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
 
   const submit = () =>
     record.mutate(
-      { equbId, memberId, input: { roundIds: selected, method, reference } },
+      {
+        equbId,
+        memberId,
+        input: {
+          roundIds: selected,
+          method,
+          reference,
+          isCatchUp: selected.some((id) => catchUpIds.includes(id)),
+          description: proofNote,
+          proof: proofFile ? { file: proofFile, description: proofNote } : undefined,
+        },
+      },
       {
         onSuccess: (r) => {
           toast({ title: isSettled(r.status) ? t("recorded") : t("recordedPending"), description: `${member?.name ?? ""} · ${formatCurrency(r.totalAmount || estimate)}` });
           setResult({ ...r, totalAmount: r.totalAmount || estimate });
+          if (r.attachmentWarning) toast({ title: t("proofNotFiled"), description: r.attachmentWarning, variant: "destructive" });
         },
         onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }),
       }
@@ -185,7 +204,21 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
       {/* Rounds */}
       {memberId && (
         <div className="space-y-1.5">
-          <Label>{t("rounds")}</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>{t("rounds")}</Label>
+            {owed.length > 1 && (
+              <div className="flex gap-1">
+                {catchUpIds.length > 0 && (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(Array.from(new Set([...selected, ...catchUpIds])))}>
+                    <ListChecks size={13} className="mr-1" /> {t("selectCatchUp", { count: catchUpIds.length })}
+                  </Button>
+                )}
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(selected.length === allOwedIds.length ? [] : allOwedIds)}>
+                  {selected.length === allOwedIds.length ? t("selectNone") : t("selectAllOwed")}
+                </Button>
+              </div>
+            )}
+          </div>
           {roundsLoading ? (
             <Skeleton className="h-24 rounded-xl" />
           ) : owed.length === 0 ? (
@@ -200,6 +233,7 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
                     <span className="flex-1 text-sm">
                       <span className="font-medium text-foreground">#{round.roundNumber}</span>
                       <span className="text-muted-foreground"> · {t("due")} {formatDate(round.contributionDueDate)}</span>
+                      {isCatchUpRound(round.roundNumber) && <span className="ml-2 rounded bg-info/15 px-1.5 py-px text-[10px] font-semibold uppercase text-info">{t("catchUp")}</span>}
                       {pay?.status === "overdue" && <span className="ml-2 rounded bg-destructive/10 px-1.5 py-px text-[10px] font-semibold uppercase text-destructive">{t("overdue")}</span>}
                     </span>
                     <span className="text-sm font-medium">{formatCurrency(pay?.amount || perRound)}</span>
@@ -231,6 +265,12 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           <div className="flex items-baseline justify-between rounded-xl bg-primary/5 p-3">
             <span className="text-sm text-muted-foreground">{t("estimate", { count: selected.length })}</span>
             <span className="text-xl font-bold text-primary">{formatCurrency(estimate)}</span>
+          </div>
+          <div className="space-y-2 rounded-xl border border-dashed border-border p-3">
+            <Label className="flex items-center gap-1.5"><Paperclip size={14} className="text-primary" /> {t("proof")} <span className="font-normal text-muted-foreground">({tc("optional")})</span></Label>
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary" />
+            <Input value={proofNote} onChange={(e) => setProofNote(e.target.value)} placeholder={t("proofNotePlaceholder")} />
+            <p className="text-xs text-muted-foreground">{t("proofHint", { count: selected.length || 1 })}</p>
           </div>
           <p className="flex items-start gap-2 text-xs text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0 text-primary" /> {t("serverAmountNote")}</p>
         </>

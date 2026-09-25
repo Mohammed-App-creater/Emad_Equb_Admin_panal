@@ -658,14 +658,34 @@ export const ekubService = {
   },
   /** Staff users for the manager picker (GET /users?search=). */
   async searchStaffUsers(search: string): Promise<StaffUser[]> {
-    const users = await equbApi.listUsers({ search: search.trim() || undefined, status: true, per_page: 20 });
-    return users.map((u) => ({
-      id: u.id,
-      fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
-      email: u.email ?? "",
-      phone: u.phone ?? "",
-      role: u.roles?.map((r) => r.name).join(", ") ?? "",
-    }));
+    // Agents are who normally run an Equb; /users adds other staff. Query both,
+    // tolerate either failing (permissions differ), merge by user id.
+    const q = search.trim() || undefined;
+    const [agents, users] = await Promise.all([
+      equbApi.listAgents({ search: q, status: "true", page: 1, per_page: 20 }).catch(() => []),
+      equbApi.listUsers({ search: q, page: 1, per_page: 20 }).catch(() => []),
+    ]);
+    const out = new Map<string, StaffUser>();
+    for (const a of agents) {
+      out.set(a.id, {
+        id: a.id,
+        fullName: a.full_name || `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email,
+        email: a.email ?? "",
+        phone: a.phone ?? "",
+        role: a.roles?.map((r) => r.name).join(", ") || a.job_title || "Agent",
+      });
+    }
+    for (const u of users) {
+      if (out.has(u.id) || u.status === false) continue;
+      out.set(u.id, {
+        id: u.id,
+        fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
+        email: u.email ?? "",
+        phone: u.phone ?? "",
+        role: u.roles?.map((r) => r.name).join(", ") ?? "",
+      });
+    }
+    return [...out.values()];
   },
 
   // ---- Equb members ----
@@ -751,12 +771,13 @@ export const ekubService = {
     };
   },
   async recordPayment(equbId: string, memberId: string, input: RecordPaymentInput): Promise<RecordedPayment> {
-    const r = await equbApi.collectContribution(equbId, memberId, {
-      round_ids: input.roundIds,
-      method: (input.method || undefined) as never,
-      reference: input.reference?.trim() || undefined,
-    });
-    return { paymentId: r.payment_id, status: r.status, totalAmount: num(r.total_amount) };
+    const r = await equbApi.collectContribution(
+      equbId,
+      memberId,
+      { round_ids: input.roundIds, is_catch_up: input.isCatchUp || undefined, method: (input.method || undefined) as never, reference: input.reference?.trim() || undefined, description: input.description?.trim() || undefined },
+      input.proof ? { file: input.proof.file, description: input.proof.description?.trim() || undefined } : undefined
+    );
+    return { paymentId: r.payment_id, status: r.status || "pending", totalAmount: num(r.total_amount ?? r.amount), attachmentsFiled: r.attachments?.length ?? 0, attachmentWarning: r.attachment_warning || undefined };
   },
 
   /** Settle a recorded collection: marks its payment completed (needs approval rights). */
