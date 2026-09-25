@@ -73,15 +73,15 @@ function ApprovalsInner() {
   const pending = (s: ApplicationStatus) => s === "submitted" || s === "under_review";
 
   const columns: DataTableColumn<Application>[] = [
-    { id: "name", header: t("applicant"), mobile: "title", cell: (r) => (
+    { id: "name", sortValue: (r) => r.fullName, header: t("applicant"), mobile: "title", cell: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.displayHandle}</p>
         <p className="text-xs text-muted-foreground">{r.fullName}</p>
       </div>
     ) },
-    { id: "fayda", header: t("faydaId"), mobile: "detail", cell: (r) => <span className="text-sm">{r.faydaId}</span> },
-    { id: "occupation", header: t("occupation"), mobile: "detail", cell: (r) => <span className="text-sm">{r.occupation}</span> },
-    { id: "peer", header: t("peerVote"), mobile: "detail", cell: (r) => {
+    { id: "fayda", sortValue: (r) => r.faydaId, header: t("faydaId"), mobile: "detail", cell: (r) => <span className="text-sm">{r.faydaId}</span> },
+    { id: "occupation", sortValue: (r) => r.occupation, header: t("occupation"), mobile: "detail", cell: (r) => <span className="text-sm">{r.occupation}</span> },
+    { id: "peer", sortValue: (r) => r.peerVotesFor, header: t("peerVote"), mobile: "detail", cell: (r) => {
       const passed = r.peerVotesFor >= r.peerVoteQuorum;
       return (
         <Badge className={passed ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}>
@@ -89,13 +89,13 @@ function ApprovalsInner() {
         </Badge>
       );
     } },
-    { id: "share", header: t("shareStatus"), mobile: "detail", cell: (r) => (
+    { id: "share", sortValue: (r) => r.sharePurchased, header: t("shareStatus"), mobile: "detail", cell: (r) => (
       <Badge className={r.sharePurchased ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}>
         {r.sharePurchased ? t("sharePaid") : t("shareUnpaid")}
       </Badge>
     ) },
-    { id: "submitted", header: t("submittedAt"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.submittedAt)}</span> },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => (
+    { id: "submitted", sortValue: (r) => r.submittedAt, header: t("submittedAt"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.submittedAt)}</span> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => (
       <Badge className={statusVariant[r.status]}>{statusLabel(r.status)}</Badge>
     ) },
   ];
@@ -121,6 +121,7 @@ function ApprovalsInner() {
       </div>
 
       <DataTable
+        defaultSort={{ id: "submitted", dir: "desc" }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

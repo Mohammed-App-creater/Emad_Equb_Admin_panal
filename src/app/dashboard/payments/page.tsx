@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CloudOff, Check, Info } from "lucide-react";
+import { CloudOff, Check, Info, Wallet } from "lucide-react";
+import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
+import { CollectionsTab } from "@/components/payments/collections-tab";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,36 +38,38 @@ function PaymentsInner() {
   const { data: recon, isLoading: reconLoading } = useReconciliation();
   const flagOutage = useFlagOutage();
   const reconcile = useReconcile();
+  const tp = useTranslations("recordPayment");
+  const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
 
   const timingLabel = (x: PaymentTiming) =>
     x === "on_time" ? t("onTime") : x === "late" ? t("late") : t("outageGrace");
 
   const paymentCols: DataTableColumn<Payment>[] = [
-    { id: "member", header: t("member"), mobile: "title", cell: (r) => (
+    { id: "member", sortValue: (r) => r.memberHandle, header: t("member"), mobile: "title", cell: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.memberHandle}</p>
         <p className="text-xs text-muted-foreground">{r.ekubNumber}</p>
       </div>
     ) },
-    { id: "round", header: t("round"), mobile: "detail", cell: (r) => <span className="text-sm">#{r.round}</span> },
-    { id: "amount", header: tc("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
-    { id: "method", header: t("method"), mobile: "detail", cell: (r) => <span className="text-sm capitalize">{r.method.replace("_", " ")}</span> },
-    { id: "receipt", header: t("receiptNo"), mobile: "detail", cell: (r) => <span className="text-sm">{r.receiptNo}</span> },
-    { id: "collectedBy", header: t("collectedBy"), mobile: "detail", cell: (r) => <span className="text-sm">{r.collectedBy ?? "—"}</span> },
-    { id: "time", header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDateTime(r.timestamp)}</span> },
-    { id: "timing", header: tc("status"), mobile: "badge", cell: (r) => <Badge className={timingBadge[r.timing]}>{timingLabel(r.timing)}</Badge> },
+    { id: "round", sortValue: (r) => r.round, header: t("round"), mobile: "detail", cell: (r) => <span className="text-sm">#{r.round}</span> },
+    { id: "amount", sortValue: (r) => r.amount, header: tc("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
+    { id: "method", sortValue: (r) => r.method, header: t("method"), mobile: "detail", cell: (r) => <span className="text-sm capitalize">{r.method.replace("_", " ")}</span> },
+    { id: "receipt", sortValue: (r) => r.receiptNo, header: t("receiptNo"), mobile: "detail", cell: (r) => <span className="text-sm">{r.receiptNo}</span> },
+    { id: "collectedBy", sortValue: (r) => r.collectedBy ?? null, header: t("collectedBy"), mobile: "detail", cell: (r) => <span className="text-sm">{r.collectedBy ?? "—"}</span> },
+    { id: "time", sortValue: (r) => r.timestamp, header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDateTime(r.timestamp)}</span> },
+    { id: "timing", sortValue: (r) => r.timing, header: tc("status"), mobile: "badge", cell: (r) => <Badge className={timingBadge[r.timing]}>{timingLabel(r.timing)}</Badge> },
   ];
 
   const reconCols: DataTableColumn<ReconciliationRow>[] = [
-    { id: "agent", header: t("collectedBy"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.agentName}</span> },
-    { id: "date", header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.date)}</span> },
-    { id: "cash", header: t("cashCollected"), mobile: "detail", align: "right", cell: (r) => <span>{formatCurrency(r.cashCollected)}</span> },
-    { id: "bank", header: t("bankDeposit"), mobile: "detail", align: "right", cell: (r) => <span>{formatCurrency(r.bankDeposit)}</span> },
-    { id: "variance", header: t("variance"), mobile: "detail", align: "right", cell: (r) => {
+    { id: "agent", sortValue: (r) => r.agentName, header: t("collectedBy"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.agentName}</span> },
+    { id: "date", sortValue: (r) => r.date, header: tc("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.date)}</span> },
+    { id: "cash", sortValue: (r) => r.cashCollected, header: t("cashCollected"), mobile: "detail", align: "right", cell: (r) => <span>{formatCurrency(r.cashCollected)}</span> },
+    { id: "bank", sortValue: (r) => r.bankDeposit, header: t("bankDeposit"), mobile: "detail", align: "right", cell: (r) => <span>{formatCurrency(r.bankDeposit)}</span> },
+    { id: "variance", sortValue: (r) => r.cashCollected - r.bankDeposit, header: t("variance"), mobile: "detail", align: "right", cell: (r) => {
       const v = r.cashCollected - r.bankDeposit;
       return <span className={v === 0 ? "text-success" : "font-medium text-destructive"}>{formatCurrency(v)}</span>;
     } },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => (
+    { id: "status", sortValue: (r) => r.reconciled, header: tc("status"), mobile: "badge", cell: (r) => (
       <Badge className={r.reconciled ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}>
         {r.reconciled ? "✓" : "…"}
       </Badge>
@@ -74,22 +78,38 @@ function PaymentsInner() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        subtitle={t("subtitle")}
+        actions={
+          <Button onClick={() => setPaying({})}>
+            <Wallet size={16} className="mr-1" /> {tp("title")}
+          </Button>
+        }
+      />
+      <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
 
       <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <Info size={16} className="mt-0.5 shrink-0 text-primary" />
         <span>{t("noRiba")}</span>
       </div>
 
-      <Tabs defaultValue="ledger">
+      <Tabs defaultValue="collections">
         <TabsList>
+          <TabsTrigger value="collections">{t("tabCollections")}</TabsTrigger>
           <TabsTrigger value="ledger">{t("tabLedger")}</TabsTrigger>
           <TabsTrigger value="reconciliation">{t("tabReconciliation")}</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="collections" className="space-y-4">
+          <CollectionsTab onRecord={() => setPaying({})} />
+        </TabsContent>
+
         <TabsContent value="ledger" className="space-y-4">
           <Input placeholder={tc("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="sm:max-w-xs" />
           <DataTable
+            defaultSort={{ id: "time", dir: "desc" }}
+            filters={{ facets: [{ id: "timing", label: tc("status"), get: (r) => r.timing, labelOf: (v) => timingLabel(v as PaymentTiming) }, { id: "method", label: t("method"), get: (r) => r.method }] }}
             columns={paymentCols}
             data={payments ?? []}
             rowKey={(r) => r.id}
@@ -115,6 +135,8 @@ function PaymentsInner() {
 
         <TabsContent value="reconciliation">
           <DataTable
+            defaultSort={{ id: "date", dir: "desc" }}
+            filters={{ search: { keys: (r) => [r.agentName, r.date] }, facets: [{ id: "reconciled", label: tc("status"), get: (r) => (r.reconciled ? "reconciled" : "pending"), options: [{ value: "reconciled", label: t("reconcile") }, { value: "pending", label: t("unreconciled") }] }] }}
             columns={reconCols}
             data={recon ?? []}
             rowKey={(r) => r.id}

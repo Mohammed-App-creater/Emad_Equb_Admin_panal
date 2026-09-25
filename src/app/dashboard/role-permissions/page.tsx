@@ -14,7 +14,7 @@ function RolesInner() {
   const { data, isLoading } = useRoles();
 
   const columns: DataTableColumn<RoleDef>[] = [
-    { id: "name", header: t("roleName"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
+    { id: "name", sortValue: (r) => r.name, header: t("roleName"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
     { id: "perms", header: t("permissions"), mobile: "detail", cell: (r) => (
       <div className="flex flex-wrap gap-1">
         {r.permissions.map((p) => (
@@ -27,7 +27,7 @@ function RolesInner() {
   return (
     <div className="space-y-6 p-4 lg:p-6">
       <PageHeader title={`${t("tabRoles")} & ${t("permissions")}`} subtitle={t("sodNote")} />
-      <DataTable columns={columns} data={data ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
+      <DataTable filters={{ search: { keys: (r) => [r.name, ...r.permissions] } }} columns={columns} data={data ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
     </div>
   );
 }

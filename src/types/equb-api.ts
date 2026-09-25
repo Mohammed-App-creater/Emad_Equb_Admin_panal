@@ -73,6 +73,29 @@ export interface MemberSummaryResponse {
   member_category: string;
 }
 
+/** Subset of GET /members/{id} shown on the member profile. */
+export interface SaccoMemberResponse {
+  id: string;
+  full_name: string;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  email?: string;
+  phone_number?: string;
+  gender?: string;
+  age?: number;
+  birth_date?: string;
+  marriage_status?: string;
+  membership_number?: string;
+  member_category?: string;
+  photo?: string;
+  status?: string;
+  created_at?: string;
+  branch?: { id: string; name: string; code?: string } | null;
+  current_address?: { region?: string; zone?: string; subcity?: string; district?: string; kebele?: string; neighborhood?: string; house_number?: string } | null;
+  emergency_contacts?: { full_name: string; phone_number?: string; relationship?: string }[] | null;
+}
+
 // ---- Scheme (= Equb Category) ----
 export const EQUB_FREQUENCIES = [
   "daily",
@@ -102,12 +125,16 @@ export interface EqubSchemeResponse {
   members_per_group: number;
   winners_per_round: number;
   total_rounds: number;
+  /** Winners must put up a guarantee before payout (default true). */
+  guarantee_required?: boolean;
+  accepted_guarantee_types?: string[];
   created_by: string;
   created_at: string;
   updated_at: string;
 }
 export interface CreateEqubSchemeRequest {
-  code: string;
+  /** Optional: blank -> server allocates EQS00001-style. Letters and digits only. */
+  code?: string;
   name: string;
   description?: string;
   frequency: EqubFrequency;
@@ -118,8 +145,10 @@ export interface CreateEqubSchemeRequest {
   members_per_group: number;
   winners_per_round: number;
   total_rounds: number;
+  guarantee_required?: boolean;
+  accepted_guarantee_types?: string[];
 }
-export type UpdateEqubSchemeRequest = Omit<CreateEqubSchemeRequest, "code"> & {
+export type UpdateEqubSchemeRequest = CreateEqubSchemeRequest & {
   status?: EqubSchemeStatus;
 };
 
@@ -144,7 +173,41 @@ export interface EqubGroupManagerResponse {
   /** False when the user already managed the group (idempotent, nothing written). */
   changed: boolean;
 }
-export interface EqubGroupResponse {
+/** Resolved terms a group actually runs on (scheme + overrides). Money is decimal-as-string. */
+export interface EqubTermsResponse {
+  contribution_amount: string;
+  admin_fee: string;
+  takaful_fee: string;
+  payout_amount: string;
+  total_per_round: string;
+  frequency: string;
+  members_per_group: number;
+  winners_per_round: number;
+  total_rounds: number;
+  guarantee_required?: boolean;
+  accepted_guarantee_types?: string[];
+}
+/** Per-group overrides of the scheme's terms. Omitted/null = inherit. */
+export interface EqubTermOverrides {
+  contribution_amount_override?: string | null;
+  admin_fee_override?: string | null;
+  takaful_fee_override?: string | null;
+  payout_amount_override?: string | null;
+  frequency_override?: EqubFrequency | null;
+  total_rounds_override?: number | null;
+  winners_per_round_override?: number | null;
+  guarantee_required_override?: boolean | null;
+  accepted_guarantee_types_override?: string[] | null;
+}
+/** How the admin fee divides, in percent. All three are sent together and total 100. */
+export interface EqubAdminFeeShares {
+  sacco_admin_fee_share?: string;
+  agent_admin_fee_share?: string;
+  broker_admin_fee_share?: string;
+  /** Required whenever broker_admin_fee_share > 0. */
+  broker_user_id?: string | null;
+}
+export interface EqubGroupResponse extends EqubTermOverrides, EqubAdminFeeShares {
   id: string;
   code: string;
   name: string;
@@ -152,6 +215,11 @@ export interface EqubGroupResponse {
   equb_scheme_id: string;
   equb_scheme?: EqubSchemeResponse;
   manager?: EqubGroupManagerInfo | null;
+  /** Read this, not equb_scheme.*, for what the group charges and pays. */
+  effective_terms?: EqubTermsResponse;
+  /** 1 for a first run; a cloned "next cycle" carries previous_group_id. */
+  cycle_number?: number;
+  previous_group_id?: string | null;
   current_members: number;
   max_members: number;
   start_date: string;
@@ -165,20 +233,24 @@ export interface EqubGroupDetailResponse extends EqubGroupResponse {
   recent_winners?: EqubWinnerResponse[];
   my_member_info?: EqubMemberResponse;
 }
-export interface CreateEqubGroupRequest {
-  code: string;
+export interface CreateEqubGroupRequest extends EqubTermOverrides, EqubAdminFeeShares {
+  /** Optional: blank -> server allocates EQG00001-style. */
+  code?: string;
   name: string;
   equb_scheme_id: string;
   max_members: number;
   start_date?: string;
   expected_end_date?: string;
 }
-export interface UpdateEqubGroupRequest {
+/** Only draft groups can be updated. Omitted overrides are kept, never cleared. */
+export interface UpdateEqubGroupRequest extends EqubTermOverrides, EqubAdminFeeShares {
   code?: string;
   name?: string;
   max_members?: number;
   start_date?: string;
   expected_end_date?: string;
+  /** Drops every override first (applied before the fields above). */
+  clear_term_overrides?: boolean;
 }
 export interface ListEqubGroupsParams {
   equb_scheme_id?: string;
@@ -261,6 +333,8 @@ export interface EqubRoundResponse {
   drawn_at: string;
   contribution_due_date: string;
   created_at: string;
+  /** Empty when the round can be drawn; otherwise the one unmet condition. */
+  not_ready_reason?: string;
   // Payment summary
   total_members: number;
   paid_count: number;
@@ -409,6 +483,283 @@ export interface EqubTakafulSettlementResponse {
   remaining_balance: number;
   items: EqubTakafulSettlementItem[];
   created_at: string;
+}
+
+// ---- Next cycle (clone) ----
+export interface CloneEqubGroupRequest {
+  name?: string;
+  code?: string;
+  max_members?: number;
+  start_date?: string;
+  copy_members?: boolean;
+  carry_over_missed_payments?: boolean;
+}
+export interface CloneEqubGroupResponse {
+  group: EqubGroupResponse;
+  previous_group_id: string;
+  previous_group_code: string;
+  members_copied: number;
+  bans_carried_over: number;
+  next_step: string;
+}
+
+// ---- SACCO-wide fee ledger (GET /equb/admin/fees) ----
+export interface FeeLedgerParams {
+  scheme_id?: string;
+  group_id?: string;
+  round_id?: string;
+  contribution_id?: string;
+  member_id?: string;
+  status?: string; // paid | pending | overdue | waived
+  page?: number;
+  per_page?: number;
+}
+export interface EqubFeeLine {
+  contribution_id: string;
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  scheme_id: string;
+  scheme_code: string;
+  scheme_name: string;
+  round_id: string;
+  round_number: number;
+  scheduled_at: string;
+  contribution_amount: string;
+  admin_fee: string;
+  takaful_fee: string;
+  total_amount: string;
+  status: string;
+  collected: boolean;
+  is_catch_up: boolean;
+  paid_at: string;
+  payment_id: string;
+  created_at: string;
+}
+export interface EqubFeesTotals {
+  contributions: number;
+  members: number;
+  rounds: number;
+  contribution_charged: string;
+  contribution_collected: string;
+  admin_fee_charged: string;
+  admin_fee_collected: string;
+  takaful_fee_charged: string;
+  takaful_fee_collected: string;
+  total_charged: string;
+  total_collected: string;
+}
+export interface EqubFeesLedgerResponse {
+  page: number;
+  per_page: number;
+  total: number;
+  totals: EqubFeesTotals;
+  records: EqubFeeLine[];
+}
+
+// ---- Contribution attachments (evidence, never state) ----
+export interface EqubContributionAttachmentResponse {
+  id: string;
+  equb_contribution_id: string;
+  member_id: string;
+  member_name: string;
+  round_id: string;
+  round_number: number;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  /** Short-lived URL minted for this response — do not cache. */
+  file_url: string;
+  is_image: boolean;
+  description: string;
+  uploaded_by: string;
+  created_at: string;
+}
+export interface EqubContributionAttachmentListResponse {
+  records: EqubContributionAttachmentResponse[];
+  total: number;
+}
+
+// ---- Admin fee ledgers ----
+export interface EqubAdminFeeTotals {
+  charged: string;
+  collected: string;
+  outstanding: string;
+}
+export interface EqubAdminFeeSplit {
+  sacco_share_percent: string;
+  sacco_amount: string;
+  agent_share_percent: string;
+  agent_amount: string;
+  broker_share_percent: string;
+  broker_amount: string;
+}
+export interface EqubAdminFeeLine {
+  contribution_id: string;
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  round_id: string;
+  round_number: number;
+  scheduled_at: string;
+  amount: string;
+  collected: boolean;
+  is_catch_up: boolean;
+  paid_at: string;
+  payment_id: string;
+  status: string;
+}
+export interface EqubAdminFeeRoundSummary {
+  round_id: string;
+  round_number: number;
+  scheduled_at: string;
+  status: string;
+  members: number;
+  paid_count: number;
+  totals: EqubAdminFeeTotals;
+}
+export interface EqubAdminFeeMemberSummary {
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  rounds: number;
+  paid_count: number;
+  totals: EqubAdminFeeTotals;
+}
+export interface EqubAdminFeeGroupResponse {
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  /** The flat fee charged now; historic rounds report what they were charged. */
+  fee_per_member_per_round: string;
+  totals: EqubAdminFeeTotals;
+  split: EqubAdminFeeSplit;
+  rounds: EqubAdminFeeRoundSummary[];
+  members: EqubAdminFeeMemberSummary[];
+}
+export interface EqubAdminFeeRoundResponse {
+  group_id: string;
+  group_name: string;
+  round_id: string;
+  round_number: number;
+  scheduled_at: string;
+  contribution_due_date: string;
+  status: string;
+  totals: EqubAdminFeeTotals;
+  split: EqubAdminFeeSplit;
+  lines: EqubAdminFeeLine[];
+}
+export interface EqubAdminFeeMemberResponse {
+  group_id: string;
+  group_name: string;
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  totals: EqubAdminFeeTotals;
+  lines: EqubAdminFeeLine[];
+}
+
+// ---- Recording a contribution (staff collection) ----
+export const PAYMENT_METHODS = [
+  "cash",
+  "bank_transfer",
+  "mobile_money",
+  "cheque",
+  "card",
+  "online",
+  "wallet",
+  "direct_debit",
+  "internal_transfer",
+  "automatic_deduction",
+] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** POST /equb/manager/my-groups/{group_id}/members/{member_id}/collect — the server works out the amount. */
+export interface EqubPayRoundsRequest {
+  round_ids: string[];
+  method?: PaymentMethod;
+  reference?: string;
+}
+export interface EqubPayInitiatedResponse {
+  group_id: string;
+  payment_id: string;
+  status: string; // settles once the payment is confirmed
+  total_amount: number;
+  rounds: unknown[];
+}
+export const PAYMENT_STATUSES = ["pending", "processing", "completed", "failed", "cancelled", "refunded", "held", "reversed"] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+/** PATCH /payments/{id}/status */
+export interface PaymentUpdateStatusRequest {
+  status: PaymentStatus;
+  notes?: string;
+  internal_notes?: string;
+  approved_by?: string;
+  processed_by?: string;
+  failure_reason?: string;
+}
+export interface EqubMemberStandingResponse {
+  group_id: string;
+  group_name: string;
+  member_id: string;
+  /** good | warning | banned | owing */
+  status: string;
+  good: boolean;
+  banned: boolean;
+  banned_until_round: number;
+  warning_issued: boolean;
+  missed_count: number;
+  current_round: number;
+  eligible_next_draw: boolean;
+  unpaid_rounds: number;
+  unpaid_amount: number;
+  catch_up_rounds: number;
+  catch_up_amount: number;
+  /** Plain-language guidance, safe to show verbatim. */
+  what_to_do: string[];
+}
+
+// ---- Manager: what I collected / catch-up ----
+export interface MyCollectionsParams {
+  from?: string; // YYYY-MM-DD, default today
+  to?: string; // YYYY-MM-DD inclusive, default today
+  group_id?: string;
+  scheme_id?: string;
+  member_id?: string;
+}
+export interface EqubCollectionListItem {
+  payment_id: string;
+  member_id: string;
+  member_name: string;
+  group_id: string;
+  group_name: string;
+  scheme_id: string;
+  scheme_name: string;
+  amount: number;
+  reference_number: string;
+  status: string; // pending | confirmed | ...
+  collected_at: string;
+}
+export interface EqubCollectionsSummaryResponse {
+  from: string;
+  to: string;
+  count: number;
+  /** Everything recorded; total_confirmed is what approval has settled. */
+  total_collected: number;
+  total_confirmed: number;
+  total_pending: number;
+  collections: EqubCollectionListItem[];
+}
+export interface EqubCatchUpPaymentResponse {
+  group_id: string;
+  member_id: string;
+  rounds_missed: number;
+  per_round_amount: number;
+  total_catch_up: number;
+  next_round_number: number;
 }
 
 // ---- Emergency (hardship early-turn) ----

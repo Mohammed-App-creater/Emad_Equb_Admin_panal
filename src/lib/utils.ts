@@ -313,7 +313,11 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   // top-level `message` ("This operation has already been processed") and
   // finally the raw Error message.
   let main: string | undefined;
-  if (details && typeof details.reason === "string") {
+  if (typeof data?.details === "string" && data.details.trim()) {
+    // Validation errors arrive as { message: "Request validation failed",
+    // details: "start_date cannot be in the past" } — the string is the reason.
+    main = data.details.trim();
+  } else if (details && typeof details.reason === "string") {
     main = details.reason;
   } else if (details && typeof details.message === "string") {
     main = details.message;
@@ -324,8 +328,9 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   }
   if (!main) return fallback;
 
-  // Capitalize first letter so user-facing strings read naturally regardless
-  // of whether the backend sent "insufficient balance" or "Insufficient balance".
+  // Backends name the offending field in snake_case ("start_date cannot be
+  // in the past"); read it as words, then capitalize the sentence.
+  main = main.replace(/^[a-z]+(?:_[a-z0-9]+)+\b/, (field) => field.replace(/_/g, " "));
   main = main.charAt(0).toUpperCase() + main.slice(1);
 
   if (details) {
@@ -409,15 +414,21 @@ export function getErrorMessages(error: unknown, fallback: string): string[] {
     }
   };
 
-  if (data.message) walk(data.message);
-  walk(data.details);
+  // A string `details` is the specific reason; the summary message is then noise.
+  if (typeof data.details === "string" && data.details.trim()) walk(data.details);
+  else {
+    if (data.message) walk(data.message);
+    walk(data.details);
+  }
   walk(data.errors);
-  walk(data.error);
+  // `error` is often just a category code ("VALIDATION", "AUTH") — not a message.
+  if (!(typeof data.error === "string" && /^[A-Z_]+$/.test(data.error))) walk(data.error);
 
   // De-duplicate (exact matches) while preserving order, then sentence-case.
-  const unique = Array.from(new Set(messages)).map(
-    (m) => m.charAt(0).toUpperCase() + m.slice(1)
-  );
+  const unique = Array.from(new Set(messages)).map((m) => {
+    const t = m.replace(/^[a-z]+(?:_[a-z0-9]+)+\b/, (field) => field.replace(/_/g, " "));
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  });
 
   return unique.length > 0 ? unique : [fallback];
 }

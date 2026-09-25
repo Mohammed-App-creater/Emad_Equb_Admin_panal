@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { UserPlus, UserMinus, Ban, RotateCcw, ArrowLeftRight, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UserPlus, UserMinus, Ban, RotateCcw, ArrowLeftRight, Search, Wallet } from "lucide-react";
+import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
 import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +46,13 @@ export function MembersTab({ equb }: { equb: Equb }) {
   const tc = useTranslations("common");
   const { has } = useEkubAccess();
   const { toast } = useToast();
+  const router = useRouter();
   const canManage = has(EKUB_PERMS.EQUB_MANAGE) || has(EKUB_PERMS.PENALTY_MANAGE);
 
   const [status, setStatus] = useState("all");
+  // A roster is at most a few hundred rows: load it whole, filter and page locally.
   const { data, isLoading } = useEqubMembers(equb.id, status);
+  const { data: roster } = useEqubMembers(equb.id);
   const add = useAddMember();
   const remove = useRemoveMember();
   const setSuspended = useSetSuspended();
@@ -64,23 +69,25 @@ export function MembersTab({ equb }: { equb: Equb }) {
   const [suspending, setSuspending] = useState<EqubMember | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [removing, setRemoving] = useState<EqubMember | null>(null);
+  const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
+  const tp = useTranslations("recordPayment");
 
   const err = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
 
   const columns: DataTableColumn<EqubMember>[] = [
-    { id: "pos", header: t("position"), mobile: "detail", align: "center", cell: (r) => <span className="font-mono text-sm text-muted-foreground">#{r.position}</span> },
-    { id: "name", header: t("member"), mobile: "title", cell: (r) => (
+    { id: "pos", sortValue: (r) => r.position, header: t("position"), mobile: "detail", align: "center", cell: (r) => <span className="font-mono text-sm text-muted-foreground">#{r.position}</span> },
+    { id: "name", sortValue: (r) => r.name, header: t("member"), mobile: "title", cell: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.name}</p>
         <p className="text-xs text-muted-foreground">{r.membershipNumber}</p>
       </div>
     ) },
-    { id: "phone", header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone || "—"}</span> },
-    { id: "joined", header: t("joined"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.joinedAt)}</span> },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="member" /> },
+    { id: "phone", sortValue: (r) => r.phone, header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone || "—"}</span> },
+    { id: "joined", sortValue: (r) => r.joinedAt, header: t("joined"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.joinedAt)}</span> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="member" /> },
   ];
 
-  const alreadyIn = new Set((data ?? []).map((m) => m.memberId));
+  const alreadyIn = new Set((roster ?? []).map((m) => m.memberId));
 
   return (
     <div className="space-y-4">
@@ -95,7 +102,7 @@ export function MembersTab({ equb }: { equb: Equb }) {
         </Select>
         {canManage && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setSwapA(""); setSwapB(""); setSwapping(true); }} disabled={(data?.length ?? 0) < 2}>
+            <Button variant="outline" onClick={() => { setSwapA(""); setSwapB(""); setSwapping(true); }} disabled={(roster?.length ?? 0) < 2}>
               <ArrowLeftRight size={15} className="mr-1" /> {t("swap")}
             </Button>
             <Button onClick={() => { setQuery(""); setAdding(true); }} disabled={equb.currentMembers >= equb.maxMembers}>
@@ -106,15 +113,19 @@ export function MembersTab({ equb }: { equb: Equb }) {
       </div>
 
       <DataTable
+        defaultSort={{ id: "joined", dir: "desc" }}
+        filters={{ search: { placeholder: t("searchMember"), keys: (r) => [r.name, r.phone, r.membershipNumber] } }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}
         isLoading={isLoading}
+        onRowClick={(r) => router.push(`/dashboard/equbs/${equb.id}/members/${r.memberId}`)}
         avatar={(r) => ({ initials: getInitials(r.name), colorClass: "bg-primary/15 text-primary" })}
         emptyTitle={tc("noData")}
         actions={
           canManage
             ? [
+                { label: tp("title"), icon: Wallet, show: () => equb.status === "active", onClick: (r) => setPaying({ equbId: equb.id, memberId: r.memberId }) },
                 { label: t("suspend"), icon: Ban, show: (r) => r.status !== "suspended", destructive: true, onClick: (r) => { setSuspendReason(""); setSuspending(r); } },
                 { label: t("unsuspend"), icon: RotateCcw, show: (r) => r.status === "suspended", onClick: (r) => setSuspended.mutate({ equbId: equb.id, memberId: r.memberId, suspend: false }, { onSuccess: () => toast({ title: t("unsuspend"), description: r.name }), onError: err }) },
                 { label: t("remove"), icon: UserMinus, destructive: true, onClick: (r) => setRemoving(r) },
@@ -122,6 +133,8 @@ export function MembersTab({ equb }: { equb: Equb }) {
             : undefined
         }
       />
+
+      <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
 
       {/* Add member: search the Sacco member directory */}
       <Modal open={adding} onOpenChange={setAdding} title={t("add")} className="max-w-lg">
@@ -162,8 +175,8 @@ export function MembersTab({ equb }: { equb: Equb }) {
       <Modal open={swapping} onOpenChange={setSwapping} title={t("swap")} className="max-w-md">
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">{t("swapHint")}</p>
-          <MemberPick label={t("first")} value={swapA} onChange={setSwapA} members={data ?? []} exclude={swapB} />
-          <MemberPick label={t("second")} value={swapB} onChange={setSwapB} members={data ?? []} exclude={swapA} />
+          <MemberPick label={t("first")} value={swapA} onChange={setSwapA} members={roster ?? []} exclude={swapB} />
+          <MemberPick label={t("second")} value={swapB} onChange={setSwapB} members={roster ?? []} exclude={swapA} />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSwapping(false)}>{tc("cancel")}</Button>
             <Button

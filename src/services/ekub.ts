@@ -1,8 +1,30 @@
 import * as db from "@/lib/mock/mock-db";
 import { equbApi } from "@/services/equb-api";
 import type {
+  AdminFeeShares,
   Application,
   ApplicationStatus,
+  EqubAdminFees,
+  EqubOverrides,
+  EqubTerms,
+  FeeLine,
+  FeeSplit,
+  FeeTotals,
+  MemberAdminFees,
+  CloneEqubInput,
+  ClonedEqub,
+  ContributionAttachment,
+  FeeLedger,
+  FeeLedgerFilters,
+  MemberProfile,
+  Page,
+  CatchUp,
+  CollectionsFilters,
+  CollectionsSummary,
+  MemberStanding,
+  RecordPaymentInput,
+  RecordedPayment,
+  RoundAdminFees,
   Dispute,
   DrawPreview,
   EmergencyDrawRequest,
@@ -31,6 +53,13 @@ import type {
   Winner,
 } from "@/types/ekub";
 import type {
+  EqubContributionAttachmentResponse,
+  EqubAdminFeeLine,
+  EqubAdminFeeSplit,
+  EqubAdminFeeTotals,
+  EqubAdminFeeShares,
+  EqubTermOverrides,
+  EqubTermsResponse,
   EqubAdminDashboardResponse,
   EqubDrawEligibleMember,
   EqubDrawExcludedMember,
@@ -59,6 +88,18 @@ const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 const delay = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
+// Money on the newer endpoints is decimal-as-string ("60.00"); older ones use numbers.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const num = (v: string | number | null | undefined): number => {
+  if (v === null || v === undefined || v === "") return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const optNum = (v: string | number | null | undefined): number | undefined =>
+  v === null || v === undefined || v === "" ? undefined : num(v);
+const money = (n: number | undefined) => (n === undefined ? undefined : n.toFixed(2));
+
 // ============================================================================
 // DTO → view-model mappers (real API shape → the camelCase types pages render)
 // ============================================================================
@@ -73,18 +114,118 @@ function schemeToCategory(s: EqubSchemeResponse): EqubCategory {
     description: s.description ?? "",
     status: s.status,
     frequency: frequency(s.frequency),
-    contribution: s.contribution_amount,
-    adminFee: s.admin_fee ?? 0,
-    takafulFee: s.takaful_fee ?? 0,
-    payout: s.payout_amount,
+    contribution: num(s.contribution_amount),
+    adminFee: num(s.admin_fee),
+    takafulFee: num(s.takaful_fee),
+    payout: num(s.payout_amount),
     membersPerEqub: s.members_per_group,
     winnersPerRound: s.winners_per_round,
     totalRounds: s.total_rounds,
+    guaranteeRequired: s.guarantee_required ?? true,
+    acceptedGuaranteeTypes: s.accepted_guarantee_types ?? [],
     createdBy: s.created_by ?? "",
     createdAt: s.created_at,
     updatedAt: s.updated_at,
   };
 }
+
+
+function termsToView(t: EqubTermsResponse): EqubTerms {
+  return {
+    contribution: num(t.contribution_amount),
+    adminFee: num(t.admin_fee),
+    takafulFee: num(t.takaful_fee),
+    payout: num(t.payout_amount),
+    totalPerRound: num(t.total_per_round) || num(t.contribution_amount) + num(t.admin_fee) + num(t.takaful_fee),
+    frequency: frequency(t.frequency),
+    membersPerEqub: t.members_per_group,
+    winnersPerRound: t.winners_per_round,
+    totalRounds: t.total_rounds,
+    guaranteeRequired: t.guarantee_required ?? true,
+    acceptedGuaranteeTypes: t.accepted_guarantee_types ?? [],
+  };
+}
+
+function overridesToView(g: EqubTermOverrides): EqubOverrides {
+  const o: EqubOverrides = {
+    contribution: optNum(g.contribution_amount_override),
+    adminFee: optNum(g.admin_fee_override),
+    takafulFee: optNum(g.takaful_fee_override),
+    payout: optNum(g.payout_amount_override),
+    frequency: g.frequency_override ? frequency(g.frequency_override) : undefined,
+    totalRounds: g.total_rounds_override ?? undefined,
+    winnersPerRound: g.winners_per_round_override ?? undefined,
+    guaranteeRequired: g.guarantee_required_override ?? undefined,
+    acceptedGuaranteeTypes: g.accepted_guarantee_types_override ?? undefined,
+  };
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as EqubOverrides;
+}
+
+function overridesToDto(o: EqubOverrides | undefined): EqubTermOverrides {
+  if (!o) return {};
+  return {
+    contribution_amount_override: money(o.contribution),
+    admin_fee_override: money(o.adminFee),
+    takaful_fee_override: money(o.takafulFee),
+    payout_amount_override: money(o.payout),
+    frequency_override: o.frequency,
+    total_rounds_override: o.totalRounds,
+    winners_per_round_override: o.winnersPerRound,
+    guarantee_required_override: o.guaranteeRequired,
+    accepted_guarantee_types_override: o.acceptedGuaranteeTypes,
+  };
+}
+
+function sharesToDto(s: AdminFeeShares | undefined, brokerUserId: string | undefined): EqubAdminFeeShares {
+  if (!s) return {};
+  return {
+    sacco_admin_fee_share: String(s.sacco),
+    agent_admin_fee_share: String(s.agent),
+    broker_admin_fee_share: String(s.broker),
+    broker_user_id: s.broker > 0 ? brokerUserId || undefined : undefined,
+  };
+}
+
+const attachmentToView = (a: EqubContributionAttachmentResponse): ContributionAttachment => ({
+  id: a.id,
+  contributionId: a.equb_contribution_id,
+  memberId: a.member_id,
+  memberName: a.member_name || "—",
+  roundId: a.round_id,
+  roundNumber: a.round_number,
+  fileName: a.file_name,
+  fileSize: a.file_size ?? 0,
+  mimeType: a.mime_type,
+  fileUrl: a.file_url,
+  isImage: !!a.is_image,
+  description: a.description ?? "",
+  createdAt: a.created_at,
+});
+
+const totalsToView = (t?: EqubAdminFeeTotals): FeeTotals => ({ charged: num(t?.charged), collected: num(t?.collected), outstanding: num(t?.outstanding) });
+const splitToView = (s?: EqubAdminFeeSplit): FeeSplit => ({
+  saccoPercent: num(s?.sacco_share_percent),
+  saccoAmount: num(s?.sacco_amount),
+  agentPercent: num(s?.agent_share_percent),
+  agentAmount: num(s?.agent_amount),
+  brokerPercent: num(s?.broker_share_percent),
+  brokerAmount: num(s?.broker_amount),
+});
+const feeLineToView = (l: EqubAdminFeeLine): FeeLine => ({
+  contributionId: l.contribution_id,
+  memberId: l.member_id,
+  memberName: l.member_name,
+  membershipNumber: l.membership_number,
+  roundId: l.round_id,
+  roundNumber: l.round_number,
+  scheduledAt: l.scheduled_at,
+  amount: num(l.amount),
+  collected: !!l.collected,
+  isCatchUp: !!l.is_catch_up,
+  paidAt: l.paid_at,
+  paymentId: l.payment_id,
+  status: l.status,
+});
 
 function groupToEqub(g: EqubGroupResponse): Equb {
   return {
@@ -95,8 +236,17 @@ function groupToEqub(g: EqubGroupResponse): Equb {
     categoryId: g.equb_scheme_id,
     category: g.equb_scheme ? schemeToCategory(g.equb_scheme) : undefined,
     manager: g.manager?.user_id
-      ? { userId: g.manager.user_id, fullName: g.manager.full_name || g.manager.email || g.manager.user_id, email: g.manager.email ?? "", phone: g.manager.phone_number ?? "" }
+      ? { userId: g.manager.user_id, fullName: g.manager.full_name || g.manager.email || g.manager.phone_number || "—", email: g.manager.email ?? "", phone: g.manager.phone_number ?? "" }
       : undefined,
+    effectiveTerms: g.effective_terms ? termsToView(g.effective_terms) : undefined,
+    overrides: overridesToView(g),
+    feeShares:
+      g.sacco_admin_fee_share != null || g.agent_admin_fee_share != null || g.broker_admin_fee_share != null
+        ? { sacco: num(g.sacco_admin_fee_share), agent: num(g.agent_admin_fee_share), broker: num(g.broker_admin_fee_share) }
+        : undefined,
+    brokerUserId: g.broker_user_id || undefined,
+    cycleNumber: g.cycle_number ?? 1,
+    previousEqubId: g.previous_group_id || undefined,
     currentMembers: g.current_members ?? 0,
     maxMembers: g.max_members,
     startDate: g.start_date,
@@ -115,7 +265,7 @@ function dashboardToView(d: EqubAdminDashboardResponse): EqubDashboard {
     status: d.status,
     currentRound: d.current_round,
     totalRounds: d.total_rounds,
-    progressPercent: d.cycle_progress,
+    progressPercent: num(d.cycle_progress),
     drawStatus: d.draw_status,
     totalMembers: d.total_members,
     activeMembers: d.active_members,
@@ -124,11 +274,11 @@ function dashboardToView(d: EqubAdminDashboardResponse): EqubDashboard {
     paidThisRound: d.paid_this_round,
     unpaidThisRound: d.unpaid_this_round,
     nextDueDate: d.next_due_date,
-    totalCollected: d.total_collected,
-    totalPayouts: d.total_payouts,
-    totalAdminFees: d.total_admin_fees,
-    totalTakafulFees: d.total_takaful_fees,
-    takafulBalance: d.takaful_balance,
+    totalCollected: num(d.total_collected),
+    totalPayouts: num(d.total_payouts),
+    totalAdminFees: num(d.total_admin_fees),
+    totalTakafulFees: num(d.total_takaful_fees),
+    takafulBalance: num(d.takaful_balance),
     winsDistributed: d.wins_distributed,
   };
 }
@@ -137,7 +287,7 @@ function memberToView(m: EqubMemberResponse): EqubMember {
   return {
     id: m.id,
     memberId: m.member_id,
-    name: m.member?.display_name || m.member?.full_name || m.member_id,
+    name: m.member?.display_name || m.member?.full_name || m.member?.membership_number || "—",
     membershipNumber: m.member?.membership_number || "—",
     phone: m.member?.phone_number || "",
     photo: m.member?.photo || undefined,
@@ -195,6 +345,7 @@ function roundToView(r: EqubRoundResponse): Round {
     roundNumber: r.round_number,
     status: mapRoundStatus(r.status),
     rawStatus: r.status,
+    notReadyReason: r.not_ready_reason ?? "",
     scheduledAt: r.scheduled_at,
     drawnAt: r.drawn_at,
     contributionDueDate: r.contribution_due_date,
@@ -202,16 +353,17 @@ function roundToView(r: EqubRoundResponse): Round {
     totalMembers: r.total_members ?? 0,
     paidCount: r.paid_count ?? 0,
     unpaidCount: r.unpaid_count ?? 0,
-    paymentPercentage: r.payment_percentage ?? 0,
-    totalContribution: r.total_contribution ?? 0,
-    totalAdminFee: r.total_admin_fee ?? 0,
-    totalTakafulFee: r.total_takaful_fee ?? 0,
-    payoutAmount: r.payout_amount ?? 0,
+    // Money arrives as decimal strings on the live API — never add them raw.
+    paymentPercentage: num(r.payment_percentage),
+    totalContribution: num(r.total_contribution),
+    totalAdminFee: num(r.total_admin_fee),
+    totalTakafulFee: num(r.total_takaful_fee),
+    payoutAmount: num(r.payout_amount),
     memberPayments: (r.member_payments ?? []).map((p) => ({
       memberId: p.member_id,
       name: p.member_name,
       phone: p.phone,
-      amount: p.amount,
+      amount: num(p.amount),
       status: p.status,
       paidAt: p.paid_at,
       isCatchUp: !!p.isCatchUp,
@@ -225,7 +377,7 @@ function roundToView(r: EqubRoundResponse): Round {
       memberId: w.member_id,
       name: w.member_name,
       phone: w.phone,
-      payoutAmount: w.payout_amount,
+      payoutAmount: num(w.payout_amount),
       status: w.status,
       position: w.winner_position,
       paidAt: w.paid_at,
@@ -261,11 +413,11 @@ function winnerToView(w: EqubWinnerResponse, roundNumber?: number): Winner {
     roundId: w.equb_round_id,
     roundNumber,
     memberId: w.member_id,
-    name: w.member?.display_name || w.member?.full_name || w.member_id,
+    name: w.member?.display_name || w.member?.full_name || w.member?.membership_number || "—",
     membershipNumber: w.member?.membership_number || "—",
     phone: w.member?.phone_number || "",
     position: w.winner_position,
-    payoutAmount: w.payout_amount,
+    payoutAmount: num(w.payout_amount),
     status: mapWinnerStatus(w.status),
     rawStatus: w.status,
     guaranteeStatus: w.guarantee_status || "none",
@@ -283,7 +435,7 @@ function guaranteeToView(g: EqubGuaranteeResponse): Guarantee {
     guarantorMemberId: g.guarantor_member_id,
     collateralType: g.collateral_type,
     collateralReference: g.collateral_reference,
-    collateralValue: g.collateral_value,
+    collateralValue: num(g.collateral_value),
     status: g.status,
     approvedAt: g.approved_at,
   };
@@ -297,7 +449,8 @@ function emergencyToView(e: EqubEmergencyDrawResponse): EmergencyDrawRequest {
     reason: e.reason,
     status: e.status,
     reviewNote: e.review_note ?? "",
-    reviewedBy: e.reviewed_by ?? "",
+    // reviewed_by is a user ID on the live API — only show it when it is a name.
+    reviewedBy: e.reviewed_by && !UUID_RE.test(e.reviewed_by) ? e.reviewed_by : "",
     createdAt: e.created_at,
   };
 }
@@ -309,7 +462,7 @@ function takafulToView(x: EqubTakafulTransactionResponse): TakafulTxn {
     roundId: x.equb_round_id,
     memberId: x.member_id,
     type: x.type,
-    amount: x.amount,
+    amount: num(x.amount),
     reference: x.reference,
     createdAt: x.created_at,
   };
@@ -318,9 +471,9 @@ function takafulToView(x: EqubTakafulTransactionResponse): TakafulTxn {
 function settlementToView(s: EqubTakafulSettlementResponse): TakafulSettlement {
   return {
     type: s.type,
-    totalAmount: s.total_amount,
-    remainingBalance: s.remaining_balance,
-    items: (s.items ?? []).map((i) => ({ memberId: i.member_id, type: i.type, amount: i.amount })),
+    totalAmount: num(s.total_amount),
+    remainingBalance: num(s.remaining_balance),
+    items: (s.items ?? []).map((i) => ({ memberId: i.member_id, type: i.type, amount: num(i.amount) })),
   };
 }
 
@@ -367,10 +520,13 @@ function regToApplication(r: MemberRegistrationRequestResponse): Application {
 function userToStaff(u: UserResponse): StaffMember {
   const role = (u.roles?.[0]?.name || "").toLowerCase();
   const mapped: StaffMember["role"] = role.includes("admin") ? "admin" : role.includes("manager") ? "manager" : role.includes("board") ? "board_chair" : "agent";
-  return { id: u.id, name: u.full_name, role: mapped, branch: u.branch_id || "—", email: u.email, phone: u.phone || "—" };
+  // branch_id is a UUID; never show it. (No branch name comes back on this endpoint.)
+  return { id: u.id, name: u.full_name, role: mapped, branch: u.branch_id && !UUID_RE.test(u.branch_id) ? u.branch_id : "—", email: u.email, phone: u.phone || "—" };
 }
 
 const categoryBody = (c: EqubCategoryInput) => ({
+  guarantee_required: c.guaranteeRequired,
+  accepted_guarantee_types: c.acceptedGuaranteeTypes,
   name: c.name,
   description: c.description ?? "",
   frequency: c.frequency,
@@ -383,21 +539,31 @@ const categoryBody = (c: EqubCategoryInput) => ({
   total_rounds: c.totalRounds,
 });
 
+const toPage = <A, B>(r: { items: A[]; meta: { page: number; per_page: number; total: number; total_pages: number } }, map: (a: A) => B): Page<B> => ({
+  items: r.items.map(map),
+  page: r.meta.page,
+  perPage: r.meta.per_page,
+  total: r.meta.total,
+  totalPages: r.meta.total_pages,
+});
+
 // ============================================================================
 export const ekubService = {
   // ---- Equb Categories (backend schemes) ----
   async listCategories(params?: { status?: string; search?: string }): Promise<EqubCategory[]> {
     return (await equbApi.listSchemes(params)).map(schemeToCategory);
   },
+  async listCategoriesPage(params: { status?: string; search?: string }, page: number, perPage: number): Promise<Page<EqubCategory>> {
+    return toPage(await equbApi.listSchemesPage({ ...params, page, per_page: perPage }), schemeToCategory);
+  },
   async getCategory(id: string): Promise<EqubCategory> {
     return schemeToCategory(await equbApi.getScheme(id));
   },
   async createCategory(input: EqubCategoryInput): Promise<EqubCategory> {
-    if (!input.code) throw new Error("Category code is required");
-    return schemeToCategory(await equbApi.createScheme({ code: input.code, ...categoryBody(input) }));
+    return schemeToCategory(await equbApi.createScheme({ code: input.code?.trim() || undefined, ...categoryBody(input) }));
   },
   async updateCategory(id: string, input: EqubCategoryInput): Promise<EqubCategory> {
-    return schemeToCategory(await equbApi.updateScheme(id, { ...categoryBody(input), status: input.status }));
+    return schemeToCategory(await equbApi.updateScheme(id, { code: input.code?.trim() || undefined, ...categoryBody(input), status: input.status }));
   },
   async deleteCategory(id: string): Promise<void> {
     await equbApi.deleteScheme(id);
@@ -413,6 +579,18 @@ export const ekubService = {
     });
     return rows.map(groupToEqub);
   },
+  async listEqubsPage(filters: EqubListFilters, page: number, perPage: number): Promise<Page<Equb>> {
+    return toPage(
+      await equbApi.listGroupsPage({
+        equb_scheme_id: filters.categoryId || undefined,
+        status: filters.status && filters.status !== "all" ? filters.status : undefined,
+        search: filters.search || undefined,
+        page,
+        per_page: perPage,
+      }),
+      groupToEqub
+    );
+  },
   async getEqub(id: string): Promise<Equb> {
     return groupToEqub(await equbApi.getGroup(id));
   },
@@ -423,11 +601,13 @@ export const ekubService = {
     return groupToEqub(
       await equbApi.createGroup({
         name: input.name,
-        code: input.code,
+        code: input.code?.trim() || undefined,
         equb_scheme_id: input.categoryId,
         max_members: input.maxMembers,
         start_date: input.startDate || undefined,
         expected_end_date: input.expectedEndDate || undefined,
+        ...overridesToDto(input.overrides),
+        ...sharesToDto(input.feeShares, input.brokerUserId),
       })
     );
   },
@@ -435,10 +615,13 @@ export const ekubService = {
     return groupToEqub(
       await equbApi.updateGroup(id, {
         name: input.name,
-        code: input.code,
+        code: input.code?.trim() || undefined,
         max_members: input.maxMembers,
         start_date: input.startDate || undefined,
         expected_end_date: input.expectedEndDate || undefined,
+        clear_term_overrides: input.clearOverrides || undefined,
+        ...overridesToDto(input.overrides),
+        ...sharesToDto(input.feeShares, input.brokerUserId),
       })
     );
   },
@@ -456,6 +639,18 @@ export const ekubService = {
   },
   async autoCancel(): Promise<void> {
     await equbApi.autoCancel();
+  },
+  /** Start the next cycle of a finished Equb: a new draft carrying its terms and roster. */
+  async cloneEqub(id: string, input: CloneEqubInput): Promise<ClonedEqub> {
+    const r = await equbApi.cloneGroup(id, {
+      name: input.name?.trim() || undefined,
+      code: input.code?.trim() || undefined,
+      max_members: input.maxMembers || undefined,
+      start_date: input.startDate || undefined,
+      copy_members: input.copyMembers,
+      carry_over_missed_payments: input.carryOverMissedPayments,
+    });
+    return { equb: groupToEqub(r.group), previousEqubCode: r.previous_group_code, membersCopied: r.members_copied ?? 0, bansCarriedOver: r.bans_carried_over ?? 0, nextStep: r.next_step ?? "" };
   },
   async assignManager(id: string, managerUserId: string): Promise<ManagerAssignment> {
     const r = await equbApi.assignManager(id, managerUserId);
@@ -477,6 +672,30 @@ export const ekubService = {
   async listEqubMembers(equbId: string, status?: string): Promise<EqubMember[]> {
     const rows = await equbApi.listGroupMembers(equbId, { status: status && status !== "all" ? status : undefined, per_page: 500 });
     return rows.map(memberToView).sort((a, b) => a.position - b.position);
+  },
+  async listEqubMembersPage(equbId: string, status: string | undefined, page: number, perPage: number): Promise<Page<EqubMember>> {
+    return toPage(await equbApi.listGroupMembersPage(equbId, { status: status && status !== "all" ? status : undefined, page, per_page: perPage }), memberToView);
+  },
+  async getMemberProfile(id: string): Promise<MemberProfile> {
+    const m = await equbApi.getMember(id);
+    const a = m.current_address ?? undefined;
+    const address = [a?.house_number && `#${a.house_number}`, a?.neighborhood, a?.kebele && `Kebele ${a.kebele}`, a?.district, a?.subcity, a?.zone, a?.region].filter(Boolean).join(", ");
+    return {
+      id: m.id,
+      fullName: m.full_name || [m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" "),
+      email: m.email ?? "",
+      phone: m.phone_number ?? "",
+      gender: m.gender ?? "",
+      age: m.age || undefined,
+      membershipNumber: m.membership_number ?? "—",
+      category: m.member_category ?? "",
+      photo: m.photo || undefined,
+      status: m.status ?? "",
+      memberSince: m.created_at ?? "",
+      branch: m.branch?.name ?? "",
+      address,
+      emergencyContacts: (m.emergency_contacts ?? []).map((c) => ({ name: c.full_name, phone: c.phone_number ?? "", relationship: c.relationship ?? "" })),
+    };
   },
   async searchMembers(query: string): Promise<MemberSummary[]> {
     if (!query.trim()) return [];
@@ -507,6 +726,163 @@ export const ekubService = {
   async getDrawPreview(roundId: string): Promise<DrawPreview> {
     return previewToView(await equbApi.drawPreview(roundId));
   },
+  /** Re-check every undrawn round and advance the ones now ready to draw. */
+  async refreshReadiness(): Promise<void> {
+    await equbApi.refreshReadiness();
+  },
+
+  // ---- Recording a contribution for a member ----
+  async getMemberStanding(equbId: string, memberId: string): Promise<MemberStanding> {
+    const s = await equbApi.memberStanding(equbId, memberId);
+    return {
+      status: s.status,
+      good: !!s.good,
+      banned: !!s.banned,
+      bannedUntilRound: s.banned_until_round ?? 0,
+      warningIssued: !!s.warning_issued,
+      missedCount: s.missed_count ?? 0,
+      currentRound: s.current_round ?? 0,
+      eligibleNextDraw: !!s.eligible_next_draw,
+      unpaidRounds: s.unpaid_rounds ?? 0,
+      unpaidAmount: num(s.unpaid_amount),
+      catchUpRounds: s.catch_up_rounds ?? 0,
+      catchUpAmount: num(s.catch_up_amount),
+      whatToDo: s.what_to_do ?? [],
+    };
+  },
+  async recordPayment(equbId: string, memberId: string, input: RecordPaymentInput): Promise<RecordedPayment> {
+    const r = await equbApi.collectContribution(equbId, memberId, {
+      round_ids: input.roundIds,
+      method: (input.method || undefined) as never,
+      reference: input.reference?.trim() || undefined,
+    });
+    return { paymentId: r.payment_id, status: r.status, totalAmount: num(r.total_amount) };
+  },
+
+  /** Settle a recorded collection: marks its payment completed (needs approval rights). */
+  async confirmPayment(paymentId: string, notes?: string): Promise<void> {
+    await equbApi.updatePaymentStatus(paymentId, { status: "completed", notes: notes?.trim() || undefined });
+  },
+  /** Catch-up a member owes for missed rounds (staff view). */
+  async getCatchUp(equbId: string, memberId: string): Promise<CatchUp> {
+    const r = await equbApi.catchUpAmount(equbId, memberId);
+    return { roundsMissed: r.rounds_missed ?? 0, perRoundAmount: num(r.per_round_amount), totalCatchUp: num(r.total_catch_up), nextRoundNumber: r.next_round_number ?? 0 };
+  },
+  /** Contributions the signed-in staff member recorded in a period. */
+  async listMyCollections(f: CollectionsFilters = {}): Promise<CollectionsSummary> {
+    const r = await equbApi.myCollections({ from: f.from || undefined, to: f.to || undefined, group_id: f.equbId || undefined, scheme_id: f.categoryId || undefined, member_id: f.memberId || undefined });
+    return {
+      from: r.from,
+      to: r.to,
+      count: r.count ?? 0,
+      totalCollected: num(r.total_collected),
+      totalConfirmed: num(r.total_confirmed),
+      totalPending: num(r.total_pending),
+      items: (r.collections ?? []).map((c) => ({
+        paymentId: c.payment_id,
+        memberId: c.member_id,
+        memberName: c.member_name || "—",
+        equbId: c.group_id,
+        equbName: c.group_name || "—",
+        categoryId: c.scheme_id,
+        categoryName: c.scheme_name || "—",
+        amount: num(c.amount),
+        reference: c.reference_number ?? "",
+        status: c.status,
+        collectedAt: c.collected_at,
+      })),
+    };
+  },
+
+  // ---- SACCO-wide fee ledger ----
+  async getFeeLedger(f: FeeLedgerFilters, page: number, perPage: number): Promise<FeeLedger> {
+    const r = await equbApi.feeLedger({
+      scheme_id: f.categoryId || undefined,
+      group_id: f.equbId || undefined,
+      round_id: f.roundId || undefined,
+      member_id: f.memberId || undefined,
+      status: f.status && f.status !== "all" ? f.status : undefined,
+      page,
+      per_page: perPage,
+    });
+    const t = r.totals;
+    return {
+      items: (r.records ?? []).map((l) => ({
+        contributionId: l.contribution_id,
+        memberId: l.member_id,
+        memberName: l.member_name,
+        membershipNumber: l.membership_number,
+        equbId: l.group_id,
+        equbCode: l.group_code,
+        equbName: l.group_name,
+        categoryId: l.scheme_id,
+        categoryName: l.scheme_name,
+        roundId: l.round_id,
+        roundNumber: l.round_number,
+        scheduledAt: l.scheduled_at,
+        contribution: num(l.contribution_amount),
+        adminFee: num(l.admin_fee),
+        takafulFee: num(l.takaful_fee),
+        total: num(l.total_amount),
+        status: l.status,
+        collected: !!l.collected,
+        isCatchUp: !!l.is_catch_up,
+        paidAt: l.paid_at,
+      })),
+      page: r.page ?? page,
+      perPage: r.per_page ?? perPage,
+      total: r.total ?? 0,
+      totalPages: Math.max(1, Math.ceil((r.total ?? 0) / (r.per_page || perPage))),
+      totals: {
+        contributions: t?.contributions ?? 0,
+        members: t?.members ?? 0,
+        rounds: t?.rounds ?? 0,
+        contributionCharged: num(t?.contribution_charged),
+        contributionCollected: num(t?.contribution_collected),
+        adminFeeCharged: num(t?.admin_fee_charged),
+        adminFeeCollected: num(t?.admin_fee_collected),
+        takafulCharged: num(t?.takaful_fee_charged),
+        takafulCollected: num(t?.takaful_fee_collected),
+        totalCharged: num(t?.total_charged),
+        totalCollected: num(t?.total_collected),
+      },
+    };
+  },
+
+  // ---- Contribution attachments ----
+  async listRoundAttachments(roundId: string): Promise<ContributionAttachment[]> {
+    return ((await equbApi.listRoundAttachments(roundId)).records ?? []).map(attachmentToView);
+  },
+  async uploadAttachment(contributionId: string, file: File, description?: string): Promise<ContributionAttachment> {
+    return attachmentToView(await equbApi.uploadContributionAttachment(contributionId, file, description));
+  },
+  async deleteAttachment(contributionId: string, attachmentId: string): Promise<void> {
+    await equbApi.deleteContributionAttachment(contributionId, attachmentId);
+  },
+  async downloadAttachment(contributionId: string, attachmentId: string): Promise<Blob> {
+    return equbApi.downloadContributionAttachment(contributionId, attachmentId);
+  },
+
+  // ---- Admin fee ledgers ----
+  async getEqubAdminFees(equbId: string): Promise<EqubAdminFees> {
+    const r = await equbApi.groupAdminFees(equbId);
+    return {
+      feePerMemberPerRound: num(r.fee_per_member_per_round),
+      totals: totalsToView(r.totals),
+      split: splitToView(r.split),
+      rounds: (r.rounds ?? []).map((x) => ({ roundId: x.round_id, roundNumber: x.round_number, scheduledAt: x.scheduled_at, status: x.status, members: x.members, paidCount: x.paid_count, totals: totalsToView(x.totals) })),
+      members: (r.members ?? []).map((x) => ({ memberId: x.member_id, name: x.member_name, membershipNumber: x.membership_number, rounds: x.rounds, paidCount: x.paid_count, totals: totalsToView(x.totals) })),
+    };
+  },
+  async getRoundAdminFees(roundId: string): Promise<RoundAdminFees> {
+    const r = await equbApi.roundAdminFees(roundId);
+    return { roundId: r.round_id, roundNumber: r.round_number, status: r.status, totals: totalsToView(r.totals), split: splitToView(r.split), lines: (r.lines ?? []).map(feeLineToView) };
+  },
+  async getMemberAdminFees(equbId: string, memberId: string): Promise<MemberAdminFees> {
+    const r = await equbApi.memberAdminFees(equbId, memberId);
+    return { memberId: r.member_id, name: r.member_name, membershipNumber: r.membership_number, totals: totalsToView(r.totals), lines: (r.lines ?? []).map(feeLineToView) };
+  },
+
   async executeDraw(roundId: string): Promise<Round> {
     await equbApi.executeDraw(roundId);
     return roundToView(await equbApi.getRound(roundId));
@@ -546,6 +922,10 @@ export const ekubService = {
   async rejectGuarantee(guaranteeId: string, reviewNote: string): Promise<void> {
     await equbApi.rejectGuarantee(guaranteeId, reviewNote);
   },
+  /** For Equbs whose terms don't require a guarantee. */
+  async approveWinner(winnerId: string): Promise<void> {
+    await equbApi.approveWinner(winnerId);
+  },
   async processPayout(winnerId: string): Promise<void> {
     await equbApi.processPayout(winnerId);
   },
@@ -566,9 +946,12 @@ export const ekubService = {
   async listTakaful(equbId: string): Promise<TakafulTxn[]> {
     return (await equbApi.listTakaful(equbId)).map(takafulToView);
   },
+  async listTakafulPage(equbId: string, page: number, perPage: number): Promise<Page<TakafulTxn>> {
+    return toPage(await equbApi.listTakafulPage(equbId, page, perPage), takafulToView);
+  },
   async getTakafulBalance(equbId: string): Promise<number> {
     const r = await equbApi.takafulBalance(equbId);
-    return typeof r === "number" ? r : r?.balance ?? 0;
+    return typeof r === "number" ? r : num(r?.balance);
   },
   async distributeSurplus(equbId: string): Promise<TakafulSettlement> {
     return settlementToView(await equbApi.distributeSurplus(equbId));
@@ -667,6 +1050,14 @@ export const ekubService = {
     if (!USE_MOCK) return (await equbApi.listUsers()).map(userToStaff);
     await delay();
     return clone(db.staff);
+  },
+  async listStaffPage(search: string | undefined, page: number, perPage: number): Promise<Page<StaffMember>> {
+    if (USE_MOCK) {
+      await delay();
+      const all = clone(db.staff).filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase()));
+      return { items: all.slice((page - 1) * perPage, page * perPage), page, perPage, total: all.length, totalPages: Math.max(1, Math.ceil(all.length / perPage)) };
+    }
+    return toPage(await equbApi.listUsersPage({ search: search || undefined, page, per_page: perPage }), userToStaff);
   },
   async listRoles(): Promise<RoleDef[]> {
     if (!USE_MOCK) {

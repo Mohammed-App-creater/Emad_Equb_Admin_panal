@@ -44,12 +44,15 @@ export const EQUB_ENDPOINTS = {
     CANCEL: (id: string) => `/equb/admin/groups/${id}/cancel`,
     EXTEND: (id: string) => `/equb/admin/groups/${id}/extend`,
     MANAGER: (id: string) => `/equb/admin/groups/${id}/manager`, // PUT { manager_user_id } — admin-only
+    CLONE: (id: string) => `/equb/admin/groups/${id}/clone`, // POST: next cycle of a finished group
     MEMBERS: (id: string) => `/equb/admin/groups/${id}/members`,
     MEMBER: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}`,
     SUSPEND_MEMBER: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}/suspend`,
     UNSUSPEND_MEMBER: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}/unsuspend`,
     SWAP_POSITIONS: (id: string) => `/equb/admin/groups/${id}/members/swap-positions`,
     ROUNDS: (id: string) => `/equb/admin/groups/${id}/rounds`,
+    ADMIN_FEES: (id: string) => `/equb/admin/groups/${id}/admin-fees`,
+    MEMBER_ADMIN_FEES: (id: string, memberId: string) => `/equb/admin/groups/${id}/members/${memberId}/admin-fees`,
   },
 
   // ---- Draws / rounds (FR-4.x) ----
@@ -59,6 +62,10 @@ export const EQUB_ENDPOINTS = {
     EXECUTE_DRAW: (roundId: string) => `/equb/admin/rounds/${roundId}/draw`, // runs RNG, records winners
     WINNERS: (roundId: string) => `/equb/admin/rounds/${roundId}/winners`,
     DRAW_CANDIDATES: (drawId: string) => `/equb/admin/draws/${drawId}/candidates`,
+    ADMIN_FEES: (roundId: string) => `/equb/admin/rounds/${roundId}/admin-fees`,
+    ATTACHMENTS: (roundId: string) => `/equb/admin/rounds/${roundId}/attachments`,
+    // Advances every undrawn round whose members all paid and whose window closed.
+    REFRESH_READINESS: "/equb/admin/rounds/refresh-readiness",
   },
 
   // ---- Hardship early-turn (= emergency draws, FR-4.6a) ----
@@ -76,12 +83,34 @@ export const EQUB_ENDPOINTS = {
     REJECT: (guaranteeId: string) => `/equb/admin/guarantees/${guaranteeId}/reject`,
   },
   PAYOUT: (winnerId: string) => `/equb/admin/winners/${winnerId}/payout`,
+  // Winner approval for groups whose terms do not require a guarantee.
+  APPROVE_WINNER: (winnerId: string) => `/equb/admin/winners/${winnerId}/approve`,
+
+  // ---- SACCO-wide fee ledger (any scope: scheme / group / round / member / contribution) ----
+  FEES: "/equb/admin/fees",
+
+  // ---- Contribution attachments (bank slips, receipts) ----
+  CONTRIBUTION_ATTACHMENTS: {
+    LIST: (contributionId: string) => `/equb/admin/contributions/${contributionId}/attachments`,
+    UPLOAD: (contributionId: string) => `/equb/admin/contributions/${contributionId}/attachments`, // multipart: file, description
+    DELETE: (contributionId: string, attachmentId: string) => `/equb/admin/contributions/${contributionId}/attachments/${attachmentId}`,
+    DOWNLOAD: (contributionId: string, attachmentId: string) => `/equb/admin/contributions/${contributionId}/attachments/${attachmentId}/download`,
+  },
 
   // ---- Penalties / contributions (FR-3.4, FR-8.4) ----
   CONTRIBUTIONS: {
     MARK_OVERDUE: "/equb/admin/contributions/mark-overdue",
   },
   AUTO_CANCEL: "/equb/admin/auto-cancel",
+
+  // ---- Payments (shared Sacco payment system) ----
+  // A recorded collection raises a *pending* payment; the contribution settles
+  // once someone with approval rights marks it completed here (cash), or the
+  // gateway confirms it (mobile money / bank).
+  PAYMENTS: {
+    DETAIL: (id: string) => `/payments/${id}`,
+    STATUS: (id: string) => `/payments/${id}/status`, // PATCH { status, notes? }
+  },
 
   // ---- Takaful (FR-T*) — fully supported by the backend ----
   TAKAFUL: {
@@ -142,10 +171,14 @@ export const EQUB_ENDPOINTS = {
     SUBSCRIPTIONS: "/push/subscriptions",
   },
 
-  // ---- Manager (portfolio) role, if we add a manager surface later ----
+  // ---- Manager (portfolio) role: staff-side collections and catch-up ----
   MANAGER: {
     MY_GROUPS: "/equb/manager/my-groups",
     MY_SCHEMES: "/equb/manager/my-schemes",
+    MY_COLLECTIONS: "/equb/manager/my-collections", // ?from=&to=&group_id=&scheme_id=&member_id=
+    // Staff-side contribution recording (agent / manager / admin collecting for a member).
+    COLLECT: (groupId: string, memberId: string) => `/equb/manager/my-groups/${groupId}/members/${memberId}/collect`,
+    STANDING: (groupId: string, memberId: string) => `/equb/manager/my-groups/${groupId}/members/${memberId}/standing`,
     CATCH_UP: (groupId: string, memberId: string) =>
       `/equb/manager/my-groups/${groupId}/catch-up/${memberId}`,
   },

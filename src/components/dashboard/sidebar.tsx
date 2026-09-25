@@ -16,6 +16,7 @@ import {
   UserRoundCog,
   Settings,
   PiggyBank,
+  Coins,
   Landmark,
   PieChart,
   LogOut,
@@ -74,6 +75,7 @@ const navGroups: NavGroup[] = [
   {
     titleKey: "groupCompliance",
     items: [
+      { labelKey: "adminFees", href: "/dashboard/admin-fees", icon: Coins },
       { labelKey: "takaful", href: "/dashboard/takaful", icon: PiggyBank },
       { labelKey: "disputes", href: "/dashboard/disputes", icon: Scale },
     ],

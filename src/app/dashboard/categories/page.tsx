@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -40,9 +41,12 @@ const blank = (): EqubCategoryInput => ({
   membersPerEqub: 200,
   winnersPerRound: 7,
   totalRounds: 29,
+  guaranteeRequired: true,
+  acceptedGuaranteeTypes: ["member", "cheque", "collateral"],
 });
 
 const toInput = (c: EqubCategory): EqubCategoryInput => ({
+  code: c.code,
   name: c.name,
   description: c.description,
   frequency: c.frequency,
@@ -53,6 +57,8 @@ const toInput = (c: EqubCategory): EqubCategoryInput => ({
   membersPerEqub: c.membersPerEqub,
   winnersPerRound: c.winnersPerRound,
   totalRounds: c.totalRounds,
+  guaranteeRequired: c.guaranteeRequired,
+  acceptedGuaranteeTypes: c.acceptedGuaranteeTypes,
   status: c.status as EqubCategoryInput["status"],
 });
 
@@ -80,13 +86,15 @@ function CategoriesInner() {
 
   const onSave = () => {
     if (!editing) return;
-    const { id, form } = editing;
+    const { id } = editing;
+    // The backend requires payout = contribution × members per Equb.
+    const form = { ...editing.form, payout: editing.form.contribution * editing.form.membersPerEqub };
     const done = { onSuccess: () => { toast({ title: id ? tc("save") : tc("create"), description: form.name }); setEditing(null); }, onError: err };
     if (id) update.mutate({ id, input: form }, done);
     else create.mutate(form, done);
   };
 
-  const valid = !!editing && !!editing.form.name && (editing.id || !!editing.form.code) && editing.form.contribution > 0 && editing.form.payout > 0 && editing.form.membersPerEqub > 0 && editing.form.winnersPerRound > 0 && editing.form.totalRounds > 0;
+  const valid = !!editing && !!editing.form.name && editing.form.contribution > 0 && editing.form.membersPerEqub > 0 && editing.form.winnersPerRound > 0 && editing.form.totalRounds > 0;
   const pending = create.isPending || update.isPending;
 
   return (
@@ -161,6 +169,7 @@ function CategoriesInner() {
                     <Row label={t("membersPerEqub")} value={String(c.membersPerEqub)} />
                     <Row label={t("winnersPerRound")} value={String(c.winnersPerRound)} />
                     <Row label={t("totalRounds")} value={String(c.totalRounds)} />
+                    <Row label={t("guaranteeRequired")} value={c.guaranteeRequired ? (c.acceptedGuaranteeTypes.length ? c.acceptedGuaranteeTypes.map((g) => t(`guarantee_${g}`)).join(", ") : tc("yes")) : tc("no")} />
                     <Row label={t("estLength")} value={`${c.totalRounds} ${t("rounds")} · ${freqLabel(c.frequency).toLowerCase()}`} />
                   </dl>
 
@@ -178,13 +187,15 @@ function CategoriesInner() {
       <Modal open={!!editing} onOpenChange={(o) => !o && setEditing(null)} title={editing?.id ? t("edit") : t("create")} className="max-w-2xl">
         {editing && (
           <div className="grid max-h-[75vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
-            {!editing.id && (
-              <Field label={t("code")}>
-                <Input value={editing.form.code ?? ""} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, code: e.target.value.toUpperCase() } })} placeholder="MED-DAILY" />
-                <p className="text-xs text-muted-foreground">{t("codeHint")}</p>
-              </Field>
-            )}
-            <Field label={t("name")} className={editing.id ? "sm:col-span-2" : ""}>
+            <Field label={`${t("code")} (${tc("optional")})`}>
+              <Input
+                value={editing.form.code ?? ""}
+                onChange={(e) => setEditing({ ...editing, form: { ...editing.form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") } })}
+                placeholder="EQS00001"
+              />
+              <p className="text-xs text-muted-foreground">{editing.id ? t("codeKeepHint") : t("codeHint")}</p>
+            </Field>
+            <Field label={t("name")}>
               <Input value={editing.form.name} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, name: e.target.value } })} />
             </Field>
             <Field label={t("description")} className="sm:col-span-2">
@@ -218,7 +229,10 @@ function CategoriesInner() {
               <Input type="number" min={0} value={editing.form.takafulFee} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, takafulFee: num(e.target.value) } })} />
             </Field>
             <Field label={t("payout")}>
-              <Input type="number" min={0} value={editing.form.payout} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, payout: num(e.target.value) } })} />
+              <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm font-semibold text-primary">
+                {formatCurrency(editing.form.contribution * editing.form.membersPerEqub)}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("payoutHint")}</p>
             </Field>
             <Field label={t("membersPerEqub")}>
               <Input type="number" min={1} value={editing.form.membersPerEqub} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, membersPerEqub: num(e.target.value) } })} />
@@ -229,6 +243,25 @@ function CategoriesInner() {
             <Field label={t("totalRounds")}>
               <Input type="number" min={1} value={editing.form.totalRounds} onChange={(e) => setEditing({ ...editing, form: { ...editing.form, totalRounds: num(e.target.value) } })} />
             </Field>
+            <div className="space-y-2 rounded-xl border border-border p-3 sm:col-span-2">
+              <label className="flex items-center justify-between gap-3">
+                <span><span className="block text-sm font-medium text-foreground">{t("guaranteeRequired")}</span><span className="block text-xs text-muted-foreground">{t("guaranteeRequiredHint")}</span></span>
+                <Switch checked={editing.form.guaranteeRequired ?? true} onCheckedChange={(v) => setEditing({ ...editing, form: { ...editing.form, guaranteeRequired: v } })} />
+              </label>
+              {(editing.form.guaranteeRequired ?? true) && (
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {["member", "cheque", "collateral"].map((g) => {
+                    const on = (editing.form.acceptedGuaranteeTypes ?? []).includes(g);
+                    return (
+                      <label key={g} className="flex items-center gap-1.5 text-sm">
+                        <input type="checkbox" checked={on} onChange={() => setEditing({ ...editing, form: { ...editing.form, acceptedGuaranteeTypes: on ? (editing.form.acceptedGuaranteeTypes ?? []).filter((x) => x !== g) : [...(editing.form.acceptedGuaranteeTypes ?? []), g] } })} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                        {t(`guarantee_${g}`)}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div className="rounded-xl bg-muted/40 p-3 text-sm sm:col-span-2">
               {t("totalPerRound")}: <strong>{formatCurrency(editing.form.contribution + editing.form.adminFee + editing.form.takafulFee)}</strong>
             </div>

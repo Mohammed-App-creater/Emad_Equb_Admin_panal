@@ -18,6 +18,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
@@ -37,10 +41,15 @@ export type ColumnAlign = "left" | "right" | "center";
 //  - "hidden"   → omitted on mobile
 export type MobileSlot = "title" | "subtitle" | "badge" | "detail" | "hidden";
 
+export type SortValue = string | number | boolean | Date | null | undefined;
+export type SortDir = "asc" | "desc";
+
 export interface DataTableColumn<T> {
   id: string;
   header: React.ReactNode;
   cell: (row: T) => React.ReactNode;
+  /** Makes the column sortable: the value to order rows by (dates as ISO strings or Date). */
+  sortValue?: (row: T) => SortValue;
   align?: ColumnAlign;
   /** Extra classes for the desktop `<td>`. */
   className?: string;
@@ -87,6 +96,93 @@ export interface DataTableProps<T> {
   className?: string;
   /** Render without the card wrapper, for embedding inside an existing card. */
   bare?: boolean;
+  /**
+   * Initial ordering. `id` names a sortable column; `by` orders by a value
+   * that has no column of its own (e.g. created-at). Clicking a header
+   * replaces it.
+   */
+  defaultSort?: { id?: string; by?: (row: T) => SortValue; dir?: SortDir };
+  /**
+   * Paging. Omitted → local paging of the rows given (10 per page).
+   * `false` → no paging. A `ServerPagination` → the rows given are one page
+   * and the backend is asked for the others.
+   */
+  pagination?: false | { pageSize?: number } | ServerPagination;
+  /** Toolbar above the table: a text search and dropdown facets, applied to the rows given. */
+  filters?: DataTableFilters<T>;
+}
+
+export interface DataTableFacet<T> {
+  id: string;
+  label: string;
+  /** Value a row belongs to; rows returning empty are only shown under "All". */
+  get: (row: T) => string | null | undefined;
+  /** Fixed options; omitted → the distinct values found in the rows. */
+  options?: { value: string; label: string }[];
+  /** Label for a derived option. */
+  labelOf?: (value: string) => string;
+}
+export interface DataTableFilters<T> {
+  search?: { placeholder?: string; keys: (row: T) => (string | number | null | undefined)[] };
+  facets?: DataTableFacet<T>[];
+  /** Extra controls (e.g. server-side filters) rendered at the end of the toolbar. */
+  extra?: React.ReactNode;
+}
+
+export interface ServerPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+}
+const isServer = (p: DataTableProps<unknown>["pagination"]): p is ServerPagination => !!p && typeof p === "object" && "onPageChange" in p;
+export const PAGE_SIZES = [10, 25, 50, 100];
+
+/** Footer: range, page size, previous / next. Shared by local and server paging. */
+export function TablePager({ page, pageSize, total, onPageChange, onPageSizeChange }: ServerPagination) {
+  const t = useTranslations("common");
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+  return (
+    <div className="flex flex-col gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <span>{t("showingRange", { from, to, total })}</span>
+      <div className="flex items-center gap-3">
+        {onPageSizeChange && (
+          <label className="flex items-center gap-1.5">
+            {t("rowsPerPage")}
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="h-7 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+            >
+              {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+        )}
+        <span className="tabular-nums">{t("page")} {page} {t("of")} {pages}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} aria-label={t("previous")}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => onPageChange(page + 1)} aria-label={t("next")}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+function compareValues(a: SortValue, b: SortValue): number {
+  const empty = (v: SortValue) => v === null || v === undefined || v === "";
+  if (empty(a) && empty(b)) return 0;
+  if (empty(a)) return 1; // blanks last in either direction
+  if (empty(b)) return -1;
+  if (a instanceof Date || b instanceof Date) return new Date(a as Date).getTime() - new Date(b as Date).getTime();
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  const sa = String(a), sb = String(b);
+  if (ISO_DATE.test(sa) && ISO_DATE.test(sb)) return sa.localeCompare(sb); // ISO strings sort lexically
+  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
 }
 
 const alignClass: Record<ColumnAlign, string> = {
@@ -120,8 +216,101 @@ export function DataTable<T>({
   emptyMessage = "Try adjusting your search or filters",
   className,
   bare = false,
+  defaultSort,
+  pagination,
+  filters,
 }: DataTableProps<T>) {
   const hasActions = !!actions?.length || !!renderLeadingActions;
+
+  // ---- Filtering -------------------------------------------------------------
+  const t = useTranslations("common");
+  const [query, setQuery] = React.useState("");
+  const [facetValues, setFacetValues] = React.useState<Record<string, string>>({});
+  const filteredData = React.useMemo(() => {
+    if (!filters) return data;
+    const q = query.trim().toLowerCase();
+    return data.filter((row) => {
+      if (q && filters.search && !filters.search.keys(row).some((k) => k !== null && k !== undefined && String(k).toLowerCase().includes(q))) return false;
+      for (const f of filters.facets ?? []) {
+        const want = facetValues[f.id];
+        if (want && want !== "__all" && (f.get(row) ?? "") !== want) return false;
+      }
+      return true;
+    });
+  }, [data, filters, query, facetValues]);
+  const facetOptions = (f: DataTableFacet<T>) =>
+    f.options ?? Array.from(new Set(data.map((r) => f.get(r)).filter((v): v is string => !!v))).sort().map((v) => ({ value: v, label: f.labelOf?.(v) ?? v.replace(/_/g, " ") }));
+  const filtersActive = !!query || Object.values(facetValues).some((v) => v && v !== "__all");
+  const toolbar = filters ? (
+    <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:flex-wrap sm:items-center">
+      {filters.search && (
+        <div className="relative sm:w-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="h-9 pl-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={filters.search.placeholder ?? t("search")} />
+        </div>
+      )}
+      {(filters.facets ?? []).map((f) => (
+        <Select key={f.id} value={facetValues[f.id] ?? "__all"} onValueChange={(v) => setFacetValues((s) => ({ ...s, [f.id]: v }))}>
+          <SelectTrigger className="h-9 sm:w-[170px]" aria-label={f.label}>
+            <span className="truncate"><span className="text-muted-foreground">{f.label}: </span><SelectValue /></span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all">{t("all")}</SelectItem>
+            {facetOptions(f).map((o) => <SelectItem key={o.value} value={o.value} className="capitalize">{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      ))}
+      {filters.extra}
+      {filtersActive && (
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setQuery(""); setFacetValues({}); }}>
+          <X className="mr-1 h-3.5 w-3.5" /> {t("clear")}
+        </Button>
+      )}
+    </div>
+  ) : null;
+
+  // ---- Sorting ---------------------------------------------------------------
+  const [sort, setSort] = React.useState<{ id: string | null; dir: SortDir }>({
+    id: defaultSort?.id ?? null,
+    dir: defaultSort?.dir ?? "desc",
+  });
+  const [customDefault, setCustomDefault] = React.useState(!!defaultSort?.by && !defaultSort?.id);
+  const sortedData = React.useMemo(() => {
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    const col = sort.id ? columns.find((c) => c.id === sort.id && c.sortValue) : undefined;
+    const by = col?.sortValue ?? (customDefault ? defaultSort?.by : undefined);
+    if (!by) return filteredData;
+    // Stable sort: ties keep the server's order.
+    return filteredData
+      .map((row, i) => ({ row, i, v: by(row) }))
+      .sort((a, b) => compareValues(a.v, b.v) * dirMul || a.i - b.i)
+      .map((x) => x.row);
+  }, [filteredData, columns, sort, customDefault, defaultSort]);
+  // ---- Paging ----------------------------------------------------------------
+  const server = isServer(pagination) ? pagination : null;
+  const localSize = pagination === false ? 0 : !server ? (pagination as { pageSize?: number } | undefined)?.pageSize ?? 10 : 0;
+  const [localPage, setLocalPage] = React.useState(1);
+  const [localPageSize, setLocalPageSize] = React.useState(localSize || 10);
+  const localPages = Math.max(1, Math.ceil(sortedData.length / localPageSize));
+  // Data may shrink (filter, delete) below the remembered page: clamp at render.
+  const curPage = Math.min(localPage, localPages);
+  const pageRows = server || pagination === false ? sortedData : sortedData.slice((curPage - 1) * localPageSize, curPage * localPageSize);
+  const pager: ServerPagination | null = server
+    ? server
+    : pagination === false || sortedData.length <= PAGE_SIZES[0]
+    ? null
+    : { page: curPage, pageSize: localPageSize, total: sortedData.length, onPageChange: setLocalPage, onPageSizeChange: (n) => { setLocalPageSize(n); setLocalPage(1); } };
+
+  const toggleSort = (col: DataTableColumn<T>) => {
+    if (!col.sortValue) return;
+    setCustomDefault(false);
+    setSort((s) => ({ id: col.id, dir: s.id === col.id ? (s.dir === "asc" ? "desc" : "asc") : "asc" }));
+  };
+  const sortIcon = (col: DataTableColumn<T>) => {
+    if (!col.sortValue) return null;
+    if (sort.id !== col.id) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+    return sort.dir === "asc" ? <ArrowUp className="ml-1 inline h-3 w-3 text-primary" /> : <ArrowDown className="ml-1 inline h-3 w-3 text-primary" />;
+  };
   const titleCol = columns.find((c) => c.mobile === "title") ?? columns[0];
   const subtitleCol = columns.find((c) => c.mobile === "subtitle");
   const badgeCol = columns.find((c) => c.mobile === "badge");
@@ -191,26 +380,29 @@ export function DataTable<T>({
   };
 
   const wrapperClass = bare
-    ? cn(className)
+    ? cn("min-w-0 max-w-full", className)
     : cn(
-        "bg-card rounded-lg border border-border overflow-hidden",
+        "min-w-0 max-w-full bg-card rounded-lg border border-border overflow-hidden",
         className
       );
 
   // ---- Empty state -----------------------------------------------------------
-  if (!isLoading && data.length === 0) {
+  if (!isLoading && filteredData.length === 0) {
     return (
       <div className={wrapperClass}>
+        {toolbar}
         <div className="flex flex-col items-center justify-center py-12 px-4 sm:py-16 sm:px-6">
           <p className="text-lg font-medium text-foreground">{emptyTitle}</p>
           <p className="text-sm text-muted-foreground mt-1">{emptyMessage}</p>
         </div>
+        {server && server.page > 1 && <TablePager {...server} />}
       </div>
     );
   }
 
   return (
     <div className={wrapperClass}>
+      {toolbar}
       {/* Desktop table */}
       <div className="hidden md:block">
         <div className="w-full overflow-x-auto">
@@ -220,13 +412,17 @@ export function DataTable<T>({
                 {columns.map((col) => (
                   <TableHead
                     key={col.id}
+                    onClick={col.sortValue ? () => toggleSort(col) : undefined}
+                    aria-sort={col.sortValue && sort.id === col.id ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
                     className={cn(
-                      "text-xs font-semibold text-muted-foreground uppercase",
+                      "text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap",
+                      col.sortValue && "cursor-pointer select-none hover:text-foreground",
                       col.align && alignClass[col.align],
                       col.headerClassName
                     )}
                   >
                     {col.header}
+                    {sortIcon(col)}
                   </TableHead>
                 ))}
                 {hasActions && (
@@ -252,7 +448,7 @@ export function DataTable<T>({
                       )}
                     </TableRow>
                   ))
-                : data.map((row) => (
+                : pageRows.map((row) => (
                     <TableRow
                       key={rowKey(row)}
                       onClick={
@@ -307,7 +503,7 @@ export function DataTable<T>({
                 <Skeleton className="h-16 w-full" />
               </div>
             ))
-          : data.map((row) => (
+          : pageRows.map((row) => (
               <div
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -356,6 +552,8 @@ export function DataTable<T>({
               </div>
             ))}
       </div>
+
+      {pager && <TablePager {...pager} />}
     </div>
   );
 }
