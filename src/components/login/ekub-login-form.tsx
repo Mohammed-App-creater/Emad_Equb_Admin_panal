@@ -44,7 +44,7 @@ function toStoreUser(u: UserResponse): User {
       permissions: null,
     })),
     phone_number: u.phone,
-    gender: u.gender,
+    gender: u.gender ?? "",
     status: u.status,
     totp_enabled: u.totp_enabled,
     permissions: u.permissions,

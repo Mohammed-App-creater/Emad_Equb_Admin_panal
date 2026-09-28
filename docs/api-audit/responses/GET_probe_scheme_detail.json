@@ -1,0 +1,36 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/schemes/e580bea2-c526-403b-a174-e51ac053006b",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Scheme retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "id": "e580bea2-c526-403b-a174-e51ac053006b",
+      "name": "ZZ API PROBE category (safe to delete)",
+      "code": "EQS00001",
+      "contribution_amount": "100",
+      "admin_fee": "10",
+      "takaful_fee": "5",
+      "payout_amount": "200",
+      "members_per_group": 2,
+      "winners_per_round": 1,
+      "frequency": "weekly",
+      "total_rounds": 2,
+      "description": "updated",
+      "guarantee_required": true,
+      "accepted_guarantee_types": [
+        "member",
+        "cheque",
+        "collateral"
+      ],
+      "status": "active",
+      "created_by": "b430875f-1ad2-4d18-9010-99d639809bba",
+      "created_at": "2026-09-28T16:27:39.90556Z",
+      "updated_at": "2026-09-28T16:27:40.668253Z"
+    }
+  }
+}

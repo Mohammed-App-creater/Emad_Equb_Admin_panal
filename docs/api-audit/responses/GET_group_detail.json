@@ -1,0 +1,86 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Group retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+      "equb_scheme_id": "f6976434-b382-43e3-849d-e6d9399c280d",
+      "equb_scheme": {
+        "id": "f6976434-b382-43e3-849d-e6d9399c280d",
+        "name": "Standard Monthly Equb",
+        "code": "EQB-STD-MTH",
+        "contribution_amount": "1000",
+        "admin_fee": "50",
+        "takaful_fee": "20",
+        "payout_amount": "10000",
+        "members_per_group": 20,
+        "winners_per_round": 1,
+        "frequency": "monthly",
+        "total_rounds": 20,
+        "description": "",
+        "guarantee_required": true,
+        "accepted_guarantee_types": [
+          "member",
+          "cheque",
+          "collateral"
+        ],
+        "status": "active",
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z"
+      },
+      "name": "Unity Addis Ababa Equb Group 2026-Qgla",
+      "code": "EQB-GRP-a575a216-DBrHfN",
+      "max_members": 20,
+      "current_members": 20,
+      "start_date": "2026-10-18T00:00:00Z",
+      "expected_end_date": "2027-08-18T00:00:00Z",
+      "status": "active",
+      "sacco_admin_fee_share": "50",
+      "agent_admin_fee_share": "30",
+      "broker_admin_fee_share": "20",
+      "broker_user_id": "d3195c02-b4ad-450e-b9c3-54cf8d7bce21",
+      "contribution_amount_override": "2500",
+      "admin_fee_override": null,
+      "takaful_fee_override": null,
+      "payout_amount_override": null,
+      "winners_per_round_override": null,
+      "frequency_override": "monthly",
+      "total_rounds_override": 10,
+      "guarantee_required_override": null,
+      "accepted_guarantee_types_override": null,
+      "effective_terms": {
+        "contribution_amount": "2500",
+        "admin_fee": "50",
+        "takaful_fee": "20",
+        "total_per_round": "2570",
+        "payout_amount": "10000",
+        "members_per_group": 20,
+        "winners_per_round": 1,
+        "frequency": "monthly",
+        "total_rounds": 10,
+        "guarantee_required": true,
+        "accepted_guarantee_types": [
+          "member",
+          "cheque",
+          "collateral"
+        ]
+      },
+      "cycle_number": 1,
+      "created_by": "a575a216-df34-4069-a580-65c51c5e2644",
+      "manager": {
+        "user_id": "a575a216-df34-4069-a580-65c51c5e2644",
+        "full_name": "Bethlehem Girma",
+        "email": "bethlehem.girma@emad.com",
+        "phone_number": "0911000010"
+      },
+      "created_at": "2026-09-28T16:23:37.197569Z",
+      "updated_at": "2026-09-28T16:23:40.343988Z"
+    }
+  }
+}

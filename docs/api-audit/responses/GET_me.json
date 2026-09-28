@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "path": "/me",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "_raw": "404 page not found"
+  }
+}

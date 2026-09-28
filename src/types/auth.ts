@@ -60,6 +60,7 @@ export interface LoginResponseData {
     requires_totp?: boolean;
 }
 
+/** GET /auth/profile. The live API omits `permissions` here (only login returns them). */
 export interface authProfileResponseData extends User {
-    permissions: string[];
+    permissions?: string[];
 }

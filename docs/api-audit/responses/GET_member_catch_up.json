@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/manager/my-groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/catch-up/333b2613-f1dd-47aa-8168-71e88a907a62",
+  "params": null,
+  "body": null,
+  "status": 403,
+  "response": {
+    "success": false,
+    "message": "You are not the manager of this group",
+    "code": "FORBIDDEN",
+    "error": "FORBIDDEN"
+  }
+}

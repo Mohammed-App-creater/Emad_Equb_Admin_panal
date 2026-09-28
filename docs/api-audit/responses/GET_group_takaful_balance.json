@@ -1,0 +1,15 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/takaful/balance",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Takaful balance retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "balance": "0"
+    }
+  }
+}

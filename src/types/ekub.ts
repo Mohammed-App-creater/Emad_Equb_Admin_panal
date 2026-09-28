@@ -267,7 +267,7 @@ export interface EqubDashboard {
   eligibleForDraw: number;
   paidThisRound: number;
   unpaidThisRound: number;
-  nextDueDate: string;
+  nextDueDate?: string;
   totalCollected: number;
   totalPayouts: number;
   totalAdminFees: number;
@@ -413,6 +413,8 @@ export interface FeeLedgerLine {
   collected: boolean;
   isCatchUp: boolean;
   paidAt: string;
+  /** Set once a collection was recorded; empty while nothing was collected. */
+  paymentId: string;
 }
 export interface FeeLedgerTotals {
   contributions: number;
@@ -692,6 +694,17 @@ export interface Dispute {
 }
 
 // ---- Staff / Roles ---------------------------------------------------------
+/** A field agent (GET /agents). Agents are the users who manage Equbs. */
+export interface Agent {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  active: boolean;
+  roles: string[];
+  createdAt: string;
+}
+
 export interface StaffMember {
   id: string;
   name: string;
@@ -699,10 +712,4 @@ export interface StaffMember {
   branch: string;
   email: string;
   phone: string;
-}
-
-export interface RoleDef {
-  id: string;
-  name: string;
-  permissions: string[];
 }

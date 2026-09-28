@@ -52,7 +52,7 @@ export function MembersTab({ equb }: { equb: Equb }) {
   const [status, setStatus] = useState("all");
   // A roster is at most a few hundred rows: load it whole, filter and page locally.
   const { data, isLoading } = useEqubMembers(equb.id, status);
-  const { data: roster } = useEqubMembers(equb.id);
+  const { data: roster, isLoading: rosterLoading } = useEqubMembers(equb.id);
   const add = useAddMember();
   const remove = useRemoveMember();
   const setSuspended = useSetSuspended();
@@ -175,8 +175,8 @@ export function MembersTab({ equb }: { equb: Equb }) {
       <Modal open={swapping} onOpenChange={setSwapping} title={t("swap")} className="max-w-md">
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">{t("swapHint")}</p>
-          <MemberPick label={t("first")} value={swapA} onChange={setSwapA} members={roster ?? []} exclude={swapB} />
-          <MemberPick label={t("second")} value={swapB} onChange={setSwapB} members={roster ?? []} exclude={swapA} />
+          <MemberPick label={t("first")} value={swapA} onChange={setSwapA} members={roster ?? []} loading={rosterLoading} exclude={swapB} />
+          <MemberPick label={t("second")} value={swapB} onChange={setSwapB} members={roster ?? []} loading={rosterLoading} exclude={swapA} />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSwapping(false)}>{tc("cancel")}</Button>
             <Button
@@ -231,14 +231,15 @@ export function MembersTab({ equb }: { equb: Equb }) {
   );
 }
 
-function MemberPick({ label, value, onChange, members, exclude }: { label: string; value: string; onChange: (v: string) => void; members: EqubMember[]; exclude?: string }) {
+function MemberPick({ label, value, onChange, members, loading, exclude }: { label: string; value: string; onChange: (v: string) => void; members: EqubMember[]; loading?: boolean; exclude?: string }) {
+  const options = members.filter((m) => m.memberId !== exclude);
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger><SelectValue placeholder={label} /></SelectTrigger>
-        <SelectContent>
-          {members.filter((m) => m.memberId !== exclude).map((m) => (
+        <SelectContent loading={loading} empty={!options.length}>
+          {options.map((m) => (
             <SelectItem key={m.memberId} value={m.memberId}>#{m.position} · {m.name}</SelectItem>
           ))}
         </SelectContent>

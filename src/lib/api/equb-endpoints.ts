@@ -1,11 +1,12 @@
 /**
- * Real Equb backend endpoints, filtered from the Sacco/Equb OpenAPI spec
- * (swagger.json). All paths are relative to NEXT_PUBLIC_API_BASE_URL, which
+ * Real Equb backend endpoints. Paths come from the Sacco/Equb OpenAPI spec
+ * (swagger.json) but response shapes do not: see docs/api-audit/. All paths
+ * are relative to NEXT_PUBLIC_API_BASE_URL, which
  * already includes the `/api/v1` basePath (host: api.emadssl.com).
  *
  * Domain model and the names the admin UI uses for it:
- *   Scheme  = reusable template/catalogue entry → UI "Equb Category",
- *             lifecycle draft → active → completed → cancelled.
+ *   Scheme  = reusable template/catalogue entry → UI "Equb Category".
+ *             Created active (the backend never assigns draft on create).
  *   Group   = a running instance created from a Scheme → UI "Equb"
  *             (~200 members). Owns members, rounds, takaful, dashboard.
  *   Round   = one draw period within a Group → UI "Round"; has winners.
@@ -144,11 +145,11 @@ export const EQUB_ENDPOINTS = {
   // ---- Staff & roles (FR-8.7, NFR-4) ----
   // Agents are staff users (id = user id), used for manager / broker pickers.
   AGENTS: {
-    LIST: "/agents", // ?search=&status=true&page=&per_page=
+    LIST: "/agents", // ?search=&status=true&page=&per_page=&sort=created_at&order=desc
+    DETAIL: (id: string) => `/agents/${id}`,
   },
   USERS: {
     LIST: "/users",
-    ROLES: "/users/roles",
     PERMISSIONS: "/users/permissions",
     BRANCHES: "/users/branches",
   },

@@ -135,7 +135,7 @@ export function RoundAttachments({ roundId, members, canUpload }: {
             <Label>{tc("member")}</Label>
             <Select value={contributionId} onValueChange={setContributionId}>
               <SelectTrigger><SelectValue placeholder={tc("member")} /></SelectTrigger>
-              <SelectContent>{members.map((m) => <SelectItem key={m.contributionId} value={m.contributionId}>{m.name}</SelectItem>)}</SelectContent>
+              <SelectContent empty={!members.length}>{members.map((m) => <SelectItem key={m.contributionId} value={m.contributionId}>{m.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">

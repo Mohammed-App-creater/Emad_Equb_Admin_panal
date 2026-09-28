@@ -230,7 +230,7 @@ function MemberLedgerModal({ equbId, memberId, onClose }: { equbId: string; memb
   const t = useTranslations("adminFees");
   const { data, isLoading } = useMemberAdminFees(equbId, memberId);
   return (
-    <Modal open={!!memberId} onOpenChange={(o) => !o && onClose()} title={data ? `${data.name} · ${data.membershipNumber}` : t("memberLedger")} className="max-w-3xl">
+    <Modal open={!!memberId} onOpenChange={(o) => !o && onClose()} title={data?.name ? [data.name, data.membershipNumber].filter(Boolean).join(" · ") : t("memberLedger")} className="max-w-3xl">
       {isLoading || !data ? (
         <Skeleton className="h-48 rounded-xl" />
       ) : (

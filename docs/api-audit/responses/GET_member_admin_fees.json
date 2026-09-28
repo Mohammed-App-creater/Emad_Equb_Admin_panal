@@ -1,0 +1,23 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/members/333b2613-f1dd-47aa-8168-71e88a907a62/admin-fees",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Member admin fee ledger retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+      "group_name": "Unity Addis Ababa Equb Group 2026-Qgla",
+      "member_id": "333b2613-f1dd-47aa-8168-71e88a907a62",
+      "totals": {
+        "charged": "0",
+        "collected": "0",
+        "outstanding": "0"
+      },
+      "lines": []
+    }
+  }
+}

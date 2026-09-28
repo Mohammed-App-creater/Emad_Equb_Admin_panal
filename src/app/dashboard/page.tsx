@@ -175,7 +175,7 @@ export default function DashboardPage() {
 
   const chartHeight = (n: number) => Math.max(160, n * 56 + 40);
   const ellipsis = (v: string) => (v.length > 20 ? `${v.slice(0, 19)}…` : v);
-  const axisProps = { stroke: c.axis, fontSize: 11, tickLine: false, axisLine: false } as const;
+  const axisProps = { stroke: c.axis, fontSize: 13, tickLine: false, axisLine: false } as const;
 
   if (isLoading) {
     return (
@@ -321,7 +321,7 @@ export default function DashboardPage() {
             <BarChart data={money} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }} barGap={2} barCategoryGap="28%">
               <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis type="number" tickFormatter={compact} {...axisProps} />
-              <YAxis type="category" dataKey="name" width={140} {...axisProps} fontSize={12} tickFormatter={ellipsis} />
+              <YAxis type="category" dataKey="name" width={140} {...axisProps} fontSize={13} tickFormatter={ellipsis} />
               <Tooltip cursor={{ fill: c.grid, opacity: 0.5 }} content={<ChartTooltip money />} />
               <Bar dataKey="collected" name={t("collectedSeries")} fill={c.s1} radius={[0, 4, 4, 0]} maxBarSize={14} />
               <Bar dataKey="paidOut" name={t("paidSeries")} fill={c.s2} radius={[0, 4, 4, 0]} maxBarSize={14} />
@@ -329,7 +329,9 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </ChartCard>
 
+        {/* Spans two columns so the row has no empty slot next to it. */}
         <ChartCard
+          className="xl:col-span-2"
           title={t("thisRound")}
           sample={roundSample ? t("sampleNoData") : undefined}
           legend={[{ label: t("paid"), color: c.s1 }, { label: t("unpaid"), color: c.muted }]}
@@ -339,7 +341,7 @@ export default function DashboardPage() {
             <BarChart data={round} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }} barCategoryGap="36%">
               <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis type="number" allowDecimals={false} {...axisProps} />
-              <YAxis type="category" dataKey="name" width={140} {...axisProps} fontSize={12} tickFormatter={ellipsis} />
+              <YAxis type="category" dataKey="name" width={140} {...axisProps} fontSize={13} tickFormatter={ellipsis} />
               <Tooltip cursor={{ fill: c.grid, opacity: 0.5 }} content={<ChartTooltip />} />
               <Bar dataKey="paid" name={t("paid")} stackId="r" fill={c.s1} stroke={c.surface} strokeWidth={2} maxBarSize={18} />
               <Bar dataKey="unpaid" name={t("unpaid")} stackId="r" fill={c.muted} stroke={c.surface} strokeWidth={2} radius={[0, 4, 4, 0]} maxBarSize={18} />
@@ -360,7 +362,7 @@ export default function DashboardPage() {
             <BarChart data={movesData} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }} barCategoryGap="30%">
               <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis type="number" tickFormatter={compact} {...axisProps} />
-              <YAxis type="category" dataKey="name" width={120} {...axisProps} fontSize={12} />
+              <YAxis type="category" dataKey="name" width={120} {...axisProps} fontSize={13} />
               <Tooltip cursor={{ fill: c.grid, opacity: 0.5 }} content={<ChartTooltip money />} />
               <Bar dataKey="value" name={t("amount")} fill={c.s3} radius={[0, 4, 4, 0]} maxBarSize={16} />
             </BarChart>
@@ -377,7 +379,7 @@ export default function DashboardPage() {
             <BarChart data={pipeline} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }} barCategoryGap="30%">
               <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis type="number" allowDecimals={false} {...axisProps} />
-              <YAxis type="category" dataKey="name" width={120} {...axisProps} fontSize={12} />
+              <YAxis type="category" dataKey="name" width={120} {...axisProps} fontSize={13} />
               <Tooltip cursor={{ fill: c.grid, opacity: 0.5 }} content={<ChartTooltip />} />
               <Bar dataKey="value" name={t("count")} fill={c.s2} radius={[0, 4, 4, 0]} maxBarSize={16} />
             </BarChart>
@@ -395,7 +397,7 @@ export default function DashboardPage() {
             <BarChart data={monthly} margin={{ left: 0, right: 8, top: 8, bottom: 0 }} barCategoryGap="30%">
               <CartesianGrid vertical={false} stroke={c.grid} />
               <XAxis dataKey="month" {...axisProps} />
-              <YAxis tickFormatter={compact} width={44} {...axisProps} />
+              <YAxis tickFormatter={compact} width={52} {...axisProps} />
               <Tooltip cursor={{ fill: c.grid, opacity: 0.5 }} content={<ChartTooltip money />} />
               <Bar dataKey="contrib" name={t("monthContrib")} stackId="m" fill={c.s1} stroke={c.surface} strokeWidth={2} maxBarSize={28} />
               <Bar dataKey="fees" name={t("monthFees")} stackId="m" fill={c.s2} stroke={c.surface} strokeWidth={2} maxBarSize={28} />

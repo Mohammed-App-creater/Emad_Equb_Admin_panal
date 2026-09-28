@@ -273,8 +273,8 @@ const realEqubApi = {
   async listTakafulPage(groupId: string, page: number, perPage: number): Promise<PagedResult<EqubTakafulTransactionResponse>> {
     return paged<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page, per_page: perPage } }), page, perPage);
   },
-  async takafulBalance(groupId: string): Promise<{ balance: number }> {
-    return unwrap<{ balance: number }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
+  async takafulBalance(groupId: string): Promise<{ balance: string }> {
+    return unwrap<{ balance: string }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
   },
   async distributeSurplus(groupId: string): Promise<EqubTakafulSettlementResponse> {
     return unwrap<EqubTakafulSettlementResponse>(api.post(EQUB_ENDPOINTS.TAKAFUL.DISTRIBUTE_SURPLUS(groupId), {}));
@@ -312,11 +312,15 @@ const realEqubApi = {
   async listAgents(params: { search?: string; status?: string; page?: number; per_page?: number }): Promise<AgentSummaryResponse[]> {
     return list<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params }));
   },
+  async listAgentsPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<AgentSummaryResponse>> {
+    return paged<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params: { ...params, sort: "created_at", order: "desc" } }), params.page, params.per_page);
+  },
+  /** GET /agents/{id} — the only agent endpoint that includes roles. */
+  async getAgent(id: string): Promise<AgentSummaryResponse> {
+    return unwrap<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.DETAIL(id)));
+  },
   async listUsersPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<UserResponse>> {
     return paged<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }), params.page, params.per_page);
-  },
-  async listRoles(): Promise<Array<{ id: string; name: string; permissions?: Array<{ name?: string; slug?: string }> }>> {
-    return list(api.get(EQUB_ENDPOINTS.USERS.ROLES));
   },
 
   // ---- Recording a contribution for a member ----

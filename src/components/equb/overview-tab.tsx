@@ -120,9 +120,10 @@ export function EqubOverview({ equb, dashboard, dashboardLoading }: Props) {
                 <Bar value={dashboard.progressPercent} />
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
                   <span>{Math.round(dashboard.progressPercent)}%</span>
-                  <span className="flex items-center gap-1.5">
+                  {/* The live dashboard does not send next_due_date yet. */}
+                  {dashboard.nextDueDate && <span className="flex items-center gap-1.5">
                     <CalendarClock size={14} /> {t("nextDueDate")}: <strong className="text-foreground">{formatDate(dashboard.nextDueDate)}</strong>
-                  </span>
+                  </span>}
                 </div>
               </CardContent>
             </Card>

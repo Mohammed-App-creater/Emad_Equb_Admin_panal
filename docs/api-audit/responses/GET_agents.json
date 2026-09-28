@@ -1,0 +1,104 @@
+{
+  "method": "GET",
+  "path": "/agents",
+  "params": {
+    "page": 1,
+    "per_page": 5,
+    "status": "true"
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Agents retrieved successfully",
+    "code": "SUCCESS",
+    "data": [
+      {
+        "id": "a575a216-df34-4069-a580-65c51c5e2644",
+        "first_name": "Bethlehem",
+        "last_name": "Girma",
+        "full_name": "Bethlehem Girma",
+        "email": "bethlehem.girma@emad.com",
+        "phone": "0911000010",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "is_agent": true,
+        "created_at": "2026-09-28T16:23:37.101246Z",
+        "updated_at": "2026-09-28T16:23:37.101246Z"
+      },
+      {
+        "id": "35b9aa91-3191-4507-9b57-c67434576a7c",
+        "first_name": "Michael",
+        "last_name": "Hailu",
+        "full_name": "Michael Hailu",
+        "email": "michael.hailu@emad.com",
+        "phone": "0911000009",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "is_agent": true,
+        "created_at": "2026-09-28T16:23:37.013017Z",
+        "updated_at": "2026-09-28T16:23:37.013017Z"
+      },
+      {
+        "id": "7db9259d-81e3-46aa-8fbf-3a0dcf68f5ab",
+        "first_name": "Selam",
+        "last_name": "Wolde",
+        "full_name": "Selam Wolde",
+        "email": "selam.wolde@emad.com",
+        "phone": "0911000008",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "is_agent": true,
+        "created_at": "2026-09-28T16:23:36.936231Z",
+        "updated_at": "2026-09-28T16:23:36.936231Z"
+      },
+      {
+        "id": "cb4eb651-dce8-4e31-8ae0-857597e90ddf",
+        "first_name": "Yonas",
+        "last_name": "Tesfaye",
+        "full_name": "Yonas Tesfaye",
+        "email": "yonas.tesfaye@emad.com",
+        "phone": "0911000007",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "is_agent": true,
+        "created_at": "2026-09-28T16:23:36.852694Z",
+        "updated_at": "2026-09-28T16:23:36.852694Z"
+      },
+      {
+        "id": "24b6fc11-d618-42eb-9951-e2aba1ad19d1",
+        "first_name": "Rahel",
+        "last_name": "Assefa",
+        "full_name": "Rahel Assefa",
+        "email": "rahel.assefa@emad.com",
+        "phone": "0911000006",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "is_agent": true,
+        "created_at": "2026-09-28T16:23:36.765289Z",
+        "updated_at": "2026-09-28T16:23:36.765289Z"
+      }
+    ],
+    "meta": {
+      "total": 11,
+      "page": 1,
+      "per_page": 5,
+      "total_pages": 3
+    }
+  }
+}

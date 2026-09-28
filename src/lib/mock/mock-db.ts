@@ -3,7 +3,6 @@ import type {
   Dispute,
   Payment,
   ReconciliationRow,
-  RoleDef,
   StaffMember,
 } from "@/types/ekub";
 
@@ -135,11 +134,4 @@ export const staff: StaffMember[] = [
   { id: "s2", name: "Yusuf Kedir", role: "agent", branch: "Merkato", email: "agent@emadekub.com", phone: "+251900000002" },
   { id: "s3", name: "Mimi Tesfaye", role: "agent", branch: "Bole", email: "mimi@emadekub.com", phone: "+251900000003" },
   { id: "s4", name: "Sheikh Idris", role: "board_chair", branch: "HQ", email: "board@emadekub.com", phone: "+251900000004" },
-];
-
-export const roles: RoleDef[] = [
-  { id: "r1", name: "Administrator", permissions: ["application:approve", "tier:manage", "payment:reconcile", "draw:execute", "payout:approve", "penalty:manage", "dispute:resolve", "staff:manage", "role:read"] },
-  { id: "r2", name: "Agent", permissions: ["payment:read", "application:read"] },
-  { id: "r3", name: "Manager", permissions: ["application:read", "payment:read", "draw:read", "payout:read", "penalty:read", "dispute:read"] },
-  { id: "r4", name: "Board Chair", permissions: ["dispute:resolve", "payout:read", "draw:read"] },
 ];

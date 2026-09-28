@@ -1,0 +1,21 @@
+{
+  "method": "GET",
+  "path": "/equb/manager/my-collections",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Collections retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "from": "2026-09-28T00:00:00Z",
+      "to": "2026-09-29T00:00:00Z",
+      "count": 0,
+      "total_collected": "0",
+      "total_confirmed": "0",
+      "total_pending": "0",
+      "collections": []
+    }
+  }
+}

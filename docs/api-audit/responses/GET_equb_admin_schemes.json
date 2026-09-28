@@ -1,0 +1,47 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/schemes",
+  "params": {
+    "page": 1,
+    "per_page": 5
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Schemes retrieved successfully",
+    "code": "SUCCESS",
+    "data": [
+      {
+        "id": "f6976434-b382-43e3-849d-e6d9399c280d",
+        "name": "Standard Monthly Equb",
+        "code": "EQB-STD-MTH",
+        "contribution_amount": "1000",
+        "admin_fee": "50",
+        "takaful_fee": "20",
+        "payout_amount": "10000",
+        "members_per_group": 20,
+        "winners_per_round": 1,
+        "frequency": "monthly",
+        "total_rounds": 20,
+        "description": "Standard monthly Equb scheme with 20 members, 1 winner per round, 20 rounds total",
+        "guarantee_required": true,
+        "accepted_guarantee_types": [
+          "member",
+          "cheque",
+          "collateral"
+        ],
+        "status": "active",
+        "created_by": "9de77c23-3509-47dc-ae52-e6fd07c69e03",
+        "created_at": "2026-09-28T16:23:37.120329Z",
+        "updated_at": "2026-09-28T16:23:37.120329Z"
+      }
+    ],
+    "meta": {
+      "total": 1,
+      "page": 1,
+      "per_page": 5,
+      "total_pages": 1
+    }
+  }
+}

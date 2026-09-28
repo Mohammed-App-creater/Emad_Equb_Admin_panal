@@ -32,7 +32,7 @@ export function HardshipTab({ equb }: { equb: Equb }) {
   const canDecide = has(EKUB_PERMS.PAYOUT_APPROVE) || has(EKUB_PERMS.EQUB_MANAGE);
 
   const { data, isLoading } = useEmergencyDraws(equb.id);
-  const { data: members } = useEqubMembers(equb.id);
+  const { data: members, isLoading: membersLoading } = useEqubMembers(equb.id);
   const decide = useDecideEmergencyDraw();
   const submit = useSubmitEmergencyDraw();
 
@@ -106,7 +106,7 @@ export function HardshipTab({ equb }: { equb: Equb }) {
             <Label>{t("member")}</Label>
             <Select value={form.memberId} onValueChange={(v) => setForm({ ...form, memberId: v })}>
               <SelectTrigger><SelectValue placeholder={t("member")} /></SelectTrigger>
-              <SelectContent>
+              <SelectContent loading={membersLoading} empty={!members?.length}>
                 {(members ?? []).map((m) => <SelectItem key={m.memberId} value={m.memberId}>#{m.position} · {m.name}</SelectItem>)}
               </SelectContent>
             </Select>

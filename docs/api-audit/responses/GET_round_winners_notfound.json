@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/rounds/00000000-0000-4000-8000-000000000000/winners",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Winners retrieved successfully",
+    "code": "SUCCESS",
+    "data": []
+  }
+}

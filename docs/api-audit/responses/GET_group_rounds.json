@@ -1,0 +1,22 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/rounds",
+  "params": {
+    "page": 1,
+    "per_page": 100
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Rounds retrieved successfully",
+    "code": "SUCCESS",
+    "data": [],
+    "meta": {
+      "total": 0,
+      "page": 1,
+      "per_page": 100,
+      "total_pages": 0
+    }
+  }
+}

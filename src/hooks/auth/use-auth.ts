@@ -125,7 +125,8 @@ export const useAuth = () => {
 
     const handleLoginSuccessProfile = (response: ApiResponse<authProfileResponseData>) => {
         const { data } = response;
-        setAuth(data, data.permissions);
+        // /auth/profile carries no permissions; keep the ones login stored.
+        setAuth(data, data.permissions ?? useAuthStore.getState().permissions);
     };
 
     // Helper to handle logout cleanup

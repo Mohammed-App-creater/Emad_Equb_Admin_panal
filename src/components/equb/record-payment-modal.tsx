@@ -15,9 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment } from "@/hooks/ekub";
+import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment, useIsEqubManager, useRoundDetails } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
-import type { RecordedPayment } from "@/types/ekub";
+import type { RecordedPayment, Round, RoundMemberPayment } from "@/types/ekub";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/types/equb-api";
@@ -63,30 +63,48 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
   const confirm = useConfirmPayment();
 
-  const { data: equbs } = useEqubs({ status: "active" });
+  const { data: equbs, isLoading: equbsLoading } = useEqubs({ status: "active" });
   const { data: equb } = useEqub(equbId);
-  const { data: members } = useEqubMembers(equbId);
+  const { data: members, isLoading: membersLoading } = useEqubMembers(equbId);
   const { data: rounds, isLoading: roundsLoading } = useRounds(equbId);
-  const { data: standing, isLoading: standingLoading } = useMemberStanding(equbId, memberId || null);
-  const { data: catchUp } = useCatchUp(equbId, memberId || null);
+  // Collect, standing and catch-up are manager-only on the backend (403 otherwise).
+  const { isManager, managerName } = useIsEqubManager(equbId);
+  const { data: standing, isLoading: standingLoading, error: standingError } = useMemberStanding(equbId, memberId || null, isManager === true);
+  const { data: catchUp } = useCatchUp(equbId, memberId || null, isManager === true);
   const record = useRecordPayment();
 
-  // Rounds this member still owes: open or past rounds whose payment row isn't paid.
-  const owed = (rounds ?? [])
-    .map((r) => ({ round: r, pay: r.memberPayments.find((p) => p.memberId === memberId) }))
-    .filter(({ pay }) => pay && pay.status?.toLowerCase() !== "paid" && !pay.paidAt);
+  // The rounds list carries no per-member payment rows; round detail does.
+  const sortedRounds = [...(rounds ?? [])].filter((r) => r.status !== "cancelled").sort((a, b) => a.roundNumber - b.roundNumber);
+  const details = useRoundDetails(memberId ? sortedRounds.map((r) => r.id) : []);
+  const detailsLoading = details.some((q) => q.isLoading);
+  const detailById = new Map(details.map((q) => q.data).filter((r): r is Round => !!r).map((r) => [r.id, r]));
+
+  // "This round" is the open one, else the first not yet drawn.
+  const currentNo =
+    sortedRounds.find((r) => r.status === "open")?.roundNumber ??
+    sortedRounds.find((r) => r.status !== "drawn" && r.status !== "completed")?.roundNumber;
+  const isPaid = (p?: RoundMemberPayment) => !!p && (p.status?.toLowerCase() === "paid" || !!p.paidAt);
+  type Kind = "catchUp" | "current" | "advance";
+  const owed = sortedRounds
+    .map((round) => {
+      const detail = detailById.get(round.id) ?? round;
+      const pay = detail.memberPayments.find((p) => p.memberId === memberId);
+      const kind: Kind = currentNo === undefined || round.roundNumber < currentNo ? "catchUp" : round.roundNumber === currentNo ? "current" : "advance";
+      return { round: detail, pay, kind };
+    })
+    // Past and current rounds need the member's row; future rounds may not have one yet.
+    .filter(({ pay, kind }) => (kind === "advance" ? !isPaid(pay) : !!pay && !isPaid(pay)));
   const perRound = equb?.effectiveTerms?.totalPerRound ?? (equb?.category ? equb.category.contribution + equb.category.adminFee + equb.category.takafulFee : 0);
-  const estimate = owed.filter(({ round }) => selected.includes(round.id)).reduce((a, { pay }) => a + (pay?.amount || perRound), 0);
+  const amountOf = (pay?: RoundMemberPayment) => pay?.amount || perRound;
+  const estimate = owed.filter(({ round }) => selected.includes(round.id)).reduce((a, { pay }) => a + amountOf(pay), 0);
   const member = members?.find((m) => m.memberId === memberId);
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-  // Catch-up = rounds owed from before the round now open.
-  const openRoundNo = (rounds ?? []).find((r) => r.status === "open")?.roundNumber;
-  const isCatchUpRound = (n: number) => openRoundNo !== undefined && n < openRoundNo;
-  const catchUpIds = owed.filter(({ round }) => isCatchUpRound(round.roundNumber)).map(({ round }) => round.id);
-  const allOwedIds = owed.map(({ round }) => round.id);
+  const idsOf = (k: Kind) => owed.filter((o) => o.kind === k).map((o) => o.round.id);
+  const catchUpIds = idsOf("catchUp");
+  const toggleGroup = (ids: string[]) => setSelected((s) => (ids.every((id) => s.includes(id)) ? s.filter((id) => !ids.includes(id)) : Array.from(new Set([...s, ...ids]))));
   const needsReference = method !== "cash";
-  const valid = !!equbId && !!memberId && selected.length > 0 && (!needsReference || reference.trim().length > 0);
+  const valid = isManager === true && !!equbId && !!memberId && selected.length > 0 && (!needsReference || reference.trim().length > 0);
 
   const isSettled = (s: string) => ["completed", "confirmed", "paid", "success"].includes((s || "").toLowerCase());
 
@@ -99,6 +117,7 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           roundIds: selected,
           method,
           reference,
+          // Back-pay flag: set whenever a missed round is in the batch.
           isCatchUp: selected.some((id) => catchUpIds.includes(id)),
           description: proofNote,
           proof: proofFile ? { file: proofFile, description: proofNote } : undefined,
@@ -149,14 +168,14 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   }
 
   return (
-    <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
+    <div className="-mx-2 max-h-[75vh] space-y-4 overflow-y-auto px-2 py-1">
       {/* Who */}
       {!target.equbId && (
         <div className="space-y-1.5">
           <Label>{t("equb")}</Label>
           <Select value={equbId} onValueChange={(v) => { setEqubId(v); setMemberId(""); setSelected([]); }}>
             <SelectTrigger><SelectValue placeholder={t("selectEqub")} /></SelectTrigger>
-            <SelectContent>
+            <SelectContent loading={equbsLoading} empty={!equbs?.length}>
               {(equbs ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.name} <span className="text-muted-foreground">· {e.code}</span></SelectItem>)}
             </SelectContent>
           </Select>
@@ -167,7 +186,7 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           <Label>{t("member")}</Label>
           <Select value={memberId} onValueChange={(v) => { setMemberId(v); setSelected([]); }} disabled={!equbId}>
             <SelectTrigger><SelectValue placeholder={t("selectMember")} /></SelectTrigger>
-            <SelectContent>
+            <SelectContent loading={membersLoading} empty={!members?.length}>
               {(members ?? []).map((m) => <SelectItem key={m.memberId} value={m.memberId}>#{m.position} · {m.name} <span className="text-muted-foreground">· {m.membershipNumber}</span></SelectItem>)}
             </SelectContent>
           </Select>
@@ -179,8 +198,15 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
         </div>
       )}
 
+      {equbId && isManager === false && (
+        <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <span>{managerName ? t("managerOnly", { name: managerName }) : t("managerOnlyNone")}</span>
+        </p>
+      )}
+
       {/* Standing */}
-      {memberId && (
+      {memberId && isManager === true && (
         standingLoading ? (
           <Skeleton className="h-16 rounded-xl" />
         ) : standing ? (
@@ -198,55 +224,71 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
               </p>
             )}
           </div>
+        ) : standingError ? (
+          <p className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <Info size={14} className="mt-0.5 shrink-0" /> {t("standingUnavailable")}: {getErrorMessage(standingError, "")}
+          </p>
         ) : null
       )}
 
-      {/* Rounds */}
-      {memberId && (
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>{t("rounds")}</Label>
-            {owed.length > 1 && (
-              <div className="flex gap-1">
-                {catchUpIds.length > 0 && (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(Array.from(new Set([...selected, ...catchUpIds])))}>
-                    <ListChecks size={13} className="mr-1" /> {t("selectCatchUp", { count: catchUpIds.length })}
-                  </Button>
-                )}
-                <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(selected.length === allOwedIds.length ? [] : allOwedIds)}>
-                  {selected.length === allOwedIds.length ? t("selectNone") : t("selectAllOwed")}
-                </Button>
-              </div>
-            )}
-          </div>
-          {roundsLoading ? (
+      {/* Rounds: catch-up (missed), this round, and advance (future) in one payment */}
+      {memberId && isManager === true && (
+        <div className="space-y-2">
+          <Label>{t("rounds")}</Label>
+          {roundsLoading || detailsLoading ? (
             <Skeleton className="h-24 rounded-xl" />
           ) : owed.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">{t("nothingOwed")}</p>
           ) : (
-            <div className="max-h-56 space-y-1.5 overflow-y-auto">
-              {owed.map(({ round, pay }) => {
-                const on = selected.includes(round.id);
+            <div className="max-h-72 space-y-3 overflow-y-auto">
+              {(["catchUp", "current", "advance"] as Kind[]).map((k) => {
+                const group = owed.filter((o) => o.kind === k);
+                if (!group.length) return null;
+                const ids = group.map((o) => o.round.id);
+                const allOn = ids.every((id) => selected.includes(id));
                 return (
-                  <label key={round.id} className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition", on ? "border-primary bg-primary/5" : "border-border hover:bg-accent")}>
-                    <input type="checkbox" checked={on} onChange={() => toggle(round.id)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
-                    <span className="flex-1 text-sm">
-                      <span className="font-medium text-foreground">#{round.roundNumber}</span>
-                      <span className="text-muted-foreground"> · {t("due")} {formatDate(round.contributionDueDate)}</span>
-                      {isCatchUpRound(round.roundNumber) && <span className="ml-2 rounded bg-info/15 px-1.5 py-px text-[10px] font-semibold uppercase text-info">{t("catchUp")}</span>}
-                      {pay?.status === "overdue" && <span className="ml-2 rounded bg-destructive/10 px-1.5 py-px text-[10px] font-semibold uppercase text-destructive">{t("overdue")}</span>}
-                    </span>
-                    <span className="text-sm font-medium">{formatCurrency(pay?.amount || perRound)}</span>
-                  </label>
+                  <div key={k} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={cn("text-xs font-semibold uppercase tracking-wide", k === "catchUp" ? "text-info" : k === "advance" ? "text-secondary-foreground" : "text-primary")}>
+                        {t(`group_${k}` as never)} · {group.length}
+                      </p>
+                      {group.length > 1 && (
+                        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => toggleGroup(ids)}>
+                          <ListChecks size={13} className="mr-1" /> {allOn ? t("selectNone") : t("selectGroup")}
+                        </Button>
+                      )}
+                    </div>
+                    {group.map(({ round, pay }) => {
+                      const on = selected.includes(round.id);
+                      return (
+                        <label key={round.id} className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition", on ? "border-primary bg-primary/5" : "border-border hover:bg-accent")}>
+                          <input type="checkbox" checked={on} onChange={() => toggle(round.id)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                          <span className="flex-1 text-sm">
+                            <span className="font-medium text-foreground">#{round.roundNumber}</span>
+                            <span className="text-muted-foreground"> · {t("due")} {formatDate(round.contributionDueDate)}</span>
+                            {pay?.status === "overdue" && <span className="ml-2 rounded bg-destructive/10 px-1.5 py-px text-[10px] font-semibold uppercase text-destructive">{t("overdue")}</span>}
+                          </span>
+                          <span className="text-sm font-medium tabular-nums">{formatCurrency(amountOf(pay))}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 );
               })}
+            </div>
+          )}
+          {owed.length > 1 && (
+            <div className="flex justify-end">
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelected(selected.length === owed.length ? [] : owed.map((o) => o.round.id))}>
+                {selected.length === owed.length ? t("selectNone") : t("selectAllOwed")}
+              </Button>
             </div>
           )}
         </div>
       )}
 
       {/* How */}
-      {memberId && owed.length > 0 && (
+      {memberId && isManager === true && owed.length > 0 && (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">

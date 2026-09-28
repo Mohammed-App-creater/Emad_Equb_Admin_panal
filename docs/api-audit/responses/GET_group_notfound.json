@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/00000000-0000-4000-8000-000000000000",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "We couldn't find this Equb group. It may have been deleted or doesn't exist.",
+    "code": "EQUB_201",
+    "error": "NOT_FOUND"
+  }
+}

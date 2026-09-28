@@ -48,7 +48,7 @@ export function TakafulTab({ equb }: { equb: Equb }) {
 
   const { data: txns, isLoading } = useTakaful(equb.id);
   const { data: balance } = useTakafulBalance(equb.id);
-  const { data: members } = useEqubMembers(equb.id);
+  const { data: members, isLoading: membersLoading } = useEqubMembers(equb.id);
   const distribute = useDistributeSurplus();
   const claim = useSubmitTakafulClaim();
   const refund = useRefundTakaful();
@@ -111,7 +111,7 @@ export function TakafulTab({ equb }: { equb: Equb }) {
             <Label>{t("member")}</Label>
             <Select value={claimForm.memberId} onValueChange={(v) => setClaimForm({ ...claimForm, memberId: v })}>
               <SelectTrigger><SelectValue placeholder={t("member")} /></SelectTrigger>
-              <SelectContent>
+              <SelectContent loading={membersLoading} empty={!members?.length}>
                 {(members ?? []).map((m) => <SelectItem key={m.memberId} value={m.memberId}>#{m.position} · {m.name}</SelectItem>)}
               </SelectContent>
             </Select>
