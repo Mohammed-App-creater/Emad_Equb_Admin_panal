@@ -27,6 +27,8 @@ import type {
   EqubPayInitiatedResponse,
   EqubPayRoundsRequest,
   EqubPayoutResponse,
+  AgentSummaryResponse,
+  CollectProof,
   PaymentUpdateStatusRequest,
   EqubCatchUpPaymentResponse,
   EqubCollectionsSummaryResponse,
@@ -271,8 +273,8 @@ const realEqubApi = {
   async listTakafulPage(groupId: string, page: number, perPage: number): Promise<PagedResult<EqubTakafulTransactionResponse>> {
     return paged<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page, per_page: perPage } }), page, perPage);
   },
-  async takafulBalance(groupId: string): Promise<{ balance: number }> {
-    return unwrap<{ balance: number }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
+  async takafulBalance(groupId: string): Promise<{ balance: string }> {
+    return unwrap<{ balance: string }>(api.get(EQUB_ENDPOINTS.TAKAFUL.BALANCE(groupId)));
   },
   async distributeSurplus(groupId: string): Promise<EqubTakafulSettlementResponse> {
     return unwrap<EqubTakafulSettlementResponse>(api.post(EQUB_ENDPOINTS.TAKAFUL.DISTRIBUTE_SURPLUS(groupId), {}));
@@ -306,16 +308,40 @@ const realEqubApi = {
   async listUsers(params?: Record<string, unknown>): Promise<UserResponse[]> {
     return list<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }));
   },
+  /** GET /agents — staff agents (the manager app's users). */
+  async listAgents(params: { search?: string; status?: string; page?: number; per_page?: number }): Promise<AgentSummaryResponse[]> {
+    return list<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params }));
+  },
+  async listAgentsPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<AgentSummaryResponse>> {
+    return paged<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params: { ...params, sort: "created_at", order: "desc" } }), params.page, params.per_page);
+  },
+  /** GET /agents/{id} — the only agent endpoint that includes roles. */
+  async getAgent(id: string): Promise<AgentSummaryResponse> {
+    return unwrap<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.DETAIL(id)));
+  },
   async listUsersPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<UserResponse>> {
     return paged<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }), params.page, params.per_page);
   },
-  async listRoles(): Promise<Array<{ id: string; name: string; permissions?: Array<{ name?: string; slug?: string }> }>> {
-    return list(api.get(EQUB_ENDPOINTS.USERS.ROLES));
-  },
 
   // ---- Recording a contribution for a member ----
-  async collectContribution(groupId: string, memberId: string, body: EqubPayRoundsRequest): Promise<EqubPayInitiatedResponse> {
-    return unwrap<EqubPayInitiatedResponse>(api.post(EQUB_ENDPOINTS.MANAGER.COLLECT(groupId, memberId), body));
+  /**
+   * Record a collection. With `proof` the request goes as multipart/form-data
+   * (round_ids repeated, method, reference, file, description) so the slip is
+   * filed against every contribution it covers in the same call.
+   */
+  async collectContribution(groupId: string, memberId: string, body: EqubPayRoundsRequest, proof?: CollectProof): Promise<EqubPayInitiatedResponse> {
+    if (!proof) return unwrap<EqubPayInitiatedResponse>(api.post(EQUB_ENDPOINTS.MANAGER.COLLECT(groupId, memberId), body));
+    const form = new FormData();
+    // Per the backend: round_ids as one JSON array field; the file's
+    // description doubles as the collection's description.
+    form.append("round_ids", JSON.stringify(body.round_ids));
+    if (body.is_catch_up) form.append("is_catch_up", "true");
+    if (body.method) form.append("method", body.method);
+    if (body.reference) form.append("reference", body.reference);
+    form.append("file", proof.file);
+    const description = proof.description || body.description;
+    if (description) form.append("description", description);
+    return unwrap<EqubPayInitiatedResponse>(api.post(EQUB_ENDPOINTS.MANAGER.COLLECT(groupId, memberId), form, { headers: { "Content-Type": "multipart/form-data" } }));
   },
   async updatePaymentStatus(paymentId: string, body: PaymentUpdateStatusRequest): Promise<unknown> {
     return unwrap(api.patch(EQUB_ENDPOINTS.PAYMENTS.STATUS(paymentId), body));

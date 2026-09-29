@@ -28,7 +28,7 @@ import { useLiveUpdates, eventRoundId } from "@/lib/realtime";
 import { useEqub, useRound, useDrawPreview, useExecuteDraw, useRoundWinners, useRoundAdminFees } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, formatDateTime, getErrorMessage } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, getErrorMessage, humanizeDates } from "@/lib/utils";
 import type { ExcludedMember, Round, RoundMemberPayment } from "@/types/ekub";
 
 const isPaid = (p: RoundMemberPayment) => p.status?.toLowerCase() === "paid" || !!p.paidAt;
@@ -88,21 +88,20 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const payments = round.memberPayments.filter((p) => (filter === "all" ? true : filter === "paid" ? isPaid(p) : !isPaid(p)));
   const paidCount = round.memberPayments.length ? round.memberPayments.filter(isPaid).length : round.paidCount;
   const unpaidCount = round.memberPayments.length ? round.memberPayments.length - paidCount : round.unpaidCount;
-  const canDraw = (preview ? preview.canExecute : round.canExecuteDraw) && !round.notReadyReason;
-  // The round's own not-ready reason names the one unmet draw condition.
-  const blockReason = round.notReadyReason || preview?.reason || "";
-  // Prefer the backend's eligibility lists; when it sends none, derive them
-  // from this round's member payments so the draw dialog is never blank.
-  const apiEligible = preview?.eligible?.length ? preview.eligible : round.eligibleMembers;
-  const apiExcluded = preview?.excluded?.length ? preview.excluded : round.excludedMembers;
-  const derived = apiEligible.length === 0 && apiExcluded.length === 0;
-  const eligible = derived
-    ? round.memberPayments.filter(isPaid).map((p) => ({ memberId: p.memberId, name: p.name, phone: p.phone, position: 0, contributionPaid: true, previouslyWon: false, eligible: true }))
-    : apiEligible;
-  const excluded: ExcludedMember[] = derived
-    ? round.memberPayments.filter((p) => !isPaid(p)).map((p) => ({ memberId: p.memberId, name: p.name, phone: p.phone, contributionPaid: false, previouslyWon: false, hasUnpaidCatchUp: false, isBanned: false, reason: "" }))
-    : apiExcluded;
-  const eligibleCount = preview?.eligibleCount ?? round.eligibleCount;
+  // Whether a draw can run is the backend's call alone: GET /draw-preview's
+  // can_execute_draw. No preview (loading or failed) means no draw button.
+  const canDraw = preview?.canExecute === true;
+  const blockReason = humanizeDates(canDraw ? "" : preview?.reason || round.notReadyReason || "");
+  // Some rounds report 0 collected while every member row shows paid; add the paid rows up instead.
+  const paidSum = round.memberPayments.filter(isPaid).reduce((a, p) => a + p.amount, 0);
+  const collected = round.totalContribution > 0 ? round.totalContribution : paidSum;
+  // Eligible / excluded lists come from the API only; names and phones are
+  // filled in from the round's payments because the preview sends ids.
+  const byMember = new Map(round.memberPayments.map((p) => [p.memberId, p]));
+  const withName = <M extends { memberId: string; name: string; phone: string }>(m: M): M => ({ ...m, name: m.name || byMember.get(m.memberId)?.name || "—", phone: m.phone || byMember.get(m.memberId)?.phone || "" });
+  const eligible = (preview?.eligible ?? []).map(withName);
+  const excluded: ExcludedMember[] = (preview?.excluded ?? []).map(withName);
+  const eligibleCount = preview?.eligibleCount ?? 0;
   const excludedCount = preview?.excludedCount ?? round.excludedCount;
 
   const paymentColumns: DataTableColumn<RoundMemberPayment>[] = [
@@ -141,8 +140,9 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
             <StatusBadge status={round.status} kind="round" />
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><CalendarClock size={14} /> {t("dueDate")}: <strong className="text-foreground">{formatDate(round.contributionDueDate)}</strong></span>
-            <span>{t("scheduledAt")}: <strong className="text-foreground">{formatDateTime(round.scheduledAt)}</strong></span>
+            {/* scheduled_at opens the collection window, the due date closes it; the draw can run only after that. */}
+            <span className="inline-flex items-center gap-1"><CalendarClock size={14} /> {t("scheduledAt")}: <strong className="text-foreground">{formatDate(round.scheduledAt)}</strong></span>
+            <span>{t("dueDate")}: <strong className="text-foreground">{formatDate(round.contributionDueDate)}</strong></span>
             {round.drawnAt && <span>{t("drawnAt")}: <strong className="text-foreground">{formatDateTime(round.drawnAt)}</strong></span>}
           </p>
         </div>
@@ -151,7 +151,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
       {/* Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={`${t("paid")} / ${t("unpaid")}`} value={<span><span className="text-success">{paidCount}</span> / <span className="text-warning">{unpaidCount}</span></span>} hint={`${Math.round(round.paymentPercentage)}% · ${round.totalMembers} ${tc("member").toLowerCase()}s`} icon={Users} tone="success" />
-        <StatCard label={t("totalContribution")} value={formatCurrency(round.totalContribution)} icon={Wallet} tone="primary" />
+        <StatCard label={t("totalContribution")} value={formatCurrency(collected)} icon={Wallet} tone="primary" />
         <StatCard label={t("adminFee")} value={formatCurrency(round.totalAdminFee)} hint={`${t("takafulFee")}: ${formatCurrency(round.totalTakafulFee)}`} icon={Coins} tone="info" />
         <StatCard label={t("payout")} value={formatCurrency(round.payoutAmount)} icon={HandCoins} tone="secondary" />
       </div>
@@ -328,7 +328,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
             {!canDraw && <p className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">{t("cannotDraw")}{blockReason ? ` — ${blockReason}` : ""}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirming(false)}>{tc("cancel")}</Button>
-              <Button disabled={!canDraw || eligible.length === 0} onClick={runDraw}>
+              <Button disabled={!canDraw || execute.isPending} onClick={runDraw}>
                 <Play size={14} className="mr-1" /> {t("runDraw")}
               </Button>
             </div>

@@ -1,7 +1,9 @@
 // ============================================================================
-// Real Equb backend DTOs — mirror the OpenAPI definitions exactly (snake_case),
-// so the service layer maps them into the camelCase view types in types/ekub.ts.
-// Source: swagger.json (github_com_emad_internal_usecase_dto.*).
+// Real Equb backend DTOs (snake_case), mapped into the camelCase view types in
+// types/ekub.ts by services/ekub.ts.
+// Checked against live dev responses on 2026-09-28 (docs/api-audit/), which
+// differ from swagger.json: money is a decimal string everywhere, and several
+// fields swagger lists are never sent. Trust the live shape, not swagger.
 //
 // Naming in the admin UI:  Scheme → "Equb Category",  Group → "Equb",
 //                          Round  → "Round" (one draw period inside an Equb).
@@ -30,19 +32,41 @@ export interface UserResponse {
   email: string;
   phone: string;
   branch_id: string;
-  gender: string;
+  /** Not sent by /users, /auth/login or /auth/profile. */
+  gender?: string;
   status: boolean;
   totp_enabled: boolean;
+  login_count?: number;
+  failed_login_attempts?: number;
+  created_at?: string;
+  updated_at?: string;
   job_title?: string;
   department?: string;
   profile_picture?: string;
   permissions?: string[];
   roles?: { id: string; name: string; description?: string }[];
 }
+/** Subset of GET /agents used by the staff pickers. `id` is the user id. The live API sends no roles or job_title. */
+export interface AgentSummaryResponse {
+  id: string;
+  full_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  job_title?: string;
+  status: boolean;
+  is_agent?: boolean;
+  roles?: { id: string; name: string }[];
+  branch_id?: string;
+  login_count?: number;
+  created_at?: string;
+}
 export interface LoginResponse {
   token: string;
   refresh_token: string;
-  requires_totp: boolean;
+  /** Not sent on a normal login; kept for the TOTP flow. */
+  requires_totp?: boolean;
   user: UserResponse;
 }
 export interface LoginRequest {
@@ -57,7 +81,8 @@ export interface MemberInfo {
   display_name: string;
   membership_number: string;
   phone_number: string;
-  photo: string;
+  /** Not sent on group members. */
+  photo?: string;
 }
 
 /** Subset of the Sacco `MemberResponse` we need for the member picker. */
@@ -111,24 +136,31 @@ export type EqubFrequency = (typeof EQUB_FREQUENCIES)[number];
 export const EQUB_SCHEME_STATUSES = ["draft", "active", "completed", "cancelled"] as const;
 export type EqubSchemeStatus = (typeof EQUB_SCHEME_STATUSES)[number];
 
+/**
+ * New schemes come back `active` straight away; `draft` is never assigned on create.
+ * Nested inside a group (`equb_scheme`) the object is partial: no `created_by`,
+ * `description` is blank and the timestamps are "0001-01-01T00:00:00Z".
+ */
 export interface EqubSchemeResponse {
   id: string;
   code: string;
   name: string;
   description: string;
-  status: string; // draft | active | completed | cancelled
+  status: string; // active | completed | cancelled (draft only if set explicitly)
   frequency: string; // EqubFrequency
-  contribution_amount: number;
-  admin_fee: number;
-  takaful_fee: number;
-  payout_amount: number;
+  /** Decimal string, e.g. "1000". */
+  contribution_amount: string;
+  admin_fee: string;
+  takaful_fee: string;
+  payout_amount: string;
   members_per_group: number;
   winners_per_round: number;
   total_rounds: number;
   /** Winners must put up a guarantee before payout (default true). */
   guarantee_required?: boolean;
   accepted_guarantee_types?: string[];
-  created_by: string;
+  /** Absent on the scheme nested in a group. */
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -276,12 +308,14 @@ export interface EqubAdminDashboardResponse {
   eligible_for_draw: number;
   paid_this_round: number;
   unpaid_this_round: number;
-  next_due_date: string;
-  total_collected: number;
-  total_payouts: number;
-  total_admin_fees: number;
-  total_takaful_fees: number;
-  takaful_balance: number;
+  /** Not sent by the live API yet. */
+  next_due_date?: string;
+  /** Money is a decimal string. */
+  total_collected: string;
+  total_payouts: string;
+  total_admin_fees: string;
+  total_takaful_fees: string;
+  takaful_balance: string;
   wins_distributed: number;
 }
 
@@ -656,8 +690,9 @@ export interface EqubAdminFeeMemberResponse {
   group_id: string;
   group_name: string;
   member_id: string;
-  member_name: string;
-  membership_number: string;
+  /** Not sent by the live API. */
+  member_name?: string;
+  membership_number?: string;
   totals: EqubAdminFeeTotals;
   lines: EqubAdminFeeLine[];
 }
@@ -680,15 +715,29 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 /** POST /equb/manager/my-groups/{group_id}/members/{member_id}/collect — the server works out the amount. */
 export interface EqubPayRoundsRequest {
   round_ids: string[];
+  /** Required when collecting missed rounds, so the server books it as back-pay. */
+  is_catch_up?: boolean;
   method?: PaymentMethod;
   reference?: string;
+  description?: string;
 }
 export interface EqubPayInitiatedResponse {
   group_id: string;
   payment_id: string;
   status: string; // settles once the payment is confirmed
-  total_amount: number;
+  total_amount?: number;
+  /** Newer responses name the total `amount`. */
+  amount?: number;
   rounds: unknown[];
+  /** The proof sent with the collection (multipart), filed against every contribution collected. */
+  attachments?: { id: string; file_name: string; contribution_ids?: string[] }[];
+  /** Set when a file was sent but could not be filed; the collection still stands. */
+  attachment_warning?: string;
+}
+/** Optional proof sent in the same collect request (multipart/form-data). */
+export interface CollectProof {
+  file: File;
+  description?: string;
 }
 export const PAYMENT_STATUSES = ["pending", "processing", "completed", "failed", "cancelled", "refunded", "held", "reversed"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
@@ -747,10 +796,10 @@ export interface EqubCollectionsSummaryResponse {
   from: string;
   to: string;
   count: number;
-  /** Everything recorded; total_confirmed is what approval has settled. */
-  total_collected: number;
-  total_confirmed: number;
-  total_pending: number;
+  /** Everything recorded; total_confirmed is what approval has settled. Decimal strings. */
+  total_collected: string;
+  total_confirmed: string;
+  total_pending: string;
   collections: EqubCollectionListItem[];
 }
 export interface EqubCatchUpPaymentResponse {

@@ -1,0 +1,35 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/admin-dashboard",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Admin dashboard retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+      "group_name": "Unity Addis Ababa Equb Group 2026-Qgla",
+      "group_code": "EQB-GRP-a575a216-DBrHfN",
+      "status": "active",
+      "total_members": 20,
+      "active_members": 20,
+      "suspended_members": 0,
+      "current_round": 0,
+      "total_rounds": 10,
+      "cycle_number": 1,
+      "cycle_progress": 0,
+      "paid_this_round": 0,
+      "unpaid_this_round": 0,
+      "eligible_for_draw": 0,
+      "total_collected": "0",
+      "total_admin_fees": "0",
+      "total_takaful_fees": "0",
+      "takaful_balance": "0",
+      "draw_status": "pending",
+      "total_payouts": "0",
+      "wins_distributed": 0
+    }
+  }
+}

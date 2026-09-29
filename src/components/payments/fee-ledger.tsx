@@ -36,8 +36,8 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
   const [equb, setEqub] = useState(equbId ?? "all");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
-  const { data: categories } = useCategories();
-  const { data: equbs } = useEqubs();
+  const { data: categories, isLoading: categoriesLoading } = useCategories();
+  const { data: equbs, isLoading: equbsLoading } = useEqubs();
   const { data, isLoading } = useFeeLedger({ status, categoryId: categoryId === "all" ? undefined : categoryId, equbId: equb === "all" ? undefined : equb }, page, perPage);
   const tot = data?.totals;
 
@@ -104,7 +104,7 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
                   {!fixedCategory && (
                     <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); reset(); }}>
                       <SelectTrigger className="h-9 sm:w-[200px]"><span className="truncate"><span className="text-muted-foreground">{t("category")}: </span><SelectValue /></span></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent loading={categoriesLoading}>
                         <SelectItem value="all">{tc("all")}</SelectItem>
                         {(categories ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       </SelectContent>
@@ -113,7 +113,7 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
                   {!equbId && (
                     <Select value={equb} onValueChange={(v) => { setEqub(v); reset(); }}>
                       <SelectTrigger className="h-9 sm:w-[220px]"><span className="truncate"><span className="text-muted-foreground">{t("equb")}: </span><SelectValue /></span></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent loading={equbsLoading}>
                         <SelectItem value="all">{tc("all")}</SelectItem>
                         {(equbs ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                       </SelectContent>

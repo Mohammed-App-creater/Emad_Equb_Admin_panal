@@ -2,7 +2,8 @@
 
 import * as React from 'react'
 import * as SelectPrimitive from '@radix-ui/react-select'
-import { Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Inbox, Loader2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
 
@@ -74,6 +75,12 @@ const SelectContent = React.forwardRef<
      * container). Use this for infinite/lazy "load more on scroll". */
     onViewportScroll?: React.UIEventHandler<HTMLDivElement>
     viewportClassName?: string
+    /** Options are still loading: shows a spinner row under any static items. */
+    loading?: boolean
+    /** There are no options to pick: shows an empty-state row. */
+    empty?: boolean
+    /** Overrides the default "No records found". */
+    emptyText?: string
   }
 >(
   (
@@ -83,6 +90,9 @@ const SelectContent = React.forwardRef<
       position = 'popper',
       onViewportScroll,
       viewportClassName,
+      loading,
+      empty,
+      emptyText,
       ...props
     },
     ref,
@@ -110,6 +120,7 @@ const SelectContent = React.forwardRef<
           )}
         >
           {children}
+          {loading ? <SelectStatus kind="loading" /> : empty ? <SelectStatus kind="empty" text={emptyText} /> : null}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>
@@ -117,6 +128,17 @@ const SelectContent = React.forwardRef<
   ),
 )
 SelectContent.displayName = SelectPrimitive.Content.displayName
+
+/** Non-selectable status row inside a dropdown (loading / nothing to pick). */
+function SelectStatus({ kind, text }: { kind: 'loading' | 'empty'; text?: string }) {
+  const t = useTranslations('common')
+  return (
+    <div role="status" className="flex items-center justify-center gap-2 px-2 py-4 text-sm text-muted-foreground">
+      {kind === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+      {kind === 'loading' ? t('loading') : text ?? t('noData')}
+    </div>
+  )
+}
 
 const SelectLabel = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Label>,

@@ -1,0 +1,98 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/members",
+  "params": {
+    "page": 1,
+    "per_page": 5
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Members retrieved successfully",
+    "code": "SUCCESS",
+    "data": [
+      {
+        "id": "de5bc528-cfe6-441a-9552-bf44874ad5e3",
+        "equb_group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+        "member_id": "333b2613-f1dd-47aa-8168-71e88a907a62",
+        "member": {
+          "id": "333b2613-f1dd-47aa-8168-71e88a907a62",
+          "full_name": "Jemal X Ahmed",
+          "membership_number": "ES9900055",
+          "phone_number": "0911yHFzRqc",
+          "display_name": "Jemal X Ahmed"
+        },
+        "position": 1,
+        "joined_at": "2026-10-18T00:00:00Z",
+        "status": "active"
+      },
+      {
+        "id": "c4e87d99-7dc4-476e-901a-7ccc238f94d0",
+        "equb_group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+        "member_id": "543dd922-6173-4073-966f-af30ce8d2e16",
+        "member": {
+          "id": "543dd922-6173-4073-966f-af30ce8d2e16",
+          "full_name": "Bekele Fekadu Kedir",
+          "membership_number": "ES9900011",
+          "phone_number": "0911EPSIFRs",
+          "display_name": "Bekele Fekadu Kedir"
+        },
+        "position": 2,
+        "joined_at": "2026-10-18T00:00:00Z",
+        "status": "active"
+      },
+      {
+        "id": "54dfce26-1608-4bf2-b3c7-2ddf2ce47e6e",
+        "equb_group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+        "member_id": "615a6dd7-6d3c-436b-867c-8202c64d39e2",
+        "member": {
+          "id": "615a6dd7-6d3c-436b-867c-8202c64d39e2",
+          "full_name": "Mahlet Ababa Jibril",
+          "membership_number": "ES9900058",
+          "phone_number": "0911EkOJBWj",
+          "display_name": "Mahlet Ababa Jibril"
+        },
+        "position": 3,
+        "joined_at": "2026-10-18T00:00:00Z",
+        "status": "active"
+      },
+      {
+        "id": "a20ec29a-dc83-48e0-a3a5-90a49ad61a72",
+        "equb_group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+        "member_id": "3b4affb1-a9a8-4075-842f-f087a16f57a8",
+        "member": {
+          "id": "3b4affb1-a9a8-4075-842f-f087a16f57a8",
+          "full_name": "Tigist Tadesse Ahmed",
+          "membership_number": "ES9900103",
+          "phone_number": "0911RwCVlUQ",
+          "display_name": "Tigist Tadesse Ahmed"
+        },
+        "position": 4,
+        "joined_at": "2026-10-18T00:00:00Z",
+        "status": "active"
+      },
+      {
+        "id": "d00488fd-b6ff-4c93-97ef-0e047d0013e7",
+        "equb_group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+        "member_id": "f26c3585-1924-4eb0-bcb2-fd4036555e11",
+        "member": {
+          "id": "f26c3585-1924-4eb0-bcb2-fd4036555e11",
+          "full_name": "Mekonnen V Nure",
+          "membership_number": "ES9900157",
+          "phone_number": "0911zZBKQBT",
+          "display_name": "Mekonnen V Nure"
+        },
+        "position": 5,
+        "joined_at": "2026-10-18T00:00:00Z",
+        "status": "active"
+      }
+    ],
+    "meta": {
+      "total": 20,
+      "page": 1,
+      "per_page": 5,
+      "total_pages": 4
+    }
+  }
+}

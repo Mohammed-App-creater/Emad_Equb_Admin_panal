@@ -24,7 +24,7 @@ import { WinnersTable } from "@/components/equb/winners-tab";
 import { FeeLinesTable } from "@/components/equb/admin-fees-tab";
 import {
   useEqub, useEqubMembers, useMemberProfile, useMemberStanding, useCatchUp, useRounds, useRoundDetails,
-  useMemberAdminFees, useEqubWinners, useTakaful, useEmergencyDraws, useSetSuspended,
+  useMemberAdminFees, useIsEqubManager, useEqubWinners, useTakaful, useEmergencyDraws, useSetSuspended,
 } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
@@ -47,8 +47,9 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
   const { data: roster, isLoading: rosterLoading } = useEqubMembers(equbId);
   const member = roster?.find((m) => m.memberId === memberId);
   const { data: profile, isLoading: profileLoading } = useMemberProfile(memberId);
-  const { data: standing } = useMemberStanding(equbId, memberId);
-  const { data: catchUp } = useCatchUp(equbId, memberId);
+  const { isManager, managerName } = useIsEqubManager(equbId);
+  const { data: standing, error: standingError } = useMemberStanding(equbId, memberId, isManager === true);
+  const { data: catchUp } = useCatchUp(equbId, memberId, isManager === true);
   const { data: list } = useRounds(equbId);
   const startedIds = useMemo(() => (list ?? []).filter((r) => r.status !== "scheduled").map((r) => r.id), [list]);
   const details = useRoundDetails(startedIds);
@@ -178,7 +179,11 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
         <Card>
           <CardHeader><CardTitle className="text-base">{t("standing")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {!standing ? (
+            {isManager === false ? (
+              <p className="text-sm text-muted-foreground">{managerName ? tp("managerOnly", { name: managerName }) : tp("managerOnlyNone")}</p>
+            ) : standingError ? (
+              <p className="text-sm text-muted-foreground">{tp("standingUnavailable")}: {getErrorMessage(standingError, "")}</p>
+            ) : !standing ? (
               <Skeleton className="h-24 rounded-xl" />
             ) : (
               <>

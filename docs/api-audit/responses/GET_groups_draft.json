@@ -1,0 +1,21 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups",
+  "params": {
+    "status": "draft"
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Groups retrieved successfully",
+    "code": "SUCCESS",
+    "data": [],
+    "meta": {
+      "total": 0,
+      "page": 1,
+      "per_page": 10,
+      "total_pages": 0
+    }
+  }
+}

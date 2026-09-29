@@ -1,0 +1,629 @@
+{
+  "method": "GET",
+  "path": "/user-permissions/all",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "All permissions retrieved successfully",
+    "code": "SUCCESS",
+    "data": [
+      {
+        "id": "5dd077aa-de92-46a7-ac47-4b95e7c94cad",
+        "name": "Create Role",
+        "slug": "role:create"
+      },
+      {
+        "id": "f8276381-79ec-4ef7-a4fb-cd69632751bf",
+        "name": "Read Role",
+        "slug": "role:read"
+      },
+      {
+        "id": "ecdd3209-d4a7-40be-adc8-368c3b792066",
+        "name": "Update Role",
+        "slug": "role:update"
+      },
+      {
+        "id": "ec307dc6-911b-4f87-a1e8-359896f62c65",
+        "name": "Delete Role",
+        "slug": "role:delete"
+      },
+      {
+        "id": "49f11a43-9ef9-40d3-a24e-61dbce06152f",
+        "name": "Create Permission",
+        "slug": "permission:create"
+      },
+      {
+        "id": "04eaf884-8470-4d36-882d-6acffcda2a9a",
+        "name": "Read Permission",
+        "slug": "permission:read"
+      },
+      {
+        "id": "41f14984-f9ee-4c49-9b5f-583e13b67671",
+        "name": "Update Permission",
+        "slug": "permission:update"
+      },
+      {
+        "id": "ec8a4f05-569f-4c3f-8d72-20328483824e",
+        "name": "Delete Permission",
+        "slug": "permission:delete"
+      },
+      {
+        "id": "d54d5096-1c9d-428f-a578-496a75be9dca",
+        "name": "Manage RBAC",
+        "slug": "rbac:manage"
+      },
+      {
+        "id": "60c7994d-061e-4eae-808c-b2affcf23907",
+        "name": "Create User",
+        "slug": "user:create"
+      },
+      {
+        "id": "bfeec03c-ac57-4893-99bd-b8276ea025bf",
+        "name": "Read User",
+        "slug": "user:read"
+      },
+      {
+        "id": "687a54ee-2c88-4fab-b4ba-890627cc6b62",
+        "name": "Update User",
+        "slug": "user:update"
+      },
+      {
+        "id": "d6745a77-f296-4e49-98df-89a9d9a602f5",
+        "name": "Delete User",
+        "slug": "user:delete"
+      },
+      {
+        "id": "9a4be7cc-2aa5-405c-8d29-27effd6604e8",
+        "name": "Manage User Access",
+        "slug": "user:manage-access"
+      },
+      {
+        "id": "838e6049-b427-47c7-89a4-c5baf7373749",
+        "name": "Assign Role to User",
+        "slug": "user:assign-role"
+      },
+      {
+        "id": "ba6c1bf2-53e5-406c-94f4-74b89bd1e057",
+        "name": "Revoke Role from User",
+        "slug": "user:revoke-role"
+      },
+      {
+        "id": "a1800909-5a92-4921-bdd0-c63bdf067b3d",
+        "name": "Activate User",
+        "slug": "user:activate"
+      },
+      {
+        "id": "efd77bc8-1360-4dc2-ad58-b024ec5ae26a",
+        "name": "Deactivate User",
+        "slug": "user:deactivate"
+      },
+      {
+        "id": "dcdf8d0f-f857-44c7-b54e-1bbad803712f",
+        "name": "Create Employee",
+        "slug": "employee:create"
+      },
+      {
+        "id": "797a73dc-ddb7-476b-87fa-33fc626308a0",
+        "name": "Read Employee",
+        "slug": "employee:read"
+      },
+      {
+        "id": "30c0531f-d658-4211-bb9e-10b5f05eb987",
+        "name": "Update Employee",
+        "slug": "employee:update"
+      },
+      {
+        "id": "b2391088-8aeb-471d-8c83-3a01c1d04f62",
+        "name": "Delete Employee",
+        "slug": "employee:delete"
+      },
+      {
+        "id": "64cbf0af-df91-4360-ab35-15193f3ce30c",
+        "name": "Create Manager",
+        "slug": "manager:create"
+      },
+      {
+        "id": "9c29aa2f-6e78-4912-8d06-f0187259dcf5",
+        "name": "Read Manager",
+        "slug": "manager:read"
+      },
+      {
+        "id": "6cf9873a-1b99-4cf7-988e-e97b1130298e",
+        "name": "Update Manager",
+        "slug": "manager:update"
+      },
+      {
+        "id": "75624e4d-c147-4140-8816-9d416dace4d8",
+        "name": "Delete Manager",
+        "slug": "manager:delete"
+      },
+      {
+        "id": "e0794a2b-44f9-4e55-ad06-9ad8d383f42c",
+        "name": "Create Administrator",
+        "slug": "administrator:create"
+      },
+      {
+        "id": "01704d5c-cead-4cea-8b0b-9e2c76ad7b12",
+        "name": "Read Administrator",
+        "slug": "administrator:read"
+      },
+      {
+        "id": "1e87367c-a135-414e-aa28-a2f13c4a7b31",
+        "name": "Update Administrator",
+        "slug": "administrator:update"
+      },
+      {
+        "id": "461cb1ad-78d4-428e-a5a8-83406e2550e6",
+        "name": "Delete Administrator",
+        "slug": "administrator:delete"
+      },
+      {
+        "id": "5b7a3cb1-8469-4b77-a601-69bf0ad33e1d",
+        "name": "Create Member",
+        "slug": "member:create"
+      },
+      {
+        "id": "740ead3c-6f13-48e6-ae6e-85a3472236e8",
+        "name": "Read Member",
+        "slug": "member:read"
+      },
+      {
+        "id": "f76aa97e-9a4d-4760-b9ee-ea4711ea98fd",
+        "name": "Update Member",
+        "slug": "member:update"
+      },
+      {
+        "id": "ae6b7aa9-b49f-4093-8724-d8d1fe8f9b1a",
+        "name": "Delete Member",
+        "slug": "member:delete"
+      },
+      {
+        "id": "70366a1d-db6d-4053-b200-d7795a8559c9",
+        "name": "Export Members",
+        "slug": "member:export"
+      },
+      {
+        "id": "ab6daad1-4076-430f-b64b-9dcc0ce93a39",
+        "name": "Import Members",
+        "slug": "member:import"
+      },
+      {
+        "id": "843b8eca-bbe4-4542-bbcd-7e61e56f1cc7",
+        "name": "Upload Member Document",
+        "slug": "member:upload-document"
+      },
+      {
+        "id": "092fa814-bb0a-4ca3-aa76-a4f82b2ecf4e",
+        "name": "Create Import Job",
+        "slug": "import:create"
+      },
+      {
+        "id": "cd9dff77-6460-4f62-b452-310545b00c05",
+        "name": "Read Import Job",
+        "slug": "import:read"
+      },
+      {
+        "id": "6ffd43f3-96b6-4701-926a-300ad1379352",
+        "name": "Delete Import Job",
+        "slug": "import:delete"
+      },
+      {
+        "id": "b3c2b771-b18e-4aa0-bfad-451bbc308508",
+        "name": "Create Member Registration",
+        "slug": "member-registration:create"
+      },
+      {
+        "id": "548b37eb-2939-42cc-b874-49c75232cac6",
+        "name": "Read Member Registration",
+        "slug": "member-registration:read"
+      },
+      {
+        "id": "e51fc4aa-0cd1-4304-98e7-a51a11ad6291",
+        "name": "Update Member Registration",
+        "slug": "member-registration:update"
+      },
+      {
+        "id": "5f2d6b7a-c3ce-4b20-84ea-f00e9e5d3bb3",
+        "name": "Delete Member Registration",
+        "slug": "member-registration:delete"
+      },
+      {
+        "id": "5eb53e6b-4209-4c94-bbf1-07abfb510412",
+        "name": "Approve Member Registration",
+        "slug": "member-registration:approve"
+      },
+      {
+        "id": "34b29b9d-6faf-437a-863c-c24183ed9bf1",
+        "name": "Reject Member Registration",
+        "slug": "member-registration:reject"
+      },
+      {
+        "id": "0566ec9b-5408-4878-948c-ed6144ededc4",
+        "name": "Create Branch",
+        "slug": "branch:create"
+      },
+      {
+        "id": "4176d08c-8259-4623-8896-41a838d16524",
+        "name": "Read Branch",
+        "slug": "branch:read"
+      },
+      {
+        "id": "f5c28fd3-d009-4171-84e8-ad8084824579",
+        "name": "Update Branch",
+        "slug": "branch:update"
+      },
+      {
+        "id": "c4a73665-e0d9-4aee-9b8b-46d5b375478d",
+        "name": "Delete Branch",
+        "slug": "branch:delete"
+      },
+      {
+        "id": "221f6c8b-4ca1-4151-b347-b23a237271e4",
+        "name": "Assign User to Branch",
+        "slug": "branch:assign-user"
+      },
+      {
+        "id": "b76bac60-9068-45b9-9eda-031dc77029f9",
+        "name": "Create Account",
+        "slug": "account:create"
+      },
+      {
+        "id": "52a45521-44e9-4bfc-a02c-c3e6c3d64af0",
+        "name": "Read Account",
+        "slug": "account:read"
+      },
+      {
+        "id": "b6addd4c-7b89-48d1-8106-49243b2d9c16",
+        "name": "Update Account",
+        "slug": "account:update"
+      },
+      {
+        "id": "95979101-5310-433c-b43b-e8e32f660231",
+        "name": "Delete Account",
+        "slug": "account:delete"
+      },
+      {
+        "id": "f45c707c-5bd5-43df-b23c-d6b50172c786",
+        "name": "Create Account Type",
+        "slug": "account-type:create"
+      },
+      {
+        "id": "d98ebdcb-77e5-493f-b443-19dd32440b61",
+        "name": "Read Account Type",
+        "slug": "account-type:read"
+      },
+      {
+        "id": "d3d5617e-0ecb-4809-a2db-034150347b98",
+        "name": "Update Account Type",
+        "slug": "account-type:update"
+      },
+      {
+        "id": "a7d60e2f-5c71-4680-9d3d-93f92705bf71",
+        "name": "Delete Account Type",
+        "slug": "account-type:delete"
+      },
+      {
+        "id": "735d1776-8963-43f2-b508-3f9bf5e39eeb",
+        "name": "Create Share",
+        "slug": "share:create"
+      },
+      {
+        "id": "ab4558f3-0cd1-4746-8db2-7fa980bcbb15",
+        "name": "Read Share",
+        "slug": "share:read"
+      },
+      {
+        "id": "8c381ea2-0bd4-4090-80c3-d74507a10f69",
+        "name": "Update Share",
+        "slug": "share:update"
+      },
+      {
+        "id": "85535e32-e468-48a9-b176-c5cd915355e0",
+        "name": "Delete Share",
+        "slug": "share:delete"
+      },
+      {
+        "id": "b10f181b-aa33-462b-a8d2-56d39fd077f1",
+        "name": "Buy Share",
+        "slug": "share:buy"
+      },
+      {
+        "id": "1251dd33-0cd1-4762-b125-5239b20813d1",
+        "name": "Approve Share",
+        "slug": "share:approve"
+      },
+      {
+        "id": "3acf31d8-230c-4d48-a63f-fd3d663cc92b",
+        "name": "Create Loan",
+        "slug": "loan:create"
+      },
+      {
+        "id": "013ed5f6-e17e-49ec-af16-eac5b40002e7",
+        "name": "Read Loan",
+        "slug": "loan:read"
+      },
+      {
+        "id": "5e9232fa-8ac4-42c7-a9e9-3bc0b1659205",
+        "name": "Update Loan",
+        "slug": "loan:update"
+      },
+      {
+        "id": "08ffc456-7e2d-4188-b539-c5bf8fef04d8",
+        "name": "Delete Loan",
+        "slug": "loan:delete"
+      },
+      {
+        "id": "915f1b57-679b-4a47-a434-5590c5da2a12",
+        "name": "Approve Loan",
+        "slug": "loan:approve"
+      },
+      {
+        "id": "b4f9c287-b601-46fb-88db-434bf49a9ac6",
+        "name": "Reject Loan",
+        "slug": "loan:reject"
+      },
+      {
+        "id": "edc5dfc7-aed0-496b-bff5-7245fda7b3f6",
+        "name": "Disburse Loan",
+        "slug": "loan:disburse"
+      },
+      {
+        "id": "a93579e5-c055-43e5-a344-511b6ba94a06",
+        "name": "Export Loans",
+        "slug": "loan:export"
+      },
+      {
+        "id": "30273463-ab83-44f5-8f49-cd1a570c8888",
+        "name": "Restructure Loan",
+        "slug": "loan:restructure"
+      },
+      {
+        "id": "ca4a2f9a-8a2c-47b3-aa27-213427125223",
+        "name": "Write Off Loan",
+        "slug": "loan:write-off"
+      },
+      {
+        "id": "d981a7f5-fb62-4cbd-8f19-4a9d7fcfe3ff",
+        "name": "Create Payment",
+        "slug": "payment:create"
+      },
+      {
+        "id": "93b22913-3979-491c-a82a-e09e05d73c71",
+        "name": "Read Payment",
+        "slug": "payment:read"
+      },
+      {
+        "id": "e0f51186-02c2-46b3-a48e-00d7b68a5d75",
+        "name": "Update Payment",
+        "slug": "payment:update"
+      },
+      {
+        "id": "27000ddf-8915-41dd-922a-94373a111dff",
+        "name": "Delete Payment",
+        "slug": "payment:delete"
+      },
+      {
+        "id": "f903b8e6-eb29-49b5-9ca8-d23ec7dd5f49",
+        "name": "Approve Payment",
+        "slug": "payment:approve"
+      },
+      {
+        "id": "72482366-acfa-44a4-90b9-102c5d3c19da",
+        "name": "Reverse Payment",
+        "slug": "payment:reverse"
+      },
+      {
+        "id": "d1b20fce-02ce-458e-b983-7080c81292c5",
+        "name": "Export Payments",
+        "slug": "payment:export"
+      },
+      {
+        "id": "405a0d30-1d23-4d37-b678-c255bb9c212b",
+        "name": "Refund Payment",
+        "slug": "payment:refund"
+      },
+      {
+        "id": "8ef519b0-79c6-4fbd-ac69-7919d340c2b5",
+        "name": "Create Product Configuration",
+        "slug": "product-configuration:create"
+      },
+      {
+        "id": "ccc7e01c-b693-4b87-9fae-7fef3124612f",
+        "name": "Read Product Configuration",
+        "slug": "product-configuration:read"
+      },
+      {
+        "id": "fa240877-24ea-4f40-918f-488a4f7967cd",
+        "name": "Update Product Configuration",
+        "slug": "product-configuration:update"
+      },
+      {
+        "id": "2af2cd2d-528c-4516-87e1-b85218d37a81",
+        "name": "Delete Product Configuration",
+        "slug": "product-configuration:delete"
+      },
+      {
+        "id": "21de5dc7-de44-49a8-9305-cce0cf11fada",
+        "name": "Read Product Templates",
+        "slug": "product-template:read"
+      },
+      {
+        "id": "6be300ee-aabc-4076-8128-0c2499d85c32",
+        "name": "Read Account Journals",
+        "slug": "account-journal:read"
+      },
+      {
+        "id": "2ed5e59a-9170-4e6d-951e-6f0f6aec54b8",
+        "name": "Create Saving Contract",
+        "slug": "saving-contract:create"
+      },
+      {
+        "id": "5bd7bf34-6c8b-4d0b-bbfc-645985d95641",
+        "name": "Read Saving Contract",
+        "slug": "saving-contract:read"
+      },
+      {
+        "id": "d511a211-090d-4db7-b68e-4edf8e711899",
+        "name": "Update Saving Contract",
+        "slug": "saving-contract:update"
+      },
+      {
+        "id": "3a121264-035b-4e0c-890e-99bfdfa87f60",
+        "name": "Delete Saving Contract",
+        "slug": "saving-contract:delete"
+      },
+      {
+        "id": "0f55c6a5-bbfd-4922-beaf-dda12cebe943",
+        "name": "Close Saving Contract",
+        "slug": "saving-contract:close"
+      },
+      {
+        "id": "595a58f8-9928-4986-bdb4-8ddb3a1a09f0",
+        "name": "Freeze Saving Contract",
+        "slug": "saving-contract:freeze"
+      },
+      {
+        "id": "9bda76dc-35db-43ff-8ce8-49886d1fbc42",
+        "name": "Create Approval Workflow",
+        "slug": "approval_workflow:create"
+      },
+      {
+        "id": "073f65ce-9859-4199-955e-2c6294597a5d",
+        "name": "Read Approval Workflow",
+        "slug": "approval_workflow:read"
+      },
+      {
+        "id": "7d67a3a0-84a6-40d2-a362-27b1e7ca37c2",
+        "name": "Update Approval Workflow",
+        "slug": "approval_workflow:update"
+      },
+      {
+        "id": "a30600fe-45b4-45b7-a2cf-22c2c6d60b70",
+        "name": "Delete Approval Workflow",
+        "slug": "approval_workflow:delete"
+      },
+      {
+        "id": "e1bb90a0-4a74-4140-853e-88424ff9984c",
+        "name": "Approve Approval Workflow",
+        "slug": "approval_workflow:approve"
+      },
+      {
+        "id": "8f135ec8-e89f-4405-b1fb-013c4f6c7914",
+        "name": "Reject Approval Workflow",
+        "slug": "approval_workflow:reject"
+      },
+      {
+        "id": "bdb5ae04-d661-40e7-8f3a-49d7bc3e4ff8",
+        "name": "Manage Approval Workflow",
+        "slug": "approval_workflow:manage"
+      },
+      {
+        "id": "6f6461f6-722f-41cb-bb95-8cf8959f15ef",
+        "name": "Create Agent",
+        "slug": "agent:create"
+      },
+      {
+        "id": "9d1a4b3e-884f-4634-bf52-d3fcfb201d2f",
+        "name": "Read Agent",
+        "slug": "agent:read"
+      },
+      {
+        "id": "c9f7f3b1-7431-422a-b998-f019ec5b969b",
+        "name": "Update Agent",
+        "slug": "agent:update"
+      },
+      {
+        "id": "b9b02490-7cf1-4e0e-ae28-79ec779b9978",
+        "name": "Delete Agent",
+        "slug": "agent:delete"
+      },
+      {
+        "id": "ae2af0d0-c513-4718-9660-d9098500cd0a",
+        "name": "Generate Report",
+        "slug": "report:generate"
+      },
+      {
+        "id": "d8019632-866d-42a8-8f9b-f124de081093",
+        "name": "Read Report",
+        "slug": "report:read"
+      },
+      {
+        "id": "8c01e063-e2c5-44e7-b2ad-541f722e2348",
+        "name": "Export Report",
+        "slug": "report:export"
+      },
+      {
+        "id": "8347be53-14ec-4c33-a37a-133cb0c15002",
+        "name": "Read Audit Log",
+        "slug": "audit_log:read"
+      },
+      {
+        "id": "06303a23-0a3d-4a36-823d-f9b78178687a",
+        "name": "Export Audit Log",
+        "slug": "audit_log:export"
+      },
+      {
+        "id": "e0eabfcb-c8ff-41f2-bf40-d7326ff4a040",
+        "name": "Read Application Settings",
+        "slug": "settings:read"
+      },
+      {
+        "id": "7286e5e6-6fba-4ca5-9a8c-e922b7f1dd55",
+        "name": "Update Application Settings",
+        "slug": "settings:update"
+      },
+      {
+        "id": "e5d74c3f-3920-4213-94da-d1b80724154d",
+        "name": "Admin Equb",
+        "slug": "equb:admin"
+      },
+      {
+        "id": "a4feb3e8-ad53-46eb-8975-44d052609f58",
+        "name": "Manage Equb",
+        "slug": "equb:manage"
+      },
+      {
+        "id": "72d9f72d-8f7b-43e3-90c5-e4650cf81265",
+        "name": "Read Equb",
+        "slug": "equb:read"
+      },
+      {
+        "id": "cacf98ef-d501-4abe-a3fd-cecf4aa3c01a",
+        "name": "Create Equb",
+        "slug": "equb:create"
+      },
+      {
+        "id": "7452c909-af9f-444e-b538-83169d7e9332",
+        "name": "Update Equb",
+        "slug": "equb:update"
+      },
+      {
+        "id": "29398d6f-28a9-4498-abd4-cdc86dc578b6",
+        "name": "Delete Equb",
+        "slug": "equb:delete"
+      },
+      {
+        "id": "a08577d1-7bcf-4b6a-adbd-8cfb0b2ebfe5",
+        "name": "Execute Equb Draw",
+        "slug": "equb:draw"
+      },
+      {
+        "id": "a60ed4a2-8ffb-4b2f-b773-39b19b86d3f6",
+        "name": "Process Equb Payout",
+        "slug": "equb:payout"
+      },
+      {
+        "id": "6f9d30f5-e692-45d2-80f6-c6295cc743a4",
+        "name": "Manage Equb Takaful",
+        "slug": "equb:takaful"
+      },
+      {
+        "id": "2413b29d-0716-492a-b992-cb312664b6a1",
+        "name": "Manage Equb Members",
+        "slug": "equb:member"
+      }
+    ]
+  }
+}

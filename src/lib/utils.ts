@@ -20,6 +20,16 @@ export function cn(...inputs: ClassValue[]) {
  * @param options - Intl.DateTimeFormatOptions for customization
  * @returns Formatted date string (e.g., "May 14, 1990")
  */
+/**
+ * True for a calendar date with no real time: "2026-10-03" or the backend's
+ * "2026-10-03T00:00:00Z". Those must be shown as that day in UTC; converting
+ * to local time turns them into "3:00 AM" in Addis (UTC+3), or the previous
+ * day west of UTC.
+ */
+export function isDateOnly(dateString?: string | null): boolean {
+  return !!dateString && /^\d{4}-\d{2}-\d{2}(T00:00(:00(\.0+)?)?(Z|[+-]00:?00)?)?$/.test(dateString.trim());
+}
+
 export function formatDate(
   dateString?: string | null, 
   options?: Intl.DateTimeFormatOptions
@@ -27,7 +37,7 @@ export function formatDate(
   if (!dateString) return '—';
   
   try {
-    const date = new Date(dateString);
+    const date = new Date(isDateOnly(dateString) ? `${dateString.trim().slice(0, 10)}T00:00:00Z` : dateString);
     
     // Check if date is valid
     if (isNaN(date.getTime())) {
@@ -38,6 +48,7 @@ export function formatDate(
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      ...(isDateOnly(dateString) ? { timeZone: 'UTC' } : {}),
       ...options
     };
     
@@ -225,6 +236,8 @@ export function formatDateTime(dateString?: string | null): string {
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Invalid date';
+    // A calendar date has no meaningful time; don't invent one.
+    if (isDateOnly(dateString)) return formatDate(dateString);
     
     const dateFormatted = formatDate(dateString);
     const timeFormatted = date.toLocaleTimeString('en-US', {
@@ -431,4 +444,9 @@ export function getErrorMessages(error: unknown, fallback: string): string[] {
   });
 
   return unique.length > 0 ? unique : [fallback];
+}
+
+/** Rewrites raw ISO dates inside backend messages ("…until 2026-10-03") as readable dates. */
+export function humanizeDates(text: string): string {
+  return text.replace(/\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?\b/g, (m) => formatDate(m));
 }

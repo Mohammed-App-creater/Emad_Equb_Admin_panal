@@ -1,0 +1,29 @@
+{
+  "method": "GET",
+  "path": "/users/branches/35b061d4-fa2c-4b42-8446-51f3c237ec01",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Users retrieved successfully",
+    "code": "SUCCESS",
+    "data": [
+      {
+        "id": "b430875f-1ad2-4d18-9010-99d639809bba",
+        "first_name": "Super",
+        "last_name": "Admin",
+        "full_name": "Super Admin",
+        "email": "sysadmin@emad.com",
+        "phone": "",
+        "status": true,
+        "branch_id": "35b061d4-fa2c-4b42-8446-51f3c237ec01",
+        "login_count": 0,
+        "totp_enabled": false,
+        "failed_login_attempts": 0,
+        "created_at": "2026-09-28T16:00:57.908959Z",
+        "updated_at": "2026-09-28T16:00:57.908959Z"
+      }
+    ]
+  }
+}

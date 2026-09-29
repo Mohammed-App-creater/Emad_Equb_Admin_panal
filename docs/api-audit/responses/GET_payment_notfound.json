@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/payments/00000000-0000-4000-8000-000000000000",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "Payment not found",
+    "code": "NOT_FOUND_006",
+    "error": "NOT_FOUND"
+  }
+}

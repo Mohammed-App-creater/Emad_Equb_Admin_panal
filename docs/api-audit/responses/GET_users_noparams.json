@@ -1,0 +1,19 @@
+{
+  "method": "GET",
+  "path": "/users",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Users retrieved successfully",
+    "code": "SUCCESS",
+    "data": [],
+    "meta": {
+      "total": 0,
+      "page": 1,
+      "per_page": 10,
+      "total_pages": 0
+    }
+  }
+}

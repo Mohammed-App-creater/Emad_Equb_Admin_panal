@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/users/roles",
+  "params": null,
+  "body": null,
+  "status": 400,
+  "response": {
+    "success": false,
+    "message": "Invalid ID format",
+    "code": "VAL_008",
+    "error": "VALIDATION"
+  }
+}

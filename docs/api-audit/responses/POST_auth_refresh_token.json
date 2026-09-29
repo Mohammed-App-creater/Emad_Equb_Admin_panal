@@ -1,0 +1,18 @@
+{
+  "method": "POST",
+  "path": "/auth/refresh-token",
+  "params": null,
+  "body": {
+    "refresh_token": "<redacted>"
+  },
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Token refreshed successfully",
+    "code": "SUCCESS",
+    "data": {
+      "token": "<redacted>",
+      "refresh_token": "<redacted>"
+    }
+  }
+}

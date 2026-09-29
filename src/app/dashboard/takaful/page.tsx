@@ -3,113 +3,65 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { PiggyBank, CircleDot, Trophy, Eye, ExternalLink, Info } from "lucide-react";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { PiggyBank, CircleDot, Trophy, ExternalLink, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { StatusBadge } from "@/components/equb/status-badge";
+import { EqubFilter } from "@/components/equb/equb-filter";
 import { TakafulTab } from "@/components/equb/takaful-tab";
 import { useEqubs, useTakafulBalances } from "@/hooks/ekub";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
-import type { Equb } from "@/types/ekub";
-
-type Row = Equb & { balance: number | undefined };
 
 /**
- * General Takaful view: every Equb's fund balance side by side, with the full
- * ledger (claims / refund / surplus) of the selected Equb underneath. The
- * per-Equb Takaful tab inside /dashboard/equbs/[id] is the same ledger.
+ * Takaful with one Equb filter on top (default: all Equbs). "All" shows fund
+ * totals across every Equb; picking one shows that Equb's full Takaful ledger
+ * (the same component as the Equb's own Takaful tab).
  */
 function TakafulInner() {
   const t = useTranslations("takaful");
-  const te = useTranslations("equbs");
   const tc = useTranslations("common");
   const router = useRouter();
 
   const { data: allEqubs, isLoading } = useEqubs();
   // Draft Equbs haven't collected anything yet, so they have no fund.
   const equbs = (allEqubs ?? []).filter((e) => e.status !== "draft");
-  const balances = useTakafulBalances(equbs.map((e) => e.id));
-  const rows: Row[] = equbs.map((e, i) => ({ ...e, balance: balances[i]?.data }));
+  const [equbId, setEqubId] = useState("all");
+  const selected = equbs.find((e) => e.id === equbId);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = rows.find((r) => r.id === selectedId) ?? rows[0];
-
+  const balances = useTakafulBalances(selected ? [] : equbs.map((e) => e.id));
+  const rows = equbs.map((e, i) => ({ equb: e, balance: balances[i]?.data }));
   const total = rows.reduce((sum, r) => sum + (r.balance ?? 0), 0);
-  const largest = rows.reduce<Row | undefined>((best, r) => ((r.balance ?? 0) > (best?.balance ?? -1) ? r : best), undefined);
+  const largest = rows.reduce<(typeof rows)[number] | undefined>((best, r) => ((r.balance ?? 0) > (best?.balance ?? -1) ? r : best), undefined);
   const balancesLoading = balances.some((b) => b.isLoading);
-
-  const columns: DataTableColumn<Row>[] = [
-    { id: "equb", sortValue: (r) => r.name, header: t("equb"), mobile: "title", cell: (r) => (
-      <div>
-        <p className="font-medium text-foreground">{r.name}</p>
-        <p className="font-mono text-xs text-muted-foreground">{r.code}</p>
-      </div>
-    ) },
-    { id: "category", sortValue: (r) => r.category?.name ?? null, header: te("category"), mobile: "detail", cell: (r) => <span className="text-sm">{r.category?.name ?? "—"}</span> },
-    { id: "members", sortValue: (r) => r.currentMembers, header: te("members"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm">{r.currentMembers}</span> },
-    { id: "balance", sortValue: (r) => r.balance ?? null, header: t("balance"), mobile: "detail", align: "right", cell: (r) => <span className="font-semibold text-primary">{r.balance === undefined ? "…" : formatCurrency(r.balance)}</span> },
-    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="lifecycle" /> },
-  ];
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <PageHeader title={t("title")} subtitle={t("generalSubtitle")} />
+      <PageHeader
+        title={t("title")}
+        subtitle={t("generalSubtitle")}
+        actions={selected && (
+          <Button variant="outline" onClick={() => router.push(`/dashboard/equbs/${selected.id}?tab=takaful`)}>
+            <ExternalLink size={14} className="mr-1" /> {t("openInEqub")}
+          </Button>
+        )}
+      />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label={t("totalBalance")} value={balancesLoading && !total ? "…" : formatCurrency(total)} icon={PiggyBank} tone="primary" />
-        <StatCard label={t("equbsWithFund")} value={rows.length} icon={CircleDot} tone="info" />
-        <StatCard label={t("largestFund")} value={largest ? formatCurrency(largest.balance ?? 0) : "—"} hint={largest?.name} icon={Trophy} tone="secondary" />
-      </div>
+      <EqubFilter value={equbId} onChange={setEqubId} equbs={equbs} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
 
       <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <Info size={16} className="mt-0.5 shrink-0 text-primary" />
         <span>{t("surplusNote")}</span>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t("byEqub")}</CardTitle></CardHeader>
-        <CardContent>
-          <DataTable
-        defaultSort={{ by: (r) => r.createdAt, dir: "desc" }}
-        bare
-            filters={{ search: { keys: (r) => [r.name, r.code, r.category?.name] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status }] }}
-            columns={columns}
-            data={rows}
-            rowKey={(r) => r.id}
-            isLoading={isLoading}
-            onRowClick={(r) => setSelectedId(r.id)}
-            emptyTitle={tc("noData")}
-            renderLeadingActions={(r) =>
-              selected?.id === r.id ? <span className="text-xs font-semibold text-primary">●</span> : null
-            }
-            actions={[
-              { label: t("viewLedger"), icon: Eye, onClick: (r) => setSelectedId(r.id) },
-              { label: t("openInEqub"), icon: ExternalLink, onClick: (r) => router.push(`/dashboard/equbs/${r.id}?tab=takaful`) },
-            ]}
-          />
-        </CardContent>
-      </Card>
-
       {selected ? (
-        <Card>
-          <CardHeader className="flex-row items-center justify-between gap-3">
-            <CardTitle className="text-base">
-              {selected.name} <span className="font-mono text-xs font-normal text-muted-foreground">· {selected.code}</span>
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => router.push(`/dashboard/equbs/${selected.id}?tab=takaful`)}>
-              <ExternalLink size={14} className="mr-1" /> {t("openInEqub")}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <TakafulTab key={selected.id} equb={selected} />
-          </CardContent>
-        </Card>
+        <TakafulTab key={selected.id} equb={selected} />
       ) : (
-        !isLoading && <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">{t("selectEqub")}</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label={t("totalBalance")} value={balancesLoading && !total ? "…" : formatCurrency(total)} icon={PiggyBank} tone="primary" />
+          <StatCard label={t("equbsWithFund")} value={isLoading ? "…" : rows.length} icon={CircleDot} tone="info" />
+          <StatCard label={t("largestFund")} value={largest ? formatCurrency(largest.balance ?? 0) : "—"} hint={largest?.equb.name} icon={Trophy} tone="secondary" />
+        </div>
       )}
     </div>
   );

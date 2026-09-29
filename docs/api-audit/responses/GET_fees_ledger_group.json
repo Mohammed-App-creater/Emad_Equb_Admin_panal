@@ -1,0 +1,42 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/fees",
+  "params": {
+    "scope": "group",
+    "group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+    "page": 1,
+    "per_page": 5
+  },
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Fee ledger retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "records": [],
+      "total": 0,
+      "page": 1,
+      "per_page": 5,
+      "totals": {
+        "contribution_charged": "0",
+        "contribution_collected": "0",
+        "admin_fee_charged": "0",
+        "admin_fee_collected": "0",
+        "takaful_fee_charged": "0",
+        "takaful_fee_collected": "0",
+        "total_charged": "0",
+        "total_collected": "0",
+        "members": 0,
+        "rounds": 0,
+        "contributions": 0
+      }
+    },
+    "meta": {
+      "total": 0,
+      "page": 1,
+      "per_page": 5,
+      "total_pages": 0
+    }
+  }
+}

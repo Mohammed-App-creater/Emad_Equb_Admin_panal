@@ -39,7 +39,7 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
   const [to, setTo] = useState(today);
   const [equbId, setEqubId] = useState("all");
 
-  const { data: equbs } = useEqubs();
+  const { data: equbs, isLoading: equbsLoading } = useEqubs();
   const { has } = useEkubAccess();
   const { toast } = useToast();
   const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
@@ -77,7 +77,7 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
             <Label className="text-xs">{t("equb")}</Label>
             <Select value={equbId} onValueChange={setEqubId}>
               <SelectTrigger className="sm:w-[220px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent loading={equbsLoading}>
                 <SelectItem value="all">{t("allEqubs")}</SelectItem>
                 {(equbs ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
               </SelectContent>

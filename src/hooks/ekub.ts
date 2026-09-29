@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ekubService } from "@/services/ekub";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import type {
   ApplicationStatus,
   EqubCategoryInput,
@@ -68,6 +69,14 @@ export const useEqubMembersPage = (equbId: string, status: string | undefined, p
   useQuery({ queryKey: [...qk.members(equbId, status), "page", page, perPage], queryFn: () => ekubService.listEqubMembersPage(equbId, status, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
 export const useTakafulPage = (equbId: string, page: number, perPage: number) =>
   useQuery({ queryKey: [...qk.takaful(equbId), "page", page, perPage], queryFn: () => ekubService.listTakafulPage(equbId, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
+export const useAgentsPage = (search: string | undefined, page: number, perPage: number) =>
+  useQuery({ queryKey: ["agents", "page", search ?? "", page, perPage], queryFn: () => ekubService.listAgentsPage(search, page, perPage), placeholderData: keepPreviousData });
+export const useAgent = (id: string) =>
+  useQuery({ queryKey: ["agent", id], queryFn: () => ekubService.getAgent(id), enabled: !!id });
+/** Fee-ledger lines for several Equbs at once (one request per Equb). */
+export const useFeeLedgersMany = (equbIds: string[]) =>
+  useQueries({ queries: equbIds.map((id) => ({ queryKey: ["fee-ledger", { equbId: id }, 1, 1000], queryFn: () => ekubService.getFeeLedger({ equbId: id }, 1, 1000) })) });
+
 export const useStaffPage = (search: string | undefined, page: number, perPage: number) =>
   useQuery({ queryKey: ["staff", "page", search ?? "", page, perPage], queryFn: () => ekubService.listStaffPage(search, page, perPage), placeholderData: keepPreviousData });
 
@@ -135,6 +144,10 @@ export const useAutoCancel = () => {
 export const useEqubMembers = (equbId: string, status?: string) =>
   useQuery({ queryKey: qk.members(equbId, status), queryFn: () => ekubService.listEqubMembers(equbId, status), enabled: !!equbId });
 
+/** Rosters for several Equbs at once (names for cross-Equb lists). */
+export const useEqubMembersMany = (equbIds: string[]) =>
+  useQueries({ queries: equbIds.map((id) => ({ queryKey: qk.members(id, undefined), queryFn: () => ekubService.listEqubMembers(id, undefined) })) });
+
 export const useMemberProfile = (memberId: string) =>
   useQuery({ queryKey: ["member-profile", memberId], queryFn: () => ekubService.getMemberProfile(memberId), enabled: !!memberId, retry: false });
 
@@ -197,12 +210,30 @@ export const useRefreshReadiness = () => {
 };
 
 // ---- Recording a contribution ----
-export const useMemberStanding = (equbId: string, memberId: string | null) =>
-  useQuery({ queryKey: ["member-standing", equbId, memberId ?? ""], queryFn: () => ekubService.getMemberStanding(equbId, memberId!), enabled: !!equbId && !!memberId, retry: false });
+/**
+ * Whether the signed-in user runs this Equb. Standing, catch-up and collect
+ * live under /equb/manager/my-groups/** and the backend answers 403 for
+ * anyone else, admins included. `isManager` is undefined until the Equb loads.
+ */
+export const useIsEqubManager = (equbId: string) => {
+  const userId = useAuthStore((s) => s.user?.id);
+  // A super admin may record for any Equb; the backend still has the final say
+  // and its error is shown if it refuses.
+  const isSuperAdmin = useAuthStore((s) =>
+    (s.user?.roles ?? []).some((r) => /super\s*admin/i.test(r.name)) || s.permissions.includes("equb:admin")
+  );
+  const { data: equb } = useEqub(equbId);
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return { isManager: true as boolean | undefined, isSuperAdmin, managerName: equb?.manager?.fullName };
+  const isManager = isSuperAdmin ? true : equb ? !!userId && equb.manager?.userId === userId : undefined;
+  return { isManager, isSuperAdmin, managerName: equb?.manager?.fullName };
+};
+
+export const useMemberStanding = (equbId: string, memberId: string | null, enabled = true) =>
+  useQuery({ queryKey: ["member-standing", equbId, memberId ?? ""], queryFn: () => ekubService.getMemberStanding(equbId, memberId!), enabled: enabled && !!equbId && !!memberId, retry: false });
 
 // A payment moves round totals, readiness, fees, takaful and standing.
 const invAfterPayment = (qc: QC, equbId: string) => {
-  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId]]) {
+  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId], ["round-attachments"], ["fee-ledger"]]) {
     qc.invalidateQueries({ queryKey: key as readonly unknown[] });
   }
 };
@@ -221,12 +252,20 @@ export const useConfirmPayment = () => {
     mutationFn: (v: { equbId?: string; paymentId: string; notes?: string }) => ekubService.confirmPayment(v.paymentId, v.notes),
     onSuccess: (_d, v) => {
       if (v.equbId) invAfterPayment(qc, v.equbId);
-      else for (const key of [["equb-rounds"], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members"], ["member-standing"], ["equb-admin-fees"], ["equb-dashboard"], ["my-collections"], ["catch-up"]]) qc.invalidateQueries({ queryKey: key });
+      else for (const key of [["equb-rounds"], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members"], ["member-standing"], ["equb-admin-fees"], ["equb-dashboard"], ["my-collections"], ["catch-up"], ["fee-ledger"]]) qc.invalidateQueries({ queryKey: key });
     },
   });
 };
-export const useCatchUp = (equbId: string, memberId: string | null) =>
-  useQuery({ queryKey: ["catch-up", equbId, memberId ?? ""], queryFn: () => ekubService.getCatchUp(equbId, memberId!), enabled: !!equbId && !!memberId, retry: false });
+export const useRejectPayment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { paymentId: string; reason: string }) => ekubService.rejectPayment(v.paymentId, v.reason),
+    onSuccess: () => { for (const key of [["fee-ledger"], ["my-collections"], ["equb-rounds"], ["round"]]) qc.invalidateQueries({ queryKey: key }); },
+  });
+};
+
+export const useCatchUp = (equbId: string, memberId: string | null, enabled = true) =>
+  useQuery({ queryKey: ["catch-up", equbId, memberId ?? ""], queryFn: () => ekubService.getCatchUp(equbId, memberId!), enabled: enabled && !!equbId && !!memberId, retry: false });
 
 export const useMyCollections = (filters: import("@/types/ekub").CollectionsFilters) =>
   useQuery({ queryKey: ["my-collections", filters], queryFn: () => ekubService.listMyCollections(filters) });
@@ -288,6 +327,10 @@ export const useRoundWinners = (roundId: string, roundNumber?: number, enabled =
 export const useEqubWinners = (equbId: string) =>
   useQuery({ queryKey: qk.equbWinners(equbId), queryFn: () => ekubService.listEqubWinners(equbId), enabled: !!equbId });
 
+/** Winners for several Equbs at once (the approvals queue). */
+export const useEqubWinnersMany = (equbIds: string[]) =>
+  useQueries({ queries: equbIds.map((id) => ({ queryKey: qk.equbWinners(id), queryFn: () => ekubService.listEqubWinners(id) })) });
+
 const invWinners = (qc: QC, equbId: string, roundId?: string) => {
   qc.invalidateQueries({ queryKey: qk.equbWinners(equbId) });
   qc.invalidateQueries({ queryKey: qk.dashboard(equbId) });
@@ -333,6 +376,10 @@ export const useProcessPayout = () => {
 // ---- Hardship early-turn (emergency draws) ----
 export const useEmergencyDraws = (equbId: string) =>
   useQuery({ queryKey: qk.emergency(equbId), queryFn: () => ekubService.listEmergencyDraws(equbId), enabled: !!equbId });
+
+/** Hardship requests for several Equbs at once (the approvals queue). */
+export const useEmergencyDrawsMany = (equbIds: string[]) =>
+  useQueries({ queries: equbIds.map((id) => ({ queryKey: qk.emergency(id), queryFn: () => ekubService.listEmergencyDraws(id) })) });
 
 export const useDecideEmergencyDraw = () => {
   const qc = useQueryClient();
@@ -459,9 +506,7 @@ export const useResolveDispute = () => {
   });
 };
 
-// ---- Staff / Roles ----
+// ---- Staff ----
 export const useStaff = () =>
   useQuery({ queryKey: ["staff"], queryFn: () => ekubService.listStaff() });
 
-export const useRoles = () =>
-  useQuery({ queryKey: ["roles"], queryFn: () => ekubService.listRoles() });

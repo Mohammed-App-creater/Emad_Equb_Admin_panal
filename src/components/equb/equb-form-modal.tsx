@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCategories, useCreateEqub, useUpdateEqub, useStaffUserSearch } from "@/hooks/ekub";
+import { useCategories, useCreateEqub, useUpdateEqub } from "@/hooks/ekub";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDateForInput, getErrorMessage } from "@/lib/utils";
 import { EQUB_FREQUENCIES } from "@/types/equb-api";
@@ -83,8 +83,7 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
   const tc = useTranslations("common");
   const tcat = useTranslations("categories");
   const { toast } = useToast();
-  const { data: categories } = useCategories();
-  const { data: staff } = useStaffUserSearch("");
+  const { data: categories, isLoading: categoriesLoading } = useCategories();
   const create = useCreateEqub();
   const update = useUpdateEqub();
   const isEdit = !!equb;
@@ -103,7 +102,6 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
   const [customize, setCustomize] = useState(() => !!equb && Object.keys(equb.overrides ?? {}).length > 0);
   const [terms, setTerms] = useState<TermsForm>(() => termsFrom(initialCat, equb));
   const [shares, setShares] = useState<AdminFeeShares>(() => equb?.feeShares ?? { sacco: 100, agent: 0, broker: 0 });
-  const [brokerUserId, setBrokerUserId] = useState(equb?.brokerUserId ?? "");
 
   const category = categories?.find((c) => c.id === form.categoryId) ?? initialCat;
   const payout = terms.contribution * form.maxMembers;
@@ -117,7 +115,6 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
 
   const errors: string[] = [];
   if (Math.abs(shareTotal - 100) > 0.001) errors.push(t("sharesMustTotal", { total: shareTotal }));
-  if (shares.broker > 0 && !brokerUserId) errors.push(t("brokerRequired"));
   if (customize && terms.winnersPerRound > form.maxMembers) errors.push(t("winnersMustFit"));
   if (customize && (terms.contribution <= 0 || terms.totalRounds <= 0 || terms.winnersPerRound <= 0)) errors.push(t("termsPositive"));
 
@@ -136,7 +133,8 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
       expectedEndDate: toApiDate(form.expectedEndDate),
       overrides,
       feeShares: shares,
-      brokerUserId: shares.broker > 0 ? brokerUserId : undefined,
+      // No broker picker: an edit keeps whatever broker the Equb already has.
+      brokerUserId: shares.broker > 0 ? equb?.brokerUserId : undefined,
     };
     const done = {
       onSuccess: (e: Equb) => {
@@ -153,17 +151,16 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
   };
 
   const n = (v: string) => (v === "" ? 0 : Number(v));
-  const staffName = (id: string) => staff?.find((u) => u.id === id)?.fullName ?? "—";
 
   return (
-    <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
+    <div className="-mx-2 max-h-[75vh] space-y-5 overflow-y-auto px-2 py-1">
       {/* Basics */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
           <Label>{t("category")}</Label>
           <Select value={form.categoryId} onValueChange={selectCategory} disabled={isEdit}>
             <SelectTrigger><SelectValue placeholder={t("category")} /></SelectTrigger>
-            <SelectContent>
+            <SelectContent loading={categoriesLoading} empty={!categories?.length}>
               {(categories ?? []).map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name} <span className="text-muted-foreground">· {c.code}</span></SelectItem>
               ))}
@@ -271,17 +268,6 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
         <p className={cn("text-xs font-medium", Math.abs(shareTotal - 100) > 0.001 ? "text-destructive" : "text-success")}>
           {t("sharesTotal")}: {shareTotal}%
         </p>
-        {shares.broker > 0 && (
-          <div className="space-y-1.5">
-            <Label>{t("broker")}</Label>
-            <Select value={brokerUserId} onValueChange={setBrokerUserId}>
-              <SelectTrigger><SelectValue placeholder={t("selectBroker")}>{brokerUserId ? staffName(brokerUserId) : undefined}</SelectValue></SelectTrigger>
-              <SelectContent>
-                {(staff ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName} <span className="text-muted-foreground">· {u.role || u.email}</span></SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </section>
 
       {errors.length > 0 && (

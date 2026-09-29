@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/members/de5bc528-cfe6-441a-9552-bf44874ad5e3/admin-fees",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "The requested resource was not found",
+    "code": "NOT_FOUND_001",
+    "error": "NOT_FOUND"
+  }
+}

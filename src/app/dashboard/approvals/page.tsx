@@ -1,247 +1,299 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Eye, Check, X, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import Image from "next/image";
-import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
+import { Check, X, ExternalLink, Wallet, Trophy, LifeBuoy } from "lucide-react";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
-import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PageHeader } from "@/components/dashboard/shared";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { useApplications, useDecideApplication } from "@/hooks/ekub";
+import {
+  useEqubs,
+  useFeeLedger,
+  useConfirmPayment,
+  useRejectPayment,
+  useEqubWinnersMany,
+  useApproveWinner,
+  useEmergencyDrawsMany,
+  useEqubMembersMany,
+  useDecideEmergencyDraw,
+} from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/use-debounce";
-import { formatDate } from "@/lib/utils";
-import type { Application, ApplicationStatus } from "@/types/ekub";
+import { cn, formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
+import type { Equb } from "@/types/ekub";
 
-const statusVariant: Record<ApplicationStatus, string> = {
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-info/15 text-info border border-info/30",
-  under_review: "bg-warning/15 text-warning border border-warning/30",
-  accepted: "bg-success/15 text-success border border-success/30",
-  rejected: "bg-destructive/15 text-destructive border border-destructive/30",
+type Kind = "payment" | "winner" | "hardship";
+type Decision = "pending" | "approved" | "rejected";
+
+/** One row of the queue, whatever kind of request it is. */
+interface Item {
+  key: string;
+  kind: Kind;
+  id: string;
+  equb?: Equb;
+  equbId: string;
+  equbName: string;
+  memberName: string;
+  detail: string;
+  amount?: number;
+  date: string;
+  status: Decision;
+  /** Winner still needs a guarantee reviewed in the Equb's Winners tab. */
+  needsGuarantee?: boolean;
+}
+
+const kindStyle: Record<Kind, string> = {
+  payment: "bg-primary/10 text-primary",
+  winner: "bg-secondary/20 text-secondary-foreground",
+  hardship: "bg-info/15 text-info",
+};
+const statusStyle: Record<Decision, string> = {
+  pending: "bg-warning/15 text-warning",
+  approved: "bg-success/15 text-success",
+  rejected: "bg-destructive/15 text-destructive",
+};
+const toDecision = (s: string): Decision => {
+  const v = (s || "").toLowerCase();
+  if (["approved", "paid", "released", "completed", "guaranteed", "ready"].includes(v)) return "approved";
+  if (["rejected", "declined", "cancelled"].includes(v)) return "rejected";
+  return "pending";
 };
 
 function ApprovalsInner() {
   const t = useTranslations("approvals");
-  const td = useTranslations("declarations");
   const tc = useTranslations("common");
-  const { has } = useEkubAccess();
   const { toast } = useToast();
-  const canApprove = has(EKUB_PERMS.APPLICATION_APPROVE);
+  const { has } = useEkubAccess();
+  const canPayments = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
+  const canWinners = has(EKUB_PERMS.PAYOUT_APPROVE);
+  const canHardship = has(EKUB_PERMS.PAYOUT_APPROVE) || has(EKUB_PERMS.EQUB_MANAGE);
 
-  const [status, setStatus] = useState<ApplicationStatus | "all">("all");
-  const [search, setSearch] = useState("");
-  const debounced = useDebounce(search, 300);
-  const { data, isLoading } = useApplications({ status, search: debounced });
-  const decide = useDecideApplication();
+  const [kind, setKind] = useState<Kind | "all">("all");
+  const [equbFilter, setEqubFilter] = useState("all");
+  const [status, setStatus] = useState<Decision | "all">("pending");
 
-  const [selected, setSelected] = useState<Application | null>(null);
-  const [rejecting, setRejecting] = useState<Application | null>(null);
-  const [reason, setReason] = useState("");
+  // ---- sources -------------------------------------------------------------
+  const { data: equbs, isLoading: equbsLoading } = useEqubs();
+  const live = (equbs ?? []).filter((e) => e.status !== "draft");
+  const liveIds = live.map((e) => e.id);
+  const equbById = new Map((equbs ?? []).map((e) => [e.id, e]));
 
-  const runDecision = (app: Application, decision: "accept" | "reject", why?: string) => {
-    decide.mutate(
-      { id: app.id, decision, reason: why },
-      {
-        onSuccess: () => {
-          toast({ title: decision === "accept" ? "Accepted" : "Rejected", description: app.fullName });
-          setSelected(null);
-          setRejecting(null);
-          setReason("");
-        },
-        onError: (e) => toast({ title: "Error", description: (e as Error).message, variant: "destructive" }),
+  // A recorded collection leaves its contributions pending with a payment id
+  // until someone confirms it; one payment can cover several rounds.
+  const { data: ledger, isLoading: ledgerLoading } = useFeeLedger({ status: "pending" }, 1, 500);
+  const winnersQ = useEqubWinnersMany(liveIds);
+  const hardshipQ = useEmergencyDrawsMany(liveIds);
+  // Hardship requests carry only a member id; load rosters just for those Equbs.
+  const hardshipEqubIds = liveIds.filter((_, i) => (hardshipQ[i]?.data?.length ?? 0) > 0);
+  const rostersQ = useEqubMembersMany(hardshipEqubIds);
+  const nameOf = new Map(rostersQ.flatMap((q) => (q.data ?? []).map((m) => [`${m.memberId}`, m.name] as const)));
+  const loading = equbsLoading || ledgerLoading || winnersQ.some((q) => q.isLoading) || hardshipQ.some((q) => q.isLoading);
+
+  const items: Item[] = (() => {
+    const out: Item[] = [];
+    const byPayment = new Map<string, NonNullable<typeof ledger>["items"]>();
+    for (const l of ledger?.items ?? []) {
+      if (!l.paymentId || l.collected) continue;
+      byPayment.set(l.paymentId, [...(byPayment.get(l.paymentId) ?? []), l]);
+    }
+    for (const [paymentId, lines] of byPayment) {
+      const first = lines[0];
+      const rounds = lines.map((l) => `#${l.roundNumber}`).join(", ");
+      out.push({
+        key: `payment-${paymentId}`,
+        kind: "payment",
+        id: paymentId,
+        equb: equbById.get(first.equbId),
+        equbId: first.equbId,
+        equbName: first.equbName,
+        memberName: first.memberName || "—",
+        detail: `${t("roundsLabel")} ${rounds}${lines.some((l) => l.isCatchUp) ? ` · ${t("catchUp")}` : ""}`,
+        amount: lines.reduce((a, l) => a + l.total, 0),
+        date: lines.map((l) => l.scheduledAt).sort().at(-1) ?? "",
+        status: "pending",
+      });
+    }
+    winnersQ.forEach((q, i) => {
+      const equb = live[i];
+      for (const w of q.data ?? []) {
+        const guaranteeRequired = equb?.effectiveTerms?.guaranteeRequired ?? equb?.category?.guaranteeRequired ?? true;
+        out.push({
+          key: `winner-${w.id}`,
+          kind: "winner",
+          id: w.id,
+          equb,
+          equbId: equb.id,
+          equbName: equb.name,
+          memberName: w.name,
+          detail: `${t("roundsLabel")} #${w.roundNumber ?? "—"}${guaranteeRequired ? ` · ${t("guarantee")}: ${w.guaranteeStatus.replace(/_/g, " ")}` : ""}`,
+          amount: w.payoutAmount,
+          date: w.createdAt,
+          status: w.status === "pending" ? "pending" : "approved",
+          needsGuarantee: guaranteeRequired && w.guaranteeStatus !== "approved",
+        });
       }
-    );
+    });
+    hardshipQ.forEach((q, i) => {
+      const equb = live[i];
+      for (const h of q.data ?? []) {
+        out.push({
+          key: `hardship-${h.id}`,
+          kind: "hardship",
+          id: h.id,
+          equb,
+          equbId: equb.id,
+          equbName: equb.name,
+          memberName: nameOf.get(h.memberId) ?? t("unknownMember"),
+          detail: h.reason,
+          date: h.createdAt,
+          status: toDecision(h.status),
+        });
+      }
+    });
+    return out.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  })();
+
+  const shown = items.filter((i) => (kind === "all" || i.kind === kind) && (equbFilter === "all" || i.equbId === equbFilter) && (status === "all" || i.status === status));
+  const pendingOf = (k: Kind) => items.filter((i) => i.kind === k && i.status === "pending").length;
+
+  // ---- actions ---------------------------------------------------------------
+  const confirm = useConfirmPayment();
+  const rejectPay = useRejectPayment();
+  const approveWinner = useApproveWinner();
+  const decideHardship = useDecideEmergencyDraw();
+  const [rejecting, setRejecting] = useState<Item | null>(null);
+  const [reason, setReason] = useState("");
+  const busy = confirm.isPending || rejectPay.isPending || approveWinner.isPending || decideHardship.isPending;
+  const fail = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
+  const ok = (title: string, i: Item) => toast({ title, description: `${i.memberName} · ${i.equbName}` });
+
+  const approve = (i: Item) => {
+    if (i.kind === "payment") confirm.mutate({ equbId: i.equbId, paymentId: i.id }, { onSuccess: () => ok(t("approved"), i), onError: fail });
+    else if (i.kind === "winner") approveWinner.mutate({ equbId: i.equbId, winnerId: i.id }, { onSuccess: () => ok(t("approved"), i), onError: fail });
+    else decideHardship.mutate({ equbId: i.equbId, id: i.id, decision: "approve" }, { onSuccess: () => ok(t("approved"), i), onError: fail });
   };
+  const reject = () => {
+    if (!rejecting) return;
+    const i = rejecting;
+    const done = { onSuccess: () => { ok(t("rejected"), i); setRejecting(null); setReason(""); }, onError: fail };
+    if (i.kind === "payment") rejectPay.mutate({ paymentId: i.id, reason }, done);
+    else decideHardship.mutate({ equbId: i.equbId, id: i.id, decision: "reject", note: reason }, done);
+  };
+  const allowed = (k: Kind) => (k === "payment" ? canPayments : k === "winner" ? canWinners : canHardship);
 
-  const statusLabel = (s: ApplicationStatus) =>
-    t(("status" + s.charAt(0).toUpperCase() + s.slice(1).replace(/_(.)/g, (_, c) => c.toUpperCase())) as string);
-
-  const pending = (s: ApplicationStatus) => s === "submitted" || s === "under_review";
-
-  const columns: DataTableColumn<Application>[] = [
-    { id: "name", sortValue: (r) => r.fullName, header: t("applicant"), mobile: "title", cell: (r) => (
-      <div>
-        <p className="font-medium text-foreground">{r.displayHandle}</p>
-        <p className="text-xs text-muted-foreground">{r.fullName}</p>
+  const columns: DataTableColumn<Item>[] = [
+    { id: "kind", sortValue: (r) => r.kind, header: t("type"), mobile: "badge", cell: (r) => <Badge className={kindStyle[r.kind]}>{t(`kind_${r.kind}` as never)}</Badge> },
+    { id: "member", sortValue: (r) => r.memberName, header: t("member"), mobile: "title", cell: (r) => (
+      <div className="min-w-0">
+        <p className="truncate font-medium text-foreground">{r.memberName}</p>
+        <Link href={`/dashboard/equbs/${r.equbId}`} className="truncate text-xs text-muted-foreground hover:underline">{r.equbName}</Link>
       </div>
     ) },
-    { id: "fayda", sortValue: (r) => r.faydaId, header: t("faydaId"), mobile: "detail", cell: (r) => <span className="text-sm">{r.faydaId}</span> },
-    { id: "occupation", sortValue: (r) => r.occupation, header: t("occupation"), mobile: "detail", cell: (r) => <span className="text-sm">{r.occupation}</span> },
-    { id: "peer", sortValue: (r) => r.peerVotesFor, header: t("peerVote"), mobile: "detail", cell: (r) => {
-      const passed = r.peerVotesFor >= r.peerVoteQuorum;
+    { id: "detail", header: t("detail"), mobile: "detail", cell: (r) => <span className="line-clamp-2 text-sm text-muted-foreground">{r.detail}</span> },
+    { id: "amount", sortValue: (r) => r.amount ?? null, header: t("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium tabular-nums">{r.amount === undefined ? "—" : formatCurrency(r.amount)}</span> },
+    { id: "date", sortValue: (r) => r.date, header: t("date"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.date)}</span> },
+    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => <Badge className={statusStyle[r.status]}>{t(`status_${r.status}` as never)}</Badge> },
+    { id: "actions", header: "", align: "right", cell: (r) => {
+      if (r.status !== "pending" || !allowed(r.kind)) return null;
+      if (r.kind === "winner" && r.needsGuarantee) {
+        return (
+          <Link href={`/dashboard/equbs/${r.equbId}?tab=winners`} className="inline-flex h-8 items-center rounded-md border border-border px-3 text-sm font-medium transition hover:bg-accent">
+            <ExternalLink size={14} className="mr-1" /> {t("reviewGuarantee")}
+          </Link>
+        );
+      }
       return (
-        <Badge className={passed ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}>
-          {r.peerVotesFor}/{r.peerVoteQuorum}
-        </Badge>
+        <div className="flex justify-end gap-1.5">
+          <Button size="sm" disabled={busy} onClick={() => approve(r)}><Check size={14} className="mr-1" /> {t("approve")}</Button>
+          {r.kind !== "winner" && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => { setReason(""); setRejecting(r); }}><X size={14} className="mr-1" /> {t("reject")}</Button>
+          )}
+        </div>
       );
     } },
-    { id: "share", sortValue: (r) => r.sharePurchased, header: t("shareStatus"), mobile: "detail", cell: (r) => (
-      <Badge className={r.sharePurchased ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}>
-        {r.sharePurchased ? t("sharePaid") : t("shareUnpaid")}
-      </Badge>
-    ) },
-    { id: "submitted", sortValue: (r) => r.submittedAt, header: t("submittedAt"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.submittedAt)}</span> },
-    { id: "status", sortValue: (r) => r.status, header: tc("status"), mobile: "badge", cell: (r) => (
-      <Badge className={statusVariant[r.status]}>{statusLabel(r.status)}</Badge>
-    ) },
   ];
+
+  const kindCard = (k: Kind, icon: typeof Wallet, tone: "primary" | "secondary" | "info") => (
+    <button type="button" onClick={() => setKind(kind === k ? "all" : k)} className={cn("rounded-2xl text-left transition", kind === k && "ring-2 ring-primary ring-offset-2 ring-offset-background")}>
+      <StatCard label={t(`pending_${k}` as never)} value={loading ? "…" : pendingOf(k)} icon={icon} tone={tone} />
+    </button>
+  );
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Input placeholder={tc("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="sm:max-w-xs" />
-        <Select value={status} onValueChange={(v) => setStatus(v as ApplicationStatus | "all")}>
-          <SelectTrigger className="sm:max-w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{tc("all")}</SelectItem>
-            <SelectItem value="submitted">{t("statusSubmitted")}</SelectItem>
-            <SelectItem value="under_review">{t("statusUnderReview")}</SelectItem>
-            <SelectItem value="accepted">{t("statusAccepted")}</SelectItem>
-            <SelectItem value="rejected">{t("statusRejected")}</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {kindCard("payment", Wallet, "primary")}
+        {kindCard("winner", Trophy, "secondary")}
+        {kindCard("hardship", LifeBuoy, "info")}
       </div>
 
       <DataTable
-        defaultSort={{ id: "submitted", dir: "desc" }}
-        columns={columns}
-        data={data ?? []}
-        rowKey={(r) => r.id}
-        isLoading={isLoading}
-        avatar={(r) => ({ initials: getInitials(r.displayHandle), colorClass: "bg-primary/15 text-primary" })}
-        emptyTitle={tc("noData")}
-        emptyMessage={tc("noDataHint")}
-        renderLeadingActions={(r) =>
-          canApprove && pending(r.status) ? (
-            <div className="flex gap-1.5">
-              <Button size="sm" onClick={() => runDecision(r, "accept")}>
-                <Check size={14} className="mr-1" /> {tc("approve")}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setRejecting(r)}>
-                <X size={14} />
-              </Button>
+        filters={{
+          search: { keys: (r) => [r.memberName, r.equbName, r.detail] },
+          extra: (
+            <div className="flex flex-wrap gap-2">
+              <Select value={kind} onValueChange={(v) => setKind(v as Kind | "all")}>
+                <SelectTrigger className="h-9 sm:w-47.5"><span className="truncate"><span className="text-muted-foreground">{t("type")}: </span><SelectValue /></span></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{tc("all")}</SelectItem>
+                  {(["payment", "winner", "hardship"] as Kind[]).map((k) => <SelectItem key={k} value={k}>{t(`kind_${k}` as never)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={equbFilter} onValueChange={setEqubFilter}>
+                <SelectTrigger className="h-9 sm:w-55"><span className="truncate"><span className="text-muted-foreground">{t("equb")}: </span><SelectValue /></span></SelectTrigger>
+                <SelectContent loading={equbsLoading}>
+                  <SelectItem value="all">{tc("all")}</SelectItem>
+                  {live.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={status} onValueChange={(v) => setStatus(v as Decision | "all")}>
+                <SelectTrigger className="h-9 sm:w-45"><span className="truncate"><span className="text-muted-foreground">{tc("status")}: </span><SelectValue /></span></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{tc("all")}</SelectItem>
+                  {(["pending", "approved", "rejected"] as Decision[]).map((s) => <SelectItem key={s} value={s}>{t(`status_${s}` as never)}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          ) : null
-        }
-        actions={[{ label: tc("view"), icon: Eye, onClick: (r) => setSelected(r) }]}
+          ),
+        }}
+        columns={columns}
+        data={shown}
+        rowKey={(r) => r.key}
+        isLoading={loading}
+        emptyTitle={t("empty")}
       />
 
-      {/* Detail modal */}
-      <Modal open={!!selected} onOpenChange={(o) => !o && setSelected(null)} title={selected?.displayHandle} className="max-w-2xl">
-        {selected && (
-          <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
-            {selected.duplicateActiveMembership && (
-              <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                <span>{t("singleEkubWarning")}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Info label={t("applicant")} value={selected.fullName} />
-              <Info label={t("faydaId")} value={selected.faydaId} />
-              <Info label={t("occupation")} value={selected.occupation} />
-              <Info label={t("peerVote")} value={`${selected.peerVotesFor} / ${selected.peerVoteQuorum}`} />
-            </div>
-
-            {/* Declarations */}
-            <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">{t("declarations")}</p>
-              <div className="space-y-1.5">
-                {(Object.keys(selected.declarations) as (keyof typeof selected.declarations)[]).map((k) => (
-                  <div key={k} className="flex items-center gap-2 text-sm">
-                    {selected.declarations[k] ? (
-                      <CheckCircle2 size={16} className="text-success" />
-                    ) : (
-                      <XCircle size={16} className="text-destructive" />
-                    )}
-                    <span className="text-muted-foreground">{td(k)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* KYC docs */}
-            {selected.kycDocs.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">{t("kycDocs")}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {selected.kycDocs.map((d) => (
-                    <Card key={d.id} className="overflow-hidden">
-                      <div className="relative h-32 w-full bg-muted">
-                        <Image src={d.url} alt={d.label} fill className="object-cover" unoptimized />
-                      </div>
-                      <p className="p-2 text-xs text-muted-foreground">{d.label}</p>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">{t("assignedIds")}</p>
-
-            {canApprove && pending(selected.status) && (
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setRejecting(selected)}>
-                  {tc("reject")}
-                </Button>
-                <Button onClick={() => runDecision(selected, "accept")} disabled={decide.isPending}>
-                  {tc("approve")}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Reject modal */}
       <Modal open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)} title={t("rejectTitle")} className="max-w-md">
         {rejecting && (
           <div className="space-y-4">
-            <Input placeholder={t("rejectReason")} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <p className="text-sm text-muted-foreground">{t(`kind_${rejecting.kind}` as never)} · {rejecting.memberName} · {rejecting.equbName}</p>
+            <div className="space-y-1.5">
+              <Label>{t("rejectReason")}</Label>
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setRejecting(null)}>{tc("cancel")}</Button>
-              <Button variant="destructive" onClick={() => runDecision(rejecting, "reject", reason)} disabled={decide.isPending}>
-                {tc("reject")}
-              </Button>
+              <Button variant="destructive" disabled={!reason.trim() || busy} onClick={reject}><X size={14} className="mr-1" /> {t("reject")}</Button>
             </div>
           </div>
         )}
       </Modal>
-    </div>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value}</p>
     </div>
   );
 }
 
 export default function ApprovalsPage() {
   return (
-    <RequirePermission anyOf={[EKUB_PERMS.APPLICATION_READ]}>
+    <RequirePermission anyOf={[EKUB_PERMS.PAYMENT_RECONCILE, EKUB_PERMS.PAYOUT_APPROVE, EKUB_PERMS.EQUB_MANAGE]}>
       <ApprovalsInner />
     </RequirePermission>
   );

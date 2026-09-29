@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/schemes/00000000-0000-4000-8000-000000000000",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "We couldn't find the Equb scheme you're looking for. It may have been removed.",
+    "code": "EQUB_101",
+    "error": "NOT_FOUND"
+  }
+}

@@ -43,10 +43,10 @@ import type {
   MemberSummary,
   Payment,
   ReconciliationRow,
-  RoleDef,
   Round,
   RoundStatus,
   StaffMember,
+  Agent,
   StaffUser,
   TakafulSettlement,
   TakafulTxn,
@@ -73,6 +73,7 @@ import type {
   EqubTakafulSettlementResponse,
   EqubTakafulTransactionResponse,
   EqubWinnerResponse,
+  AgentSummaryResponse,
   MemberRegistrationRequestResponse,
   MemberSummaryResponse,
   UserResponse,
@@ -103,6 +104,9 @@ const money = (n: number | undefined) => (n === undefined ? undefined : n.toFixe
 // ============================================================================
 // DTO → view-model mappers (real API shape → the camelCase types pages render)
 // ============================================================================
+// A group's nested equb_scheme comes back with zero timestamps ("0001-01-01T00:00:00Z").
+const realDate = (d?: string | null): string => (d && !d.startsWith("0001-") ? d : "");
+
 const frequency = (f: string): Frequency =>
   (EQUB_FREQUENCIES as readonly string[]).includes(f) ? (f as Frequency) : "daily";
 
@@ -124,8 +128,8 @@ function schemeToCategory(s: EqubSchemeResponse): EqubCategory {
     guaranteeRequired: s.guarantee_required ?? true,
     acceptedGuaranteeTypes: s.accepted_guarantee_types ?? [],
     createdBy: s.created_by ?? "",
-    createdAt: s.created_at,
-    updatedAt: s.updated_at,
+    createdAt: realDate(s.created_at),
+    updatedAt: realDate(s.updated_at),
   };
 }
 
@@ -517,6 +521,18 @@ function regToApplication(r: MemberRegistrationRequestResponse): Application {
   };
 }
 
+function agentToView(a: AgentSummaryResponse): Agent {
+  return {
+    id: a.id,
+    name: a.full_name || `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email,
+    email: a.email ?? "",
+    phone: a.phone ?? "",
+    active: a.status !== false,
+    roles: (a.roles ?? []).map((r) => r.name),
+    createdAt: a.created_at ?? "",
+  };
+}
+
 function userToStaff(u: UserResponse): StaffMember {
   const role = (u.roles?.[0]?.name || "").toLowerCase();
   const mapped: StaffMember["role"] = role.includes("admin") ? "admin" : role.includes("manager") ? "manager" : role.includes("board") ? "board_chair" : "agent";
@@ -658,14 +674,34 @@ export const ekubService = {
   },
   /** Staff users for the manager picker (GET /users?search=). */
   async searchStaffUsers(search: string): Promise<StaffUser[]> {
-    const users = await equbApi.listUsers({ search: search.trim() || undefined, status: true, per_page: 20 });
-    return users.map((u) => ({
-      id: u.id,
-      fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
-      email: u.email ?? "",
-      phone: u.phone ?? "",
-      role: u.roles?.map((r) => r.name).join(", ") ?? "",
-    }));
+    // Agents are who normally run an Equb; /users adds other staff. Query both,
+    // tolerate either failing (permissions differ), merge by user id.
+    const q = search.trim() || undefined;
+    const [agents, users] = await Promise.all([
+      equbApi.listAgents({ search: q, status: "true", page: 1, per_page: 20 }).catch(() => []),
+      equbApi.listUsers({ search: q, page: 1, per_page: 20 }).catch(() => []),
+    ]);
+    const out = new Map<string, StaffUser>();
+    for (const a of agents) {
+      out.set(a.id, {
+        id: a.id,
+        fullName: a.full_name || `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || a.email,
+        email: a.email ?? "",
+        phone: a.phone ?? "",
+        role: a.roles?.map((r) => r.name).join(", ") || a.job_title || "Agent",
+      });
+    }
+    for (const u of users) {
+      if (out.has(u.id) || u.status === false) continue;
+      out.set(u.id, {
+        id: u.id,
+        fullName: u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
+        email: u.email ?? "",
+        phone: u.phone ?? "",
+        role: u.roles?.map((r) => r.name).join(", ") ?? "",
+      });
+    }
+    return [...out.values()];
   },
 
   // ---- Equb members ----
@@ -751,17 +787,22 @@ export const ekubService = {
     };
   },
   async recordPayment(equbId: string, memberId: string, input: RecordPaymentInput): Promise<RecordedPayment> {
-    const r = await equbApi.collectContribution(equbId, memberId, {
-      round_ids: input.roundIds,
-      method: (input.method || undefined) as never,
-      reference: input.reference?.trim() || undefined,
-    });
-    return { paymentId: r.payment_id, status: r.status, totalAmount: num(r.total_amount) };
+    const r = await equbApi.collectContribution(
+      equbId,
+      memberId,
+      { round_ids: input.roundIds, is_catch_up: input.isCatchUp || undefined, method: (input.method || undefined) as never, reference: input.reference?.trim() || undefined, description: input.description?.trim() || undefined },
+      input.proof ? { file: input.proof.file, description: input.proof.description?.trim() || undefined } : undefined
+    );
+    return { paymentId: r.payment_id, status: r.status || "pending", totalAmount: num(r.total_amount ?? r.amount), attachmentsFiled: r.attachments?.length ?? 0, attachmentWarning: r.attachment_warning || undefined };
   },
 
   /** Settle a recorded collection: marks its payment completed (needs approval rights). */
   async confirmPayment(paymentId: string, notes?: string): Promise<void> {
     await equbApi.updatePaymentStatus(paymentId, { status: "completed", notes: notes?.trim() || undefined });
+  },
+  /** Turn down a recorded collection: cancels its payment so the contribution stays unpaid. */
+  async rejectPayment(paymentId: string, reason: string): Promise<void> {
+    await equbApi.updatePaymentStatus(paymentId, { status: "cancelled", notes: reason.trim() || undefined, failure_reason: reason.trim() || undefined });
   },
   /** Catch-up a member owes for missed rounds (staff view). */
   async getCatchUp(equbId: string, memberId: string): Promise<CatchUp> {
@@ -828,6 +869,7 @@ export const ekubService = {
         collected: !!l.collected,
         isCatchUp: !!l.is_catch_up,
         paidAt: l.paid_at,
+        paymentId: l.payment_id ?? "",
       })),
       page: r.page ?? page,
       perPage: r.per_page ?? perPage,
@@ -880,7 +922,8 @@ export const ekubService = {
   },
   async getMemberAdminFees(equbId: string, memberId: string): Promise<MemberAdminFees> {
     const r = await equbApi.memberAdminFees(equbId, memberId);
-    return { memberId: r.member_id, name: r.member_name, membershipNumber: r.membership_number, totals: totalsToView(r.totals), lines: (r.lines ?? []).map(feeLineToView) };
+    // The live API omits member_name / membership_number on this endpoint.
+    return { memberId: r.member_id, name: r.member_name ?? "", membershipNumber: r.membership_number ?? "", totals: totalsToView(r.totals), lines: (r.lines ?? []).map(feeLineToView) };
   },
 
   async executeDraw(roundId: string): Promise<Round> {
@@ -950,8 +993,7 @@ export const ekubService = {
     return toPage(await equbApi.listTakafulPage(equbId, page, perPage), takafulToView);
   },
   async getTakafulBalance(equbId: string): Promise<number> {
-    const r = await equbApi.takafulBalance(equbId);
-    return typeof r === "number" ? r : num(r?.balance);
+    return num((await equbApi.takafulBalance(equbId))?.balance);
   },
   async distributeSurplus(equbId: string): Promise<TakafulSettlement> {
     return settlementToView(await equbApi.distributeSurplus(equbId));
@@ -1045,11 +1087,18 @@ export const ekubService = {
     return clone(d);
   },
 
-  // ---- Staff / Roles (real /users + /users/roles) ----
+  // ---- Staff (real /users) ----
   async listStaff(): Promise<StaffMember[]> {
     if (!USE_MOCK) return (await equbApi.listUsers()).map(userToStaff);
     await delay();
     return clone(db.staff);
+  },
+  // ---- Agents (GET /agents) ----
+  async listAgentsPage(search: string | undefined, page: number, perPage: number): Promise<Page<Agent>> {
+    return toPage(await equbApi.listAgentsPage({ search: search || undefined, page, per_page: perPage }), agentToView);
+  },
+  async getAgent(id: string): Promise<Agent> {
+    return agentToView(await equbApi.getAgent(id));
   },
   async listStaffPage(search: string | undefined, page: number, perPage: number): Promise<Page<StaffMember>> {
     if (USE_MOCK) {
@@ -1058,17 +1107,5 @@ export const ekubService = {
       return { items: all.slice((page - 1) * perPage, page * perPage), page, perPage, total: all.length, totalPages: Math.max(1, Math.ceil(all.length / perPage)) };
     }
     return toPage(await equbApi.listUsersPage({ search: search || undefined, page, per_page: perPage }), userToStaff);
-  },
-  async listRoles(): Promise<RoleDef[]> {
-    if (!USE_MOCK) {
-      const roles = await equbApi.listRoles();
-      return roles.map((r) => ({
-        id: r.id,
-        name: r.name,
-        permissions: (r.permissions || []).map((p) => p.slug || p.name || "").filter(Boolean),
-      }));
-    }
-    await delay();
-    return clone(db.roles);
   },
 };

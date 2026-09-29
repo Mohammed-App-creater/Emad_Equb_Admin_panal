@@ -1,0 +1,33 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/groups/cc384ac4-49f3-4122-bea3-6b0c8f355f25/admin-fees",
+  "params": null,
+  "body": null,
+  "status": 200,
+  "response": {
+    "success": true,
+    "message": "Group admin fee ledger retrieved successfully",
+    "code": "SUCCESS",
+    "data": {
+      "group_id": "cc384ac4-49f3-4122-bea3-6b0c8f355f25",
+      "group_name": "Unity Addis Ababa Equb Group 2026-Qgla",
+      "group_code": "EQB-GRP-a575a216-DBrHfN",
+      "fee_per_member_per_round": "50",
+      "totals": {
+        "charged": "0",
+        "collected": "0",
+        "outstanding": "0"
+      },
+      "split": {
+        "sacco_share_percent": "50",
+        "agent_share_percent": "30",
+        "broker_share_percent": "20",
+        "sacco_amount": "0",
+        "agent_amount": "0",
+        "broker_amount": "0"
+      },
+      "rounds": [],
+      "members": []
+    }
+  }
+}

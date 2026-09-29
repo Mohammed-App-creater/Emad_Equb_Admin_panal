@@ -33,7 +33,8 @@ export const useTOTP = () => {
                 { timeout: 30000 }
             );
             const { setAuth } = useAuthStore.getState();
-            setAuth(data.data, data.data.permissions);
+            // /auth/profile carries no permissions; keep the ones login stored.
+            setAuth(data.data, data.data.permissions ?? useAuthStore.getState().permissions);
         } catch {
             // Swallow silently — user stays logged in; the UI may show a stale
             // totp_enabled value until the next successful refresh.

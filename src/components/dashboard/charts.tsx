@@ -118,15 +118,15 @@ export function ChartTooltip({ active, payload, label, money, total }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+    <div className="rounded-xl border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg">
       {label && <p className="mb-1 font-medium">{label}</p>}
       {payload.map((p) => {
         const swatch = p.payload?.fill ?? (p.fill && p.fill.startsWith("#") ? p.fill : undefined) ?? p.color ?? p.stroke;
         return (
           <p key={p.name} className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-sm" style={{ background: swatch }} />
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: swatch }} />
             <span className="text-muted-foreground">{p.name}</span>
-            <span className="ml-auto pl-3 font-medium tabular-nums">
+            <span className="ml-auto pl-3 font-semibold tabular-nums">
               {money ? formatCurrency(p.value) : p.value}
               {total ? <span className="ml-1 text-muted-foreground">· {pct(p.value, total)}%</span> : null}
             </span>
@@ -154,8 +154,20 @@ export function Donut({ slices, center, centerLabel, money = true, height = 220 
   const c = usePalette();
   const total = slices.reduce((a, s) => a + s.value, 0);
   const data = slices.filter((s) => s.value > 0);
+  // Fit the hero number inside the hole: the currency code ("ETB") goes on its
+  // own small line, and the digits shrink with their length (bold digits are
+  // roughly 0.6em wide) so "2,332,000.00" never spills over the ring.
+  const m = /^([A-Za-z]{2,4})\s+(.+)$/.exec(center);
+  const unit = m?.[1];
+  const amount = m?.[2] ?? center;
+  const hole = height * 0.68 * 0.86;
+  const centerSize = Math.max(13, Math.min(26, hole / (amount.length * 0.6)));
   return (
-    <div className="flex flex-col items-center gap-5 md:flex-row md:items-center md:gap-8">
+    // Side by side only when the card itself is wide enough (container query);
+    // in a narrow card the legend goes underneath at full width so labels and
+    // amounts never collide.
+    <div className="@container">
+    <div className="flex flex-col items-center gap-5 @lg:flex-row @lg:gap-8">
       <div className="relative shrink-0" style={{ width: height, height }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -177,22 +189,24 @@ export function Donut({ slices, center, centerLabel, money = true, height = 220 
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="max-w-[60%] text-base font-bold leading-tight tabular-nums text-foreground">{center}</span>
-          <span className="max-w-[70%] text-[11px] leading-tight text-muted-foreground">{centerLabel}</span>
+          {unit && <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{unit}</span>}
+          <span className="whitespace-nowrap font-bold leading-tight tabular-nums text-foreground" style={{ fontSize: centerSize }}>{amount}</span>
+          <span className="mt-0.5 max-w-[70%] text-xs leading-tight text-muted-foreground">{centerLabel}</span>
         </div>
       </div>
-      <ul className="w-full min-w-0 flex-1 space-y-2.5 text-sm">
+      <ul className="w-full min-w-0 flex-1 divide-y divide-border/60">
         {slices.map((s) => (
-          <li key={s.name} className="flex items-start gap-2">
-            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
-            <span className="min-w-0 flex-1 leading-snug text-muted-foreground">{s.name}</span>
+          <li key={s.name} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: s.color }} />
+            <span className="min-w-[6rem] flex-1 text-sm leading-snug text-muted-foreground">{s.name}</span>
             <span className="shrink-0 text-right">
-              <span className="block font-medium tabular-nums text-foreground">{money ? formatCurrency(s.value) : s.value}</span>
+              <span className="block whitespace-nowrap text-base font-semibold tabular-nums text-foreground">{money ? formatCurrency(s.value) : s.value}</span>
               <span className="block text-xs tabular-nums text-muted-foreground">{pct(s.value, total)}%</span>
             </span>
           </li>
         ))}
       </ul>
+    </div>
     </div>
   );
 }
@@ -221,7 +235,7 @@ export function RingMeter({ value, label, sublabel, size = 132, color }: { value
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold tabular-nums text-foreground">{Math.round(v)}%</span>
+          <span className="text-[1.65rem] font-bold tabular-nums text-foreground">{Math.round(v)}%</span>
         </div>
       </div>
       <div>

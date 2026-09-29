@@ -143,8 +143,18 @@ interface StoredWinner { id: string; round_id: string; group_id: string; member_
 
 type StoredGroup = Omit<EqubGroupResponse, "equb_scheme" | "current_members" | "manager" | "effective_terms"> & { manager_user_id?: string };
 
+/** Schemes are stored with numeric money so the mock can do arithmetic; schemeDto() sends decimal strings like the live API. */
+type StoredScheme = Omit<EqubSchemeResponse, "contribution_amount" | "admin_fee" | "takaful_fee" | "payout_amount"> & { contribution_amount: number; admin_fee: number; takaful_fee: number; payout_amount: number };
+const schemeDto = (s: StoredScheme): EqubSchemeResponse => ({
+  ...clone(s),
+  contribution_amount: String(s.contribution_amount),
+  admin_fee: String(s.admin_fee),
+  takaful_fee: String(s.takaful_fee),
+  payout_amount: String(s.payout_amount),
+});
+
 const db = {
-  schemes: [] as EqubSchemeResponse[],
+  schemes: [] as StoredScheme[],
   groups: [] as StoredGroup[],
   members: [] as StoredMember[],
   rounds: [] as StoredRound[],
@@ -230,7 +240,8 @@ function addRounds(gid: string, from: number, count: number, startIso: string) {
       group_id: gid,
       round_number: n,
       status: "scheduled",
-      scheduled_at: addDays(due, 0.5),
+      // Like the live API: scheduled_at opens the collection window, the due date closes it.
+      scheduled_at: addDays(due, -step),
       contribution_due_date: due,
       drawn_at: "",
       created_at: now(),
@@ -337,7 +348,7 @@ function seed() {
         recordPayment(r, pay, addDays(r.contribution_due_date, -0.3 + (k % 3) * 0.1));
         if (k === 3 && i > 0) pay.isCatchUp = true;
       });
-      drawWinners(r, r.scheduled_at);
+      drawWinners(r, addDays(r.contribution_due_date, 0.5));
     }
     // Current round: partially paid, ready to draw.
     const open = rounds[p.drawn];
@@ -424,7 +435,7 @@ function groupDto(g: (typeof db.groups)[number]): EqubGroupResponse {
     guarantee_required: t.guarantee_required,
     accepted_guarantee_types: t.accepted_guarantee_types,
   };
-  return { ...rest, equb_scheme: clone(scheme(g.equb_scheme_id)), manager: managerInfo(manager_user_id), effective_terms, cycle_number: g.cycle_number ?? 1, previous_group_id: g.previous_group_id ?? null, current_members: groupMembers(g.id).length };
+  return { ...rest, equb_scheme: scheme(g.equb_scheme_id) ? schemeDto(scheme(g.equb_scheme_id)!) : undefined, manager: managerInfo(manager_user_id), effective_terms, cycle_number: g.cycle_number ?? 1, previous_group_id: g.previous_group_id ?? null, current_members: groupMembers(g.id).length };
 }
 
 function memberDto(m: StoredMember): EqubMemberResponse {
@@ -629,11 +640,11 @@ export const mockEqubApi: EqubApi = {
   // ---- Schemes ----
   async listSchemes(params) {
     await delay();
-    return clone(db.schemes.filter((s) => (!params?.status || s.status === params.status) && matches(params?.search, s.name, s.code)));
+    return db.schemes.filter((s) => (!params?.status || s.status === params.status) && matches(params?.search, s.name, s.code)).map(schemeDto);
   },
   async listSchemesPage(params) {
     await delay();
-    return paginate(clone(db.schemes.filter((s) => (!params.status || s.status === params.status) && matches(params.search, s.name, s.code))), params.page, params.per_page);
+    return paginate(db.schemes.filter((s) => (!params.status || s.status === params.status) && matches(params.search, s.name, s.code)).map(schemeDto), params.page, params.per_page);
   },
   async createScheme(body) {
     await delay();
@@ -642,13 +653,14 @@ export const mockEqubApi: EqubApi = {
     if (db.schemes.some((s) => s.code === code)) fail(`A category with code ${code} already exists`);
     if (Math.abs(body.payout_amount - body.contribution_amount * body.members_per_group) > 0.001)
       fail(`Payout must equal contribution × members per group (${body.contribution_amount} × ${body.members_per_group} = ${body.contribution_amount * body.members_per_group})`);
-    const s: EqubSchemeResponse = { id: uid("sch"), status: "draft", description: "", admin_fee: 0, takaful_fee: 0, guarantee_required: true, accepted_guarantee_types: ["member", "cheque", "collateral"], ...body, code, created_by: "u-admin", created_at: now(), updated_at: now() } as EqubSchemeResponse;
+    // The live API creates schemes active.
+    const s: StoredScheme = { id: uid("sch"), status: "active", description: "", admin_fee: 0, takaful_fee: 0, guarantee_required: true, accepted_guarantee_types: ["member", "cheque", "collateral"], ...body, code, created_by: "u-admin", created_at: now(), updated_at: now() } as StoredScheme;
     db.schemes.push(s);
-    return clone(s);
+    return schemeDto(s);
   },
   async getScheme(id) {
     await delay();
-    return clone(scheme(id) ?? fail("Equb scheme not found"));
+    return schemeDto(scheme(id) ?? fail("Equb scheme not found"));
   },
   async updateScheme(id, body) {
     await delay();
@@ -659,7 +671,7 @@ export const mockEqubApi: EqubApi = {
     if (Math.abs(body.payout_amount - body.contribution_amount * body.members_per_group) > 0.001)
       fail(`Payout must equal contribution × members per group (${body.contribution_amount} × ${body.members_per_group} = ${body.contribution_amount * body.members_per_group})`);
     Object.assign(s, body, { code, updated_at: now() });
-    return clone(s);
+    return schemeDto(s);
   },
   async deleteScheme(id) {
     await delay();
@@ -824,11 +836,12 @@ export const mockEqubApi: EqubApi = {
       paid_this_round: curDto?.paid_count ?? 0,
       unpaid_this_round: curDto?.unpaid_count ?? 0,
       next_due_date: rounds.find((r) => r.status === "open" || r.status === "scheduled")?.contribution_due_date ?? "",
-      total_collected: allPaid.length * perRound(s),
-      total_payouts: wins.filter((w) => w.status === "paid").reduce((sum, w) => sum + w.payout_amount, 0),
-      total_admin_fees: allPaid.length * s.admin_fee,
-      total_takaful_fees: allPaid.length * s.takaful_fee,
-      takaful_balance: takafulBalance(groupId),
+      // Money as decimal strings, like the live API.
+      total_collected: String(allPaid.length * perRound(s)),
+      total_payouts: String(wins.filter((w) => w.status === "paid").reduce((sum, w) => sum + w.payout_amount, 0)),
+      total_admin_fees: String(allPaid.length * s.admin_fee),
+      total_takaful_fees: String(allPaid.length * s.takaful_fee),
+      takaful_balance: String(takafulBalance(groupId)),
       wins_distributed: wins.length,
     };
   },
@@ -1152,7 +1165,7 @@ export const mockEqubApi: EqubApi = {
   },
   async takafulBalance(groupId) {
     await delay();
-    return { balance: takafulBalance(groupId) };
+    return { balance: String(takafulBalance(groupId)) };
   },
   async distributeSurplus(groupId): Promise<EqubTakafulSettlementResponse> {
     await delay();
@@ -1203,14 +1216,36 @@ export const mockEqubApi: EqubApi = {
     const onlyActive = params?.status === true || params?.status === "true";
     return clone(staffUsers.filter((u) => (!onlyActive || u.status) && matches(q, u.full_name, u.email, u.phone)));
   },
+  async listAgents(params) {
+    await delay(150);
+    const onlyActive = params.status === "true";
+    return clone(
+      staffUsers
+        .filter((u) => (u.roles ?? []).some((r) => /agent|manager/i.test(r.name)))
+        .filter((u) => (!onlyActive || u.status) && matches(params.search, u.full_name, u.email, u.phone))
+        .map((u) => ({ id: u.id, full_name: u.full_name, first_name: u.first_name, last_name: u.last_name, email: u.email, phone: u.phone, status: u.status, is_agent: true, roles: u.roles }))
+    );
+  },
+  async listAgentsPage(params) {
+    await delay(150);
+    const rows = staffUsers
+      .filter((u) => (u.roles ?? []).some((r) => /agent|manager/i.test(r.name)))
+      .filter((u) => matches(params.search, u.full_name, u.email, u.phone))
+      .map((u) => ({ id: u.id, full_name: u.full_name, first_name: u.first_name, last_name: u.last_name, email: u.email, phone: u.phone, status: u.status, is_agent: true, roles: u.roles }));
+    return paginate(clone(rows), params.page, params.per_page);
+  },
+  async getAgent(id) {
+    await delay(150);
+    const u = staffUsers.find((x) => x.id === id) ?? fail("Agent not found");
+    return clone({ id: u.id, full_name: u.full_name, first_name: u.first_name, last_name: u.last_name, email: u.email, phone: u.phone, status: u.status, is_agent: true, roles: u.roles });
+  },
   async listUsersPage(params) {
     await delay(150);
     return paginate(clone(staffUsers.filter((u) => matches(params.search, u.full_name, u.email, u.phone))), params.page, params.per_page);
   },
-  async listRoles() { await delay(); return []; },
 
   // ---- Recording a contribution (staff) ----
-  async collectContribution(groupId, memberId, body) {
+  async collectContribution(groupId, memberId, body, proof) {
     await delay(400);
     const g = group(groupId);
     if (g.status !== "active") fail("Payments can only be recorded for an active Equb");
@@ -1240,7 +1275,22 @@ export const mockEqubApi: EqubApi = {
     setTimeout(() => settlePendingPayment(paymentId, "completed"), 6000);
     void t;
     void paidAt;
-    return { group_id: groupId, payment_id: paymentId, status: "pending", total_amount: rows.reduce((a, r) => a + r.amount, 0), rounds: rows };
+    // One slip covers every round in the request: stored once, filed against each contribution.
+    let attachments: { id: string; file_name: string; contribution_ids: string[] }[] | undefined;
+    if (proof) {
+      const dataUrl = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error("read failed")); fr.readAsDataURL(proof.file); });
+      const ids: string[] = [];
+      for (const row of rows) {
+        const r = db.rounds.find((x) => x.id === row.round_id)!;
+        const p = r.payments.find((x) => x.member_id === memberId)!;
+        ids.push(p.id);
+        db.attachments.push({ id: uid("att"), equb_contribution_id: p.id, member_id: memberId, member_name: dirById(memberId)?.full ?? memberId, round_id: r.id, round_number: r.round_number, file_name: proof.file.name, file_size: proof.file.size, mime_type: proof.file.type, file_url: "", is_image: proof.file.type.startsWith("image/"), description: proof.description ?? "", uploaded_by: "u-admin", created_at: now(), data_url: dataUrl });
+      }
+      attachments = [{ id: uid("att"), file_name: proof.file.name, contribution_ids: ids }];
+    }
+    // Mirror the server: marking back-pay rounds requires is_catch_up.
+    if (rows.some((r) => r.round_number < (groupRounds(groupId).find((x) => x.status === "open")?.round_number ?? 0)) && !body.is_catch_up) fail("is_catch_up must be true when collecting missed rounds");
+    return { group_id: groupId, payment_id: paymentId, status: "pending", amount: rows.reduce((a, r) => a + r.amount, 0), total_amount: rows.reduce((a, r) => a + r.amount, 0), rounds: rows, attachments };
   },
   async updatePaymentStatus(paymentId, body) {
     await delay(300);
@@ -1287,7 +1337,7 @@ export const mockEqubApi: EqubApi = {
 
   // ---- Manager ----
   async managerGroups() { await delay(); return db.groups.map(groupDto); },
-  async managerSchemes() { await delay(); return clone(db.schemes); },
+  async managerSchemes() { await delay(); return db.schemes.map(schemeDto); },
   async catchUpAmount(groupId, memberId) {
     await delay(150);
     const g = group(groupId);
@@ -1329,6 +1379,6 @@ export const mockEqubApi: EqubApi = {
         };
       });
     const sum = (f: (x: (typeof items)[number]) => boolean) => items.filter(f).reduce((a, x) => a + x.amount, 0);
-    return { from, to, count: items.length, total_collected: sum(() => true), total_confirmed: sum((x) => x.status === "confirmed"), total_pending: sum((x) => x.status !== "confirmed"), collections: items };
+    return { from, to, count: items.length, total_collected: String(sum(() => true)), total_confirmed: String(sum((x) => x.status === "confirmed")), total_pending: String(sum((x) => x.status !== "confirmed")), collections: items };
   },
 };

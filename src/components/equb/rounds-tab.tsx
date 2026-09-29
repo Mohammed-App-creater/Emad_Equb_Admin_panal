@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/equb/status-badge";
 import { useRounds, useMarkOverdue, useRefreshReadiness } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
+import { formatCurrency, formatDate, getErrorMessage, humanizeDates } from "@/lib/utils";
 import type { Equb, Round } from "@/types/ekub";
 
 /** Every round of one Equb; click through to the round detail (payments + draw). */
@@ -53,11 +53,13 @@ export function RoundsTab({ equb }: { equb: Equb }) {
     ) },
     { id: "ready", header: t("readiness"), mobile: "detail", cell: (r) => {
       if (r.status === "drawn" || r.status === "completed" || r.status === "cancelled") return <span className="text-sm text-muted-foreground">—</span>;
-      return r.notReadyReason ? (
-        <span className="inline-flex max-w-[260px] items-start gap-1 text-xs text-warning" title={r.notReadyReason}><Hourglass size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2">{r.notReadyReason}</span></span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-success"><CheckCircle2 size={13} /> {t("readyToDraw")}</span>
-      );
+      // Ready only when the backend says so (status ready_for_draw or can_execute_draw);
+      // the list endpoint often sends neither, so absence of a reason proves nothing.
+      if (r.canExecuteDraw || r.rawStatus === "ready_for_draw")
+        return <span className="inline-flex items-center gap-1 text-xs font-medium text-success"><CheckCircle2 size={13} /> {t("readyToDraw")}</span>;
+      if (r.notReadyReason)
+        return <span className="inline-flex max-w-[260px] items-start gap-1 text-xs text-warning" title={r.notReadyReason}><Hourglass size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2">{humanizeDates(r.notReadyReason)}</span></span>;
+      return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Hourglass size={13} /> {t("notReadyYet")}</span>;
     } },
     { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={r.status} kind="round" /> },
   ];

@@ -186,7 +186,7 @@ function CategoriesInner() {
       {/* Create / edit category — mirrors Create/UpdateEqubSchemeRequest */}
       <Modal open={!!editing} onOpenChange={(o) => !o && setEditing(null)} title={editing?.id ? t("edit") : t("create")} className="max-w-2xl">
         {editing && (
-          <div className="grid max-h-[75vh] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+          <div className="-mx-2 grid max-h-[75vh] grid-cols-1 gap-4 overflow-y-auto px-2 py-1 sm:grid-cols-2">
             <Field label={`${t("code")} (${tc("optional")})`}>
               <Input
                 value={editing.form.code ?? ""}

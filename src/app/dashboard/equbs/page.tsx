@@ -42,7 +42,7 @@ function EqubsInner() {
   const [perPage, setPerPage] = useState(10);
   const { data: pageData, isLoading } = useEqubsPage({ search, status, categoryId: categoryId === "all" ? undefined : categoryId }, page, perPage);
   const data = pageData?.items;
-  const { data: categories } = useCategories();
+  const { data: categories, isLoading: categoriesLoading } = useCategories();
   const autoCancel = useAutoCancel();
   const lifecycle = useEqubLifecycle();
   const [creating, setCreating] = useState(false);
@@ -109,7 +109,7 @@ function EqubsInner() {
         </Select>
         <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setPage(1); }}>
           <SelectTrigger className="sm:w-[220px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
+          <SelectContent loading={categoriesLoading}>
             <SelectItem value="all">{t("allCategories")}</SelectItem>
             {(categories ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>

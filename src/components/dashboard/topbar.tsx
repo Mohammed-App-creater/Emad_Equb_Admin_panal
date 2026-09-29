@@ -18,7 +18,6 @@ const routeTitleKey: { test: (p: string) => boolean; key: string }[] = [
   { test: (p) => p.startsWith("/dashboard/takaful"), key: "takaful" },
   { test: (p) => p.startsWith("/dashboard/disputes"), key: "disputes" },
   { test: (p) => p.startsWith("/dashboard/staff"), key: "staff" },
-  { test: (p) => p.startsWith("/dashboard/role-permissions"), key: "roles" },
   { test: (p) => p.startsWith("/dashboard/settings"), key: "settings" },
 ];
 

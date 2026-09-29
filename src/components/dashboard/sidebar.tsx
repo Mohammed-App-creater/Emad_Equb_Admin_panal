@@ -13,7 +13,6 @@ import {
   Wallet,
   Scale,
   UsersRound,
-  UserRoundCog,
   Settings,
   PiggyBank,
   Coins,
@@ -84,7 +83,6 @@ const navGroups: NavGroup[] = [
     titleKey: "groupAdministration",
     items: [
       { labelKey: "staff", href: "/dashboard/staff", icon: UsersRound },
-      { labelKey: "roles", href: "/dashboard/role-permissions", icon: UserRoundCog },
       { labelKey: "shares", href: "/dashboard/shares", icon: Landmark, soon: true },
       { labelKey: "reports", href: "/dashboard/reports", icon: PieChart, soon: true },
       { labelKey: "settings", href: "/dashboard/settings", icon: Settings },

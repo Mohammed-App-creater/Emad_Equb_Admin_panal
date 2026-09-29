@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/rounds/00000000-0000-4000-8000-000000000000/admin-fees",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "We couldn't find this payment round. It may have been removed.",
+    "code": "EQUB_003",
+    "error": "NOT_FOUND"
+  }
+}

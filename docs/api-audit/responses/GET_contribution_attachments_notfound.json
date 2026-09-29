@@ -1,0 +1,16 @@
+{
+  "method": "GET",
+  "path": "/equb/admin/contributions/00000000-0000-4000-8000-000000000000/attachments",
+  "params": null,
+  "body": null,
+  "status": 404,
+  "response": {
+    "success": false,
+    "message": "The requested resource was not found",
+    "code": "NOT_FOUND_001",
+    "error": "NOT_FOUND",
+    "details": {
+      "message": "contribution not found"
+    }
+  }
+}
