@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowUpRight, Gavel } from "lucide-react";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ function DisputesInner() {
 
       <DataTable
         defaultSort={{ id: "opened", dir: "desc" }}
-        filters={{ search: { keys: (r) => [r.memberHandle, r.subject] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status, labelOf: (v) => statusLabel(v as DisputeStatus) }] }}
+        filters={{ search: { keys: (r) => [r.memberHandle, r.subject, r.ekubNumber] }, facets: [{ id: "status", label: tc("status"), get: (r) => r.status, labelOf: (v) => statusLabel(v as DisputeStatus) }, { id: "equb", label: tc("equb"), get: (r) => r.ekubNumber }, roundFacet(tc("round"), (r: Dispute) => r.round)] }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

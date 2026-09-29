@@ -20,9 +20,10 @@ import { StatCard } from "@/components/dashboard/shared";
 import { StatusBadge } from "@/components/equb/status-badge";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
 import { getInitials, TablePager, PAGE_SIZES } from "@/components/ui/data-table";
-import { useRounds, useRoundDetails } from "@/hooks/ekub";
+import { useRounds, useRoundDetails, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
+import { useToast } from "@/hooks/use-toast";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
-import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, formatDateTime, getErrorMessage } from "@/lib/utils";
 import type { Equb, Round, RoundMemberPayment } from "@/types/ekub";
 
 const isPaid = (p: RoundMemberPayment) => p.status?.toLowerCase() === "paid" || !!p.paidAt;
@@ -44,10 +45,17 @@ function summarize(r: Round, perMemberFallback = 0) {
   return { paidCount, unpaidCount, total, paidAmount, unpaidAmount, charged: paidAmount + unpaidAmount, rate: total ? Math.round((paidCount / total) * 1000) / 10 : 0 };
 }
 
+/**
+ * A round has started once its collection window opened. The backend keeps a
+ * running round's status at "pending" (mapped to "scheduled" here), so the
+ * status alone would hide every round of a freshly activated Equb.
+ */
+export const hasStarted = (r: Round) => r.status !== "scheduled" || (!!r.scheduledAt && new Date(r.scheduledAt).getTime() <= Date.now());
+
 /** Which round the Equb is "on" right now: the open one, else the latest that has started. */
 export function currentRoundOf(rounds: Round[] | undefined): Round | undefined {
   if (!rounds?.length) return undefined;
-  return rounds.find((r) => r.status === "open") ?? [...rounds].reverse().find((r) => r.status !== "scheduled") ?? rounds[0];
+  return rounds.find((r) => r.status === "open") ?? [...rounds].reverse().find(hasStarted) ?? rounds[0];
 }
 
 /**
@@ -65,7 +73,7 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
   const { data: list, isLoading: listLoading } = useRounds(equb.id);
   // The list endpoint only carries counts; each started round's detail has the
   // member payment rows and money totals, so fetch those and merge them in.
-  const startedIds = useMemo(() => (list ?? []).filter((r) => r.status !== "scheduled").map((r) => r.id), [list]);
+  const startedIds = useMemo(() => (list ?? []).filter(hasStarted).map((r) => r.id), [list]);
   const details = useRoundDetails(startedIds);
   const rounds = useMemo(() => {
     if (!list) return list;
@@ -89,7 +97,13 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
   const resetMemberPages = () => setMemberPage({});
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
 
-  const started = (rounds ?? []).filter((r) => r.status !== "scheduled" || r.memberPayments.length > 0);
+  const started = (rounds ?? []).filter((r) => hasStarted(r) || r.memberPayments.length > 0);
+  // Recorded but not yet confirmed (e.g. paid from the mobile app).
+  const { pending } = usePendingPayments(equb.id);
+  const awaiting = (r: Round, p: RoundMemberPayment) => (isPaid(p) ? undefined : pending.get(`${r.id}:${p.memberId}`));
+  const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
+  const confirm = useConfirmPayment();
+  const { toast } = useToast();
   const focusRound = roundFilter === "current" ? current : roundFilter === "all" ? undefined : rounds?.find((r) => r.id === roundFilter);
   const isOpen = (r: Round) => (openId === undefined ? r.id === (focusRound?.id ?? current?.id) : openId === r.id);
 
@@ -254,7 +268,7 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                                 <tr key={p.memberId} className="border-t border-border/60">
                                   <td className="px-4 py-2">
                                     <span className="flex items-center gap-2">
-                                      <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", isPaid(p) ? "bg-success/15 text-success" : isProcessing(p) ? "bg-info/15 text-info" : "bg-warning/15 text-warning")}>{getInitials(p.name)}</span>
+                                      <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", isPaid(p) ? "bg-success/15 text-success" : isProcessing(p) || awaiting(r, p) ? "bg-info/15 text-info" : "bg-warning/15 text-warning")}>{getInitials(p.name)}</span>
                                       <Link href={`/dashboard/equbs/${equb.id}/members/${p.memberId}`} className="font-medium text-foreground hover:underline">{p.name}</Link>
                                       {p.isCatchUp && <Badge className="bg-info/15 text-info">{tr("catchUp")}</Badge>}
                                     </span>
@@ -262,11 +276,17 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                                   <td className="px-3 py-2 text-muted-foreground">{p.phone || "—"}</td>
                                   <td className="px-3 py-2 text-right font-medium tabular-nums">{formatCurrency(p.amount)}</td>
                                   <td className="px-3 py-2 text-muted-foreground">{p.paidAt ? formatDateTime(p.paidAt) : "—"}</td>
-                                  <td className="px-3 py-2"><StatusBadge status={isPaid(p) ? "paid" : p.status || "unpaid"} kind="payment" /></td>
+                                  <td className="px-3 py-2">{awaiting(r, p) ? <Badge className="bg-info/15 text-info">{t("awaitingConfirmation")}</Badge> : <StatusBadge status={isPaid(p) ? "paid" : p.status || "unpaid"} kind="payment" />}</td>
                                   {canCollect && (
                                     <td className="px-3 py-2 text-right">
-                                      {!isPaid(p) && !isProcessing(p) && r.status !== "cancelled" && (
-                                        <Button size="sm" variant="outline" onClick={() => setPaying({ equbId: equb.id, memberId: p.memberId, roundIds: [r.id] })}>
+                                      {awaiting(r, p) ? (
+                                        canConfirm && (
+                                          <Button size="sm" className="whitespace-nowrap" disabled={confirm.isPending} onClick={() => confirm.mutate({ equbId: equb.id, paymentId: awaiting(r, p)! }, { onSuccess: () => toast({ title: t("confirmed"), description: p.name }), onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }) })}>
+                                            <CheckCircle2 size={13} className="mr-1" /> {t("confirm")}
+                                          </Button>
+                                        )
+                                      ) : !isPaid(p) && !isProcessing(p) && r.status !== "cancelled" && (
+                                        <Button size="sm" variant="outline" className="whitespace-nowrap" onClick={() => setPaying({ equbId: equb.id, memberId: p.memberId, roundIds: [r.id] })}>
                                           <Wallet size={13} className="mr-1" /> {t("pay")}
                                         </Button>
                                       )}

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/equb/status-badge";
-import { useFeeLedger, useCategories, useEqubs } from "@/hooks/ekub";
+import { useFeeLedger, useCategories, useEqubs, useRounds } from "@/hooks/ekub";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type { FeeLedgerLine } from "@/types/ekub";
 
@@ -27,18 +27,20 @@ const STATUSES = ["paid", "pending", "overdue", "waived"];
  * whether the fees were actually collected. Filters narrow the scope
  * server-side; the totals cover the whole filtered set, not just the page.
  */
-export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: string; categoryId?: string } = {}) {
+export function FeeLedger({ equbId, categoryId: fixedCategory, roundId: fixedRound }: { equbId?: string; categoryId?: string; roundId?: string } = {}) {
   const t = useTranslations("feeLedger");
   const tc = useTranslations("common");
   const router = useRouter();
   const [status, setStatus] = useState("all");
   const [categoryId, setCategoryId] = useState(fixedCategory ?? "all");
   const [equb, setEqub] = useState(equbId ?? "all");
+  const [roundId, setRoundId] = useState(fixedRound ?? "all");
+  const { data: rounds, isLoading: roundsLoading } = useRounds(equb === "all" ? "" : equb);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const { data: categories, isLoading: categoriesLoading } = useCategories();
   const { data: equbs, isLoading: equbsLoading } = useEqubs();
-  const { data, isLoading } = useFeeLedger({ status, categoryId: categoryId === "all" ? undefined : categoryId, equbId: equb === "all" ? undefined : equb }, page, perPage);
+  const { data, isLoading } = useFeeLedger({ status, categoryId: categoryId === "all" ? undefined : categoryId, equbId: equb === "all" ? undefined : equb, roundId: roundId === "all" ? undefined : roundId }, page, perPage);
   const tot = data?.totals;
 
   const reset = () => setPage(1);
@@ -92,6 +94,8 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
             emptyTitle={tc("noData")}
             pagination={{ page, pageSize: perPage, total: data?.total ?? 0, onPageChange: setPage, onPageSizeChange: (n) => { setPerPage(n); setPage(1); } }}
             filters={{
+              search: { placeholder: t("search"), keys: (r) => [r.memberName, r.membershipNumber, r.equbName, r.categoryName, `#${r.roundNumber}`] },
+              facets: [{ id: "catchUp", label: t("catchUp"), get: (r) => (r.isCatchUp ? "catch_up" : "regular"), options: [{ value: "catch_up", label: t("catchUp") }, { value: "regular", label: t("regular") }] }],
               extra: (
                 <>
                   <Select value={status} onValueChange={(v) => { setStatus(v); reset(); }}>
@@ -111,7 +115,7 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
                     </Select>
                   )}
                   {!equbId && (
-                    <Select value={equb} onValueChange={(v) => { setEqub(v); reset(); }}>
+                    <Select value={equb} onValueChange={(v) => { setEqub(v); setRoundId("all"); reset(); }}>
                       <SelectTrigger className="h-9 sm:w-[220px]"><span className="truncate"><span className="text-muted-foreground">{t("equb")}: </span><SelectValue /></span></SelectTrigger>
                       <SelectContent loading={equbsLoading}>
                         <SelectItem value="all">{tc("all")}</SelectItem>
@@ -119,6 +123,14 @@ export function FeeLedger({ equbId, categoryId: fixedCategory }: { equbId?: stri
                       </SelectContent>
                     </Select>
                   )}
+                  {/* Rounds belong to one Equb, so the round filter opens once an Equb is chosen. */}
+                  {!fixedRound && <Select value={roundId} onValueChange={(v) => { setRoundId(v); reset(); }} disabled={equb === "all"}>
+                    <SelectTrigger className="h-9 sm:w-40"><span className="truncate"><span className="text-muted-foreground">{t("round")}: </span><SelectValue /></span></SelectTrigger>
+                    <SelectContent loading={roundsLoading} empty={!rounds?.length}>
+                      <SelectItem value="all">{tc("all")}</SelectItem>
+                      {[...(rounds ?? [])].sort((a, b) => a.roundNumber - b.roundNumber).map((r) => <SelectItem key={r.id} value={r.id}>#{r.roundNumber} · {formatDate(r.contributionDueDate)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>}
                 </>
               ),
             }}

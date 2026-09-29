@@ -260,7 +260,7 @@ function EqubFormBody({ equb, defaultCategoryId, onClose, onSaved }: { equb?: Eq
           <p className="text-sm font-semibold text-foreground">{t("feeSplit")}</p>
           <p className="text-xs text-muted-foreground">{t("feeSplitHint")}</p>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <ShareField label={t("shareSacco")} value={shares.sacco} onChange={(v) => setShares({ ...shares, sacco: v })} />
           <ShareField label={t("shareAgent")} value={shares.agent} onChange={(v) => setShares({ ...shares, agent: v })} />
           <ShareField label={t("shareBroker")} value={shares.broker} onChange={(v) => setShares({ ...shares, broker: v })} />

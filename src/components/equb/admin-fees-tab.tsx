@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, getInitials, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { StatCard } from "@/components/dashboard/shared";
 import { StatusBadge } from "@/components/equb/status-badge";
 import { useEqubAdminFees, useMemberAdminFees, useRoundAdminFees, useRounds } from "@/hooks/ekub";
@@ -24,24 +24,25 @@ type MemberRow = EqubAdminFees["members"][number];
  * switches between one round's line-by-line ledger and the whole-Equb view
  * broken down by round and by member.
  */
-export function AdminFeesTab({ equb }: { equb: Equb }) {
+/** `round`: when the page supplies its own round filter ("all" or a round id), the tab follows it and hides its own picker. */
+export function AdminFeesTab({ equb, round }: { equb: Equb; round?: string }) {
   const t = useTranslations("adminFees");
   const tcon = useTranslations("contributions");
   const { data: rounds } = useRounds(equb.id);
   const current = useMemo(() => currentRoundOf(rounds), [rounds]);
   const started = (rounds ?? []).filter((r) => r.status !== "scheduled" || r.memberPayments.length > 0);
   const [roundFilter, setRoundFilter] = useState<string>("current");
-  const focus = roundFilter === "current" ? current : roundFilter === "all" ? undefined : rounds?.find((r) => r.id === roundFilter);
+  const focus = round !== undefined ? (round === "all" ? undefined : rounds?.find((r) => r.id === round)) : roundFilter === "current" ? current : roundFilter === "all" ? undefined : rounds?.find((r) => r.id === roundFilter);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {round === undefined && <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {focus ? t("showingRound", { n: focus.roundNumber }) : t("showingAll")}
           {focus && focus.id === current?.id && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{tcon("currentRound")}</span>}
         </p>
         <RoundSelect rounds={started} value={roundFilter} onChange={setRoundFilter} current={current} label={tcon("roundFilter")} allLabel={tcon("allRounds")} currentLabel={tcon("currentRound")} />
-      </div>
+      </div>}
       {focus ? <RoundFeesView roundId={focus.id} /> : <GroupFeesView equb={equb} />}
     </div>
   );
@@ -130,7 +131,7 @@ function GroupFeesView({ equb }: { equb: Equb }) {
         <CardContent>
           <DataTable
             bare
-            filters={{ facets: [{ id: "status", label: tc("status"), get: (r) => r.status }, { id: "outstanding", label: t("outstanding"), get: (r) => (r.totals.outstanding > 0 ? "outstanding" : "settled"), options: [{ value: "outstanding", label: t("outstanding") }, { value: "settled", label: t("settled") }] }] }}
+            filters={{ facets: [roundFacet(t("round"), (r: RoundRow) => r.roundNumber), { id: "status", label: tc("status"), get: (r) => r.status }, { id: "outstanding", label: t("outstanding"), get: (r) => (r.totals.outstanding > 0 ? "outstanding" : "settled"), options: [{ value: "outstanding", label: t("outstanding") }, { value: "settled", label: t("settled") }] }] }}
             columns={roundColumns}
             data={data.rounds}
             rowKey={(r) => r.roundId}
@@ -223,7 +224,7 @@ export function FeeLinesTable({ lines, by }: { lines: FeeLine[]; by: "round" | "
       <Badge className={l.collected ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}>{l.collected ? t("collected") : t("notCollected")}</Badge>
     ) },
   ];
-  return <DataTable bare filters={{ search: { keys: (l) => [l.memberName, l.membershipNumber, `#${l.roundNumber}`] }, facets: [{ id: "collected", label: t("collected"), get: (l) => (l.collected ? "collected" : "not_collected"), options: [{ value: "collected", label: t("collected") }, { value: "not_collected", label: t("notCollected") }] }] }} columns={columns} data={lines} rowKey={(l) => l.contributionId || `${l.roundId}-${l.memberId}`} emptyTitle={tc("noData")} />;
+  return <DataTable bare filters={{ search: { keys: (l) => [l.memberName, l.membershipNumber, `#${l.roundNumber}`] }, facets: [roundFacet(t("round"), (l: FeeLine) => l.roundNumber), { id: "collected", label: t("collected"), get: (l) => (l.collected ? "collected" : "not_collected"), options: [{ value: "collected", label: t("collected") }, { value: "not_collected", label: t("notCollected") }] }, { id: "catchUp", label: t("catchUp"), get: (l) => (l.isCatchUp ? "catch_up" : "regular"), options: [{ value: "catch_up", label: t("catchUp") }, { value: "regular", label: t("regular") }] }] }} columns={columns} data={lines} rowKey={(l) => l.contributionId || `${l.roundId}-${l.memberId}`} emptyTitle={tc("noData")} />;
 }
 
 function MemberLedgerModal({ equbId, memberId, onClose }: { equbId: string; memberId: string | null; onClose: () => void }) {

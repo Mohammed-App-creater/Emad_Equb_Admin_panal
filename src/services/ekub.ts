@@ -21,6 +21,7 @@ import type {
   CatchUp,
   CollectionsFilters,
   CollectionsSummary,
+  CollectionsPage,
   MemberStanding,
   RecordPaymentInput,
   RecordedPayment,
@@ -47,6 +48,9 @@ import type {
   RoundStatus,
   StaffMember,
   Agent,
+  StaffFilters,
+  Branch,
+  UserRole,
   StaffUser,
   TakafulSettlement,
   TakafulTxn,
@@ -61,6 +65,7 @@ import type {
   EqubTermOverrides,
   EqubTermsResponse,
   EqubAdminDashboardResponse,
+  EqubCollectionsSummaryResponse,
   EqubDrawEligibleMember,
   EqubDrawExcludedMember,
   EqubDrawPreviewResponse,
@@ -530,14 +535,44 @@ function agentToView(a: AgentSummaryResponse): Agent {
     active: a.status !== false,
     roles: (a.roles ?? []).map((r) => r.name),
     createdAt: a.created_at ?? "",
+    branchId: a.branch_id,
   };
 }
+
+/** Payment statuses differ between the two collections endpoints ("confirmed" vs "completed"); the UI uses "confirmed". */
+const collectionStatus = (s: string) => ((s || "").toLowerCase() === "completed" ? "confirmed" : s);
+
+function collectionsToView(r: EqubCollectionsSummaryResponse): CollectionsSummary {
+  return {
+    from: r.from,
+    to: r.to,
+    count: r.count ?? 0,
+    totalCollected: num(r.total_collected),
+    totalConfirmed: num(r.total_confirmed),
+    totalPending: num(r.total_pending),
+    items: (r.collections ?? []).map((c) => ({
+      paymentId: c.payment_id,
+      memberId: c.member_id,
+      memberName: c.member_name || "—",
+      equbId: c.group_id,
+      equbName: c.group_name || "—",
+      categoryId: c.scheme_id,
+      categoryName: c.scheme_name || "—",
+      amount: num(c.amount),
+      reference: c.reference_number ?? "",
+      status: collectionStatus(c.status),
+      collectedAt: c.collected_at,
+    })),
+  };
+}
+
+const staffParams = (f: StaffFilters) => ({ search: f.search || undefined, status: f.status, branch_id: f.branchId || undefined, role_id: f.roleId || undefined, start_date: f.from || undefined, end_date: f.to || undefined });
 
 function userToStaff(u: UserResponse): StaffMember {
   const role = (u.roles?.[0]?.name || "").toLowerCase();
   const mapped: StaffMember["role"] = role.includes("admin") ? "admin" : role.includes("manager") ? "manager" : role.includes("board") ? "board_chair" : "agent";
   // branch_id is a UUID; never show it. (No branch name comes back on this endpoint.)
-  return { id: u.id, name: u.full_name, role: mapped, branch: u.branch_id && !UUID_RE.test(u.branch_id) ? u.branch_id : "—", email: u.email, phone: u.phone || "—" };
+  return { id: u.id, name: u.full_name, role: mapped, branch: u.branch_id && !UUID_RE.test(u.branch_id) ? u.branch_id : "—", branchId: u.branch_id, email: u.email, phone: u.phone || "—" };
 }
 
 const categoryBody = (c: EqubCategoryInput) => ({
@@ -812,27 +847,23 @@ export const ekubService = {
   /** Contributions the signed-in staff member recorded in a period. */
   async listMyCollections(f: CollectionsFilters = {}): Promise<CollectionsSummary> {
     const r = await equbApi.myCollections({ from: f.from || undefined, to: f.to || undefined, group_id: f.equbId || undefined, scheme_id: f.categoryId || undefined, member_id: f.memberId || undefined });
-    return {
-      from: r.from,
-      to: r.to,
-      count: r.count ?? 0,
-      totalCollected: num(r.total_collected),
-      totalConfirmed: num(r.total_confirmed),
-      totalPending: num(r.total_pending),
-      items: (r.collections ?? []).map((c) => ({
-        paymentId: c.payment_id,
-        memberId: c.member_id,
-        memberName: c.member_name || "—",
-        equbId: c.group_id,
-        equbName: c.group_name || "—",
-        categoryId: c.scheme_id,
-        categoryName: c.scheme_name || "—",
-        amount: num(c.amount),
-        reference: c.reference_number ?? "",
-        status: c.status,
-        collectedAt: c.collected_at,
-      })),
-    };
+    return collectionsToView(r);
+  },
+  /** Every agent's collections (GET /equb/admin/collections), one page at a time. */
+  async listAllCollections(f: CollectionsFilters = {}, page = 1, perPage = 20): Promise<CollectionsPage> {
+    const r = await equbApi.adminCollections({
+      from: f.from || undefined,
+      to: f.to || undefined,
+      group_id: f.equbId || undefined,
+      scheme_id: f.categoryId || undefined,
+      member_id: f.memberId || undefined,
+      collected_by: f.collectedBy || undefined,
+      status: f.status || undefined,
+      page,
+      per_page: perPage,
+    });
+    const view = collectionsToView(r);
+    return { ...view, page, perPage, hasMore: view.items.length >= perPage };
   },
 
   // ---- SACCO-wide fee ledger ----
@@ -974,8 +1005,8 @@ export const ekubService = {
   },
 
   // ---- Hardship early-turn (emergency draws) ----
-  async listEmergencyDraws(equbId: string): Promise<EmergencyDrawRequest[]> {
-    return (await equbApi.listEmergencyDraws(equbId)).map(emergencyToView);
+  async listEmergencyDraws(equbId: string, status?: string): Promise<EmergencyDrawRequest[]> {
+    return (await equbApi.listEmergencyDraws(equbId, status ? { status } : undefined)).map(emergencyToView);
   },
   async decideEmergencyDraw(id: string, decision: "approve" | "reject", note?: string): Promise<void> {
     if (decision === "approve") await equbApi.approveEmergencyDraw(id, note);
@@ -986,8 +1017,8 @@ export const ekubService = {
   },
 
   // ---- Takaful ----
-  async listTakaful(equbId: string): Promise<TakafulTxn[]> {
-    return (await equbApi.listTakaful(equbId)).map(takafulToView);
+  async listTakaful(equbId: string, f?: { roundId?: string; type?: string }): Promise<TakafulTxn[]> {
+    return (await equbApi.listTakaful(equbId, { round_id: f?.roundId || undefined, type: f?.type || undefined })).map(takafulToView);
   },
   async listTakafulPage(equbId: string, page: number, perPage: number): Promise<Page<TakafulTxn>> {
     return toPage(await equbApi.listTakafulPage(equbId, page, perPage), takafulToView);
@@ -1094,18 +1125,25 @@ export const ekubService = {
     return clone(db.staff);
   },
   // ---- Agents (GET /agents) ----
-  async listAgentsPage(search: string | undefined, page: number, perPage: number): Promise<Page<Agent>> {
-    return toPage(await equbApi.listAgentsPage({ search: search || undefined, page, per_page: perPage }), agentToView);
+  async listAgentsPage(f: StaffFilters, page: number, perPage: number): Promise<Page<Agent>> {
+    return toPage(await equbApi.listAgentsPage({ ...staffParams(f), page, per_page: perPage }), agentToView);
+  },
+  async listBranches(): Promise<Branch[]> {
+    return (await equbApi.listBranches()).map((b) => ({ id: b.id, name: b.name, code: b.branch_code ?? "" }));
+  },
+  async listUserRoles(): Promise<UserRole[]> {
+    return (await equbApi.listUserRoles()).map((r) => ({ id: r.id, name: r.name }));
   },
   async getAgent(id: string): Promise<Agent> {
     return agentToView(await equbApi.getAgent(id));
   },
-  async listStaffPage(search: string | undefined, page: number, perPage: number): Promise<Page<StaffMember>> {
+  async listStaffPage(f: StaffFilters, page: number, perPage: number): Promise<Page<StaffMember>> {
+    const search = f.search;
     if (USE_MOCK) {
       await delay();
       const all = clone(db.staff).filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase()));
       return { items: all.slice((page - 1) * perPage, page * perPage), page, perPage, total: all.length, totalPages: Math.max(1, Math.ceil(all.length / perPage)) };
     }
-    return toPage(await equbApi.listUsersPage({ search: search || undefined, page, per_page: perPage }), userToStaff);
+    return toPage(await equbApi.listUsersPage({ ...staffParams(f), page, per_page: perPage }), userToStaff);
   },
 };

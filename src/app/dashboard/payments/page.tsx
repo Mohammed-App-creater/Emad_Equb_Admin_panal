@@ -6,14 +6,14 @@ import { CloudOff, Info, Wallet } from "lucide-react";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
 import { CollectionsTab } from "@/components/payments/collections-tab";
 import { ReconciliationTab } from "@/components/payments/reconciliation-tab";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { usePayments, useFlagOutage } from "@/hooks/ekub";
+import { usePayments, useFlagOutage, useCollectionsScope } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -38,6 +38,7 @@ function PaymentsInner() {
   const { data: payments, isLoading } = usePayments({ search: debounced });
   const flagOutage = useFlagOutage();
   const tp = useTranslations("recordPayment");
+  const collectionsScope = useCollectionsScope();
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
 
   const timingLabel = (x: PaymentTiming) =>
@@ -80,7 +81,7 @@ function PaymentsInner() {
 
       <Tabs defaultValue="collections">
         <TabsList>
-          <TabsTrigger value="collections">{t("tabCollections")}</TabsTrigger>
+          <TabsTrigger value="collections">{collectionsScope === "all" ? t("tabAllCollections") : t("tabCollections")}</TabsTrigger>
           <TabsTrigger value="ledger">{t("tabLedger")}</TabsTrigger>
           <TabsTrigger value="reconciliation">{t("tabReconciliation")}</TabsTrigger>
         </TabsList>
@@ -93,7 +94,7 @@ function PaymentsInner() {
           <Input placeholder={tc("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="sm:max-w-xs" />
           <DataTable
             defaultSort={{ id: "time", dir: "desc" }}
-            filters={{ facets: [{ id: "timing", label: tc("status"), get: (r) => r.timing, labelOf: (v) => timingLabel(v as PaymentTiming) }, { id: "method", label: t("method"), get: (r) => r.method }] }}
+            filters={{ facets: [{ id: "timing", label: tc("status"), get: (r) => r.timing, labelOf: (v) => timingLabel(v as PaymentTiming) }, { id: "method", label: t("method"), get: (r) => r.method }, { id: "equb", label: t("equb"), get: (r) => r.ekubNumber }, roundFacet(t("round"), (r: Payment) => r.round), { id: "collectedBy", label: t("collectedBy"), get: (r) => r.collectedBy ?? null }] }}
             columns={paymentCols}
             data={payments ?? []}
             rowKey={(r) => r.id}

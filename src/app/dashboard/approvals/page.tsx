@@ -45,6 +45,8 @@ interface Item {
   amount?: number;
   date: string;
   status: Decision;
+  /** Rounds the request covers (a payment can cover several). */
+  roundNumbers: number[];
   /** Winner still needs a guarantee reviewed in the Equb's Winners tab. */
   needsGuarantee?: boolean;
 }
@@ -78,6 +80,7 @@ function ApprovalsInner() {
   const [kind, setKind] = useState<Kind | "all">("all");
   const [equbFilter, setEqubFilter] = useState("all");
   const [status, setStatus] = useState<Decision | "all">("pending");
+  const [roundNo, setRoundNo] = useState("all");
 
   // ---- sources -------------------------------------------------------------
   const { data: equbs, isLoading: equbsLoading } = useEqubs();
@@ -118,6 +121,7 @@ function ApprovalsInner() {
         amount: lines.reduce((a, l) => a + l.total, 0),
         date: lines.map((l) => l.scheduledAt).sort().at(-1) ?? "",
         status: "pending",
+        roundNumbers: lines.map((l) => l.roundNumber),
       });
     }
     winnersQ.forEach((q, i) => {
@@ -136,6 +140,7 @@ function ApprovalsInner() {
           amount: w.payoutAmount,
           date: w.createdAt,
           status: w.status === "pending" ? "pending" : "approved",
+          roundNumbers: w.roundNumber ? [w.roundNumber] : [],
           needsGuarantee: guaranteeRequired && w.guaranteeStatus !== "approved",
         });
       }
@@ -154,13 +159,16 @@ function ApprovalsInner() {
           detail: h.reason,
           date: h.createdAt,
           status: toDecision(h.status),
+          roundNumbers: [],
         });
       }
     });
     return out.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   })();
 
-  const shown = items.filter((i) => (kind === "all" || i.kind === kind) && (equbFilter === "all" || i.equbId === equbFilter) && (status === "all" || i.status === status));
+  const shown = items.filter((i) => (kind === "all" || i.kind === kind) && (equbFilter === "all" || i.equbId === equbFilter) && (status === "all" || i.status === status) && (roundNo === "all" || i.roundNumbers.includes(Number(roundNo))));
+  // Rounds that appear in the chosen Equb's requests.
+  const roundOptions = Array.from(new Set(items.filter((i) => i.equbId === equbFilter).flatMap((i) => i.roundNumbers))).sort((a, b) => a - b);
   const pendingOf = (k: Kind) => items.filter((i) => i.kind === k && i.status === "pending").length;
 
   // ---- actions ---------------------------------------------------------------
@@ -248,11 +256,18 @@ function ApprovalsInner() {
                   {(["payment", "winner", "hardship"] as Kind[]).map((k) => <SelectItem key={k} value={k}>{t(`kind_${k}` as never)}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={equbFilter} onValueChange={setEqubFilter}>
+              <Select value={equbFilter} onValueChange={(v) => { setEqubFilter(v); setRoundNo("all"); }}>
                 <SelectTrigger className="h-9 sm:w-55"><span className="truncate"><span className="text-muted-foreground">{t("equb")}: </span><SelectValue /></span></SelectTrigger>
                 <SelectContent loading={equbsLoading}>
                   <SelectItem value="all">{tc("all")}</SelectItem>
                   {live.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={roundNo} onValueChange={setRoundNo} disabled={equbFilter === "all"}>
+                <SelectTrigger className="h-9 sm:w-40"><span className="truncate"><span className="text-muted-foreground">{t("round")}: </span><SelectValue /></span></SelectTrigger>
+                <SelectContent empty={equbFilter !== "all" && roundOptions.length === 0}>
+                  <SelectItem value="all">{tc("all")}</SelectItem>
+                  {roundOptions.map((n) => <SelectItem key={n} value={String(n)}>#{n}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={status} onValueChange={(v) => setStatus(v as Decision | "all")}>

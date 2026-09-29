@@ -89,6 +89,8 @@ export const EQUB_ENDPOINTS = {
 
   // ---- SACCO-wide fee ledger (any scope: scheme / group / round / member / contribution) ----
   FEES: "/equb/admin/fees",
+  // SACCO-wide collections ledger (not scoped to the caller): ?from=&to=&collected_by=&group_id=&scheme_id=&member_id=&status=&page=&per_page=
+  COLLECTIONS: "/equb/admin/collections",
 
   // ---- Contribution attachments (bank slips, receipts) ----
   CONTRIBUTION_ATTACHMENTS: {
@@ -145,11 +147,12 @@ export const EQUB_ENDPOINTS = {
   // ---- Staff & roles (FR-8.7, NFR-4) ----
   // Agents are staff users (id = user id), used for manager / broker pickers.
   AGENTS: {
-    LIST: "/agents", // ?search=&status=true&page=&per_page=&sort=created_at&order=desc
+    LIST: "/agents", // ?search=&status=&branch_id=&email=&phone=&start_date=&end_date=&page=&per_page=&sort=&order=
     DETAIL: (id: string) => `/agents/${id}`,
   },
+  BRANCHES: "/branches", // ?search=&status=&city=&region=&page=&limit=
   USERS: {
-    LIST: "/users",
+    LIST: "/users", // ?search=&role_id=&role_slug=&permission_id=&branch_id=&status=&start_date=&end_date=&page=&per_page=&sort=&order=
     PERMISSIONS: "/users/permissions",
     BRANCHES: "/users/branches",
   },

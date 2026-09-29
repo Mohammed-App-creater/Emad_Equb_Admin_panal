@@ -15,10 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, roundFacet, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { StatusBadge } from "@/components/equb/status-badge";
+import { hasStarted } from "@/components/equb/contributions-tab";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
 import { WinnersTable } from "@/components/equb/winners-tab";
 import { FeeLinesTable } from "@/components/equb/admin-fees-tab";
@@ -30,6 +31,7 @@ import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDate, formatDateTime, getErrorMessage } from "@/lib/utils";
 import type { Round, RoundMemberPayment, TakafulTxn } from "@/types/ekub";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const isPaid = (p: RoundMemberPayment) => p.status?.toLowerCase() === "paid" || !!p.paidAt;
 type ContributionRow = { round: Round; pay: RoundMemberPayment };
@@ -51,7 +53,7 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
   const { data: standing, error: standingError } = useMemberStanding(equbId, memberId, isManager === true);
   const { data: catchUp } = useCatchUp(equbId, memberId, isManager === true);
   const { data: list } = useRounds(equbId);
-  const startedIds = useMemo(() => (list ?? []).filter((r) => r.status !== "scheduled").map((r) => r.id), [list]);
+  const startedIds = useMemo(() => (list ?? []).filter(hasStarted).map((r) => r.id), [list]);
   const details = useRoundDetails(startedIds);
   const { data: fees } = useMemberAdminFees(equbId, memberId);
   const { data: winners } = useEqubWinners(equbId);
@@ -60,6 +62,9 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
   const setSuspended = useSetSuspended();
 
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
+  const [hardshipStatus, setHardshipStatus] = useState("all");
+  const [hardshipRound, setHardshipRound] = useState("all");
+  const th = useTranslations("hardship");
   const [suspending, setSuspending] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -82,6 +87,8 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
   const myTakaful = (takaful ?? []).filter((x) => x.memberId === memberId);
   const takafulGiven = myTakaful.filter((x) => x.type === "contribution").reduce((a, x) => a + x.amount, 0);
   const myHardship = (hardship ?? []).filter((h) => h.memberId === memberId);
+  const roundOfDate = (iso: string) => [...(list ?? [])].filter((r) => r.scheduledAt && r.scheduledAt <= iso).sort((a, b) => b.roundNumber - a.roundNumber)[0]?.roundNumber;
+  const shownHardship = myHardship.filter((h) => (hardshipStatus === "all" || h.status === hardshipStatus) && (hardshipRound === "all" || roundOfDate(h.createdAt) === Number(hardshipRound)));
 
   const err = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
 
@@ -260,7 +267,7 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
 
         <TabsContent value="contributions" className="mt-4">
           <DataTable
-            filters={{ facets: [{ id: "status", label: tc("status"), get: (r) => (isPaid(r.pay) ? "paid" : r.pay.status || "unpaid") }] }}
+            filters={{ search: { keys: (r) => [`#${r.round.roundNumber}`, formatDate(r.round.contributionDueDate)] }, facets: [roundFacet(tr("round"), (r: ContributionRow) => r.round.roundNumber), { id: "status", label: tc("status"), get: (r) => (isPaid(r.pay) ? "paid" : r.pay.status || "unpaid") }, { id: "catchUp", label: tr("catchUp"), get: (r) => (r.pay.isCatchUp ? "catch_up" : "regular"), options: [{ value: "catch_up", label: tr("catchUp") }, { value: "regular", label: tr("regular") }] }] }}
             columns={contributionCols}
             data={contributions}
             rowKey={(r) => r.round.id}
@@ -290,13 +297,33 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
           <WinnersTable equbId={equbId} winners={myWins} isLoading={!winners} guaranteeRequired={equb?.effectiveTerms?.guaranteeRequired ?? equb?.category?.guaranteeRequired ?? true} />
         </TabsContent>
         <TabsContent value="takaful" className="mt-4">
-          <DataTable filters={{ facets: [{ id: "type", label: tc("status"), get: (r) => r.type }] }} columns={takafulCols} data={myTakaful} rowKey={(r) => r.id} isLoading={!takaful} emptyTitle={tc("noData")} emptyMessage={t("noTakaful")} defaultSort={{ id: "date", dir: "desc" }} />
+          <DataTable filters={{ facets: [{ id: "type", label: tc("status"), get: (r) => r.type }, roundFacet(tr("round"), (r: TakafulTxn) => (r.roundId ? (list ?? []).find((x) => x.id === r.roundId)?.roundNumber : undefined))] }} columns={takafulCols} data={myTakaful} rowKey={(r) => r.id} isLoading={!takaful} emptyTitle={tc("noData")} emptyMessage={t("noTakaful")} defaultSort={{ id: "date", dir: "desc" }} />
         </TabsContent>
         <TabsContent value="hardship" className="mt-4 space-y-3">
-          {myHardship.length === 0 ? (
+          {myHardship.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+            <Select value={hardshipRound} onValueChange={setHardshipRound}>
+              <SelectTrigger className="h-9 sm:w-40"><span className="truncate"><span className="text-muted-foreground">{tr("round")}: </span><SelectValue /></span></SelectTrigger>
+              <SelectContent empty={!list?.length}>
+                <SelectItem value="all">{tc("all")}</SelectItem>
+                {[...(list ?? [])].sort((a, b) => a.roundNumber - b.roundNumber).map((r) => <SelectItem key={r.id} value={String(r.roundNumber)}>#{r.roundNumber}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={hardshipStatus} onValueChange={setHardshipStatus}>
+              <SelectTrigger className="h-9 sm:w-44"><span className="truncate"><span className="text-muted-foreground">{tc("status")}: </span><SelectValue /></span></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tc("all")}</SelectItem>
+                <SelectItem value="pending">{th("statusPending")}</SelectItem>
+                <SelectItem value="approved">{th("statusApproved")}</SelectItem>
+                <SelectItem value="rejected">{th("statusRejected")}</SelectItem>
+              </SelectContent>
+            </Select>
+            </div>
+          )}
+          {shownHardship.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">{t("noHardship")}</p>
           ) : (
-            myHardship.map((h) => (
+            shownHardship.map((h) => (
               <div key={h.id} className="rounded-2xl border border-border p-4">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs text-muted-foreground">{formatDateTime(h.createdAt)}</p>

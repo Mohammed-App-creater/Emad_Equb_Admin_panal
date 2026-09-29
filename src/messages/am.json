@@ -55,7 +55,10 @@
     "refresh": "አድስ",
     "unknownMember": "ያልታወቀ አባል",
     "showingRange": "ከ{total} ውስጥ {from}–{to} እየታየ ነው",
-    "rowsPerPage": "በገጽ ረድፎች"
+    "rowsPerPage": "በገጽ ረድፎች",
+    "equb": "እቁብ",
+    "viewCards": "ካርዶች",
+    "viewTable": "ሠንጠረዥ"
   },
   "nav": {
     "groupOverview": "አጠቃላይ እይታ",
@@ -205,7 +208,12 @@
     "copyMembers": "አባላቱን ቅዳ",
     "copyMembersHint": "{count} ንቁ አባል(ላት) ቦታቸውን ጠብቀው ይሸጋገራሉ።",
     "carryOver": "የቀሩ ክፍያዎችን ታሪክ አሸጋግር",
-    "carryOverHint": "ተደጋጋሚ ያልከፈለ ሪከርዱን ይይዛል፤ ያልተጠናቀቀ እገዳ በቀሩት ዙሮች ይቀጥላል።"
+    "carryOverHint": "ተደጋጋሚ ያልከፈለ ሪከርዱን ይይዛል፤ ያልተጠናቀቀ እገዳ በቀሩት ዙሮች ይቀጥላል።",
+    "capacity": "አቅም",
+    "capacityFull": "ሞልቷል",
+    "capacityOpen": "ቦታ አለው",
+    "cycleFirst": "የመጀመሪያ ዑደት",
+    "cycleNext": "ቀጣይ ዑደት"
   },
   "categories": {
     "title": "የእቁብ ምድቦች",
@@ -246,7 +254,12 @@
     "guaranteeRequiredHint": "አሸናፊዎች ክፍያቸው ከመለቀቁ በፊት ዋስትና ማቅረብ አለባቸው።",
     "guarantee_member": "አባል ዋስ",
     "guarantee_cheque": "ቼክ",
-    "guarantee_collateral": "መያዣ"
+    "guarantee_collateral": "መያዣ",
+    "allStatuses": "ሁሉም ሁኔታዎች",
+    "allFrequencies": "ሁሉም ድግግሞሾች",
+    "guaranteeAny": "ዋስትና፡ ማንኛውም",
+    "guaranteeYes": "ዋስትና ያስፈልጋል",
+    "guaranteeNo": "ዋስትና አያስፈልግም"
   },
   "landing": {
     "console": "የአስተዳደር መቆጣጠሪያ",
@@ -494,7 +507,16 @@
     "runningHint": "ከ{count} ብቁ አባላት {winners} አሸናፊ(ዎች) በመምረጥ ላይ…",
     "statusConfirmed": "የተረጋገጠ",
     "drawFailed": "እጣ አልተሳካም",
-    "notReadyYet": "ገና ዝግጁ አይደለም"
+    "notReadyYet": "ገና ዝግጁ አይደለም",
+    "searchRound": "ዙር ወይም መክፈያ ቀን ፈልግ",
+    "drawnOrClosed": "የተጣለ / የተዘጋ",
+    "collection": "ስብሰባ",
+    "collectionNone": "ምንም አልተሰበሰበም",
+    "collectionPartial": "በከፊል ተሰብስቧል",
+    "collectionFull": "ሙሉ በሙሉ ተሰብስቧል",
+    "hasWinners": "አሸናፊ አለው",
+    "noWinners": "ገና አሸናፊ የለም",
+    "regular": "መደበኛ"
   },
   "payouts": {
     "title": "አሸናፊዎችና ክፍያዎች",
@@ -546,7 +568,8 @@
     "noRequests": "የችግር ጊዜ ጥያቄ የለም",
     "statusPending": "በመጠባበቅ ላይ",
     "statusApproved": "ጸድቋል",
-    "statusRejected": "ውድቅ ተደርጓል"
+    "statusRejected": "ውድቅ ተደርጓል",
+    "search": "አባል ወይም ምክንያት ፈልግ"
   },
   "takaful": {
     "title": "የተካፉል ፈንድ",
@@ -692,7 +715,8 @@
     "catchUp": "ተመላሽ",
     "guarantee": "ዋስትና",
     "empty": "ማጽደቂያ የሚጠብቅ ነገር የለም",
-    "unknownMember": "ያልታወቀ አባል"
+    "unknownMember": "ያልታወቀ አባል",
+    "round": "ዙር"
   },
   "declarations": {
     "shariaAccept": "የሸሪዓ ደንቦችን ተቀብሎ ሐራም ተግባርን ለማስወገድ ቃል ገብቷል",
@@ -735,7 +759,10 @@
     "noCollections": "በዚህ ወቅት የተመዘገበ ነገር የለም።",
     "recordPayment": "ክፍያ መዝግብ",
     "confirm": "አረጋግጥ",
-    "unreconciled": "ያልታረቀ"
+    "unreconciled": "ያልታረቀ",
+    "tabAllCollections": "ስብሰባዎች",
+    "allAgents": "ሁሉም ወኪሎች",
+    "allCollectionsSub": "በወቅቱ ሠራተኞች የመዘገቡት እያንዳንዱ መዋጮ፣ ከሁሉም ወኪሎች። ጥሬ ገንዘብ እዚህ ያረጋግጡ ወይም ለማስታረቅ ይተዉት።"
   },
   "disputes": {
     "title": "የሸሪዓ አለመግባባት ወረፋ",
@@ -805,7 +832,8 @@
     "showingRound": "ዙር #{n} እየታየ ነው",
     "showingAll": "ሁሉም ዙሮች እየታዩ ነው",
     "settled": "ሙሉ በሙሉ የተሰበሰበ",
-    "splitTitle": "የተሰበሰበ ክፍያ ክፍፍል"
+    "splitTitle": "የተሰበሰበ ክፍያ ክፍፍል",
+    "regular": "መደበኛ"
   },
   "recordPayment": {
     "title": "ክፍያ መዝግብ",
@@ -889,7 +917,10 @@
     "noMatch": "ከማጣሪያዎቹ ጋር የሚዛመድ አባል የለም።",
     "allRoundsHint": "አሃዞቹን ለማየት ከላይ ዙር ይምረጡ፤ ከታች ያለው ሰንጠረዥ ሁሉንም ዙሮች ይዘረዝራል።",
     "noRoundYet": "እስካሁን ዙር አልተጀመረም።",
-    "pay": "ክፈል"
+    "pay": "ክፈል",
+    "awaitingConfirmation": "ማረጋገጫ በመጠባበቅ ላይ",
+    "confirm": "አረጋግጥ",
+    "confirmed": "ክፍያው ተረጋግጧል"
   },
   "memberProfile": {
     "backToMembers": "ወደ አባላት ተመለስ",
@@ -965,7 +996,9 @@
     "paidAt": "የተከፈለበት",
     "catchUp": "ማካካሻ",
     "ofCharged": "ከተጠየቀው {amount}",
-    "scope": "{contributions} መዋጮዎች · {members} አባላት · {rounds} ዙሮች"
+    "scope": "{contributions} መዋጮዎች · {members} አባላት · {rounds} ዙሮች",
+    "regular": "መደበኛ",
+    "search": "አባል፣ እቁብ ወይም ዙር ፈልግ"
   },
   "reconciliation": {
     "equb": "እቁብ",
@@ -1010,6 +1043,15 @@
     "position": "ቦታ",
     "staffEmptyHint": "የሠራተኞች ዝርዝር ባዶ ነው። /users ከዚህ ሰርቨር እስካሁን ተጠቃሚ አይመልስም።",
     "category": "የእቁብ ምድብ",
-    "start": "መጀመሪያ"
+    "start": "መጀመሪያ",
+    "managesEqubs": "እቁብ ያስተዳድራል",
+    "managesNone": "ገና እቁብ የለውም",
+    "from": "ከ",
+    "to": "እስከ",
+    "reference": "ማጣቀሻ",
+    "collectedAt": "የተሰበሰበበት",
+    "collectionsByAgentHint": "ይህ ወኪል በወቅቱ የመዘገባቸው መዋጮዎች።",
+    "joinedFrom": "ከተቀላቀለበት",
+    "joinedTo": "እስከተቀላቀለበት"
   }
 }

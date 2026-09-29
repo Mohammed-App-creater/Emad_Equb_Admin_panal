@@ -28,11 +28,16 @@ import type {
   EqubPayRoundsRequest,
   EqubPayoutResponse,
   AgentSummaryResponse,
+  BranchResponse,
+  UserRoleResponse,
+  ListStaffParams,
+  ListTakafulParams,
   CollectProof,
   PaymentUpdateStatusRequest,
   EqubCatchUpPaymentResponse,
   EqubCollectionsSummaryResponse,
   MyCollectionsParams,
+  AdminCollectionsParams,
   EqubRoundResponse,
   EqubSchemeResponse,
   EqubTakafulClaimResponse,
@@ -266,9 +271,9 @@ const realEqubApi = {
   },
 
   // ---- Takaful ----
-  async listTakaful(groupId: string): Promise<EqubTakafulTransactionResponse[]> {
-    // The ledger is filtered and paged in the browser, so ask for all of it.
-    return list<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page: 1, per_page: 1000 } }));
+  async listTakaful(groupId: string, params?: ListTakafulParams): Promise<EqubTakafulTransactionResponse[]> {
+    // Round and type filter on the server; the rest is filtered and paged in the browser, so ask for all of it.
+    return list<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { ...params, page: 1, per_page: 1000 } }));
   },
   async listTakafulPage(groupId: string, page: number, perPage: number): Promise<PagedResult<EqubTakafulTransactionResponse>> {
     return paged<EqubTakafulTransactionResponse>(api.get(EQUB_ENDPOINTS.TAKAFUL.LIST(groupId), { params: { page, per_page: perPage } }), page, perPage);
@@ -312,15 +317,23 @@ const realEqubApi = {
   async listAgents(params: { search?: string; status?: string; page?: number; per_page?: number }): Promise<AgentSummaryResponse[]> {
     return list<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params }));
   },
-  async listAgentsPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<AgentSummaryResponse>> {
+  async listAgentsPage(params: ListStaffParams): Promise<PagedResult<AgentSummaryResponse>> {
     return paged<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.LIST, { params: { ...params, sort: "created_at", order: "desc" } }), params.page, params.per_page);
   },
   /** GET /agents/{id} — the only agent endpoint that includes roles. */
   async getAgent(id: string): Promise<AgentSummaryResponse> {
     return unwrap<AgentSummaryResponse>(api.get(EQUB_ENDPOINTS.AGENTS.DETAIL(id)));
   },
-  async listUsersPage(params: { search?: string; page: number; per_page: number }): Promise<PagedResult<UserResponse>> {
-    return paged<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params }), params.page, params.per_page);
+  async listUsersPage(params: ListStaffParams): Promise<PagedResult<UserResponse>> {
+    return paged<UserResponse>(api.get(EQUB_ENDPOINTS.USERS.LIST, { params: { ...params, sort: "created_at", order: "desc" } }), params.page, params.per_page);
+  },
+  /** GET /branches — for the branch filters. */
+  async listBranches(): Promise<BranchResponse[]> {
+    return list<BranchResponse>(api.get(EQUB_ENDPOINTS.BRANCHES, { params: { page: 1, limit: 200 } }));
+  },
+  /** GET /user-roles — for the staff role filter. */
+  async listUserRoles(): Promise<UserRoleResponse[]> {
+    return list<UserRoleResponse>(api.get(EQUB_ENDPOINTS.USER_ROLES.LIST, { params: { page: 1, limit: 200 } }));
   },
 
   // ---- Recording a contribution for a member ----
@@ -362,6 +375,10 @@ const realEqubApi = {
   },
   async myCollections(params?: MyCollectionsParams): Promise<EqubCollectionsSummaryResponse> {
     return unwrap<EqubCollectionsSummaryResponse>(api.get(EQUB_ENDPOINTS.MANAGER.MY_COLLECTIONS, { params }));
+  },
+  /** Admin: collections across every agent, with paging. */
+  async adminCollections(params?: AdminCollectionsParams): Promise<EqubCollectionsSummaryResponse> {
+    return unwrap<EqubCollectionsSummaryResponse>(api.get(EQUB_ENDPOINTS.COLLECTIONS, { params }));
   },
 };
 

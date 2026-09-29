@@ -11,6 +11,8 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable, type DataTableAction, type DataTableColumn } from "@/components/ui/data-table";
+import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
 import {
   Select,
   SelectContent,
@@ -71,7 +73,14 @@ function CategoriesInner() {
   const canManage = has(EKUB_PERMS.CATEGORY_MANAGE);
 
   const [search, setSearch] = useState("");
-  const { data, isLoading } = useCategories({ search: search || undefined });
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [frequencyFilter, setFrequencyFilter] = useState("all");
+  const [guaranteeFilter, setGuaranteeFilter] = useState("all");
+  const [view, setView] = useViewMode("categories", "cards");
+  const { data, isLoading } = useCategories({ search: search || undefined, status: statusFilter === "all" ? undefined : statusFilter });
+  const shown = (data ?? []).filter(
+    (c) => (statusFilter === "all" || c.status === statusFilter) && (frequencyFilter === "all" || c.frequency === frequencyFilter) && (guaranteeFilter === "all" || (guaranteeFilter === "yes") === c.guaranteeRequired)
+  );
   const create = useCreateCategory();
   const update = useUpdateCategory();
   const del = useDeleteCategory();
@@ -93,6 +102,34 @@ function CategoriesInner() {
     if (id) update.mutate({ id, input: form }, done);
     else create.mutate(form, done);
   };
+
+  // Table view: the same figures the cards show, one row per category.
+  const columns: DataTableColumn<EqubCategory>[] = [
+    { id: "name", sortValue: (c) => c.name, header: t("name"), mobile: "title", cell: (c) => (
+      <div>
+        <p className="font-medium text-foreground">{c.name}</p>
+        <p className="font-mono text-xs text-muted-foreground">{c.code}</p>
+      </div>
+    ) },
+    { id: "frequency", sortValue: (c) => c.frequency, header: t("frequency"), mobile: "detail", cell: (c) => <span className="text-sm">{freqLabel(c.frequency)}</span> },
+    { id: "contribution", sortValue: (c) => c.contribution, header: t("contribution"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{formatCurrency(c.contribution)}</span> },
+    { id: "adminFee", sortValue: (c) => c.adminFee, header: t("adminFee"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{formatCurrency(c.adminFee)}</span> },
+    { id: "takafulFee", sortValue: (c) => c.takafulFee, header: t("takafulFee"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{formatCurrency(c.takafulFee)}</span> },
+    { id: "total", sortValue: (c) => c.contribution + c.adminFee + c.takafulFee, header: t("totalPerRound"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm font-semibold tabular-nums">{formatCurrency(c.contribution + c.adminFee + c.takafulFee)}</span> },
+    { id: "payout", sortValue: (c) => c.payout, header: t("payout"), mobile: "detail", align: "right", cell: (c) => <span className="font-bold tabular-nums text-primary">{formatCurrency(c.payout)}</span> },
+    { id: "members", sortValue: (c) => c.membersPerEqub, header: t("membersPerEqub"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{c.membersPerEqub}</span> },
+    { id: "winners", sortValue: (c) => c.winnersPerRound, header: t("winnersPerRound"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{c.winnersPerRound}</span> },
+    { id: "rounds", sortValue: (c) => c.totalRounds, header: t("totalRounds"), mobile: "detail", align: "right", cell: (c) => <span className="text-sm tabular-nums">{c.totalRounds}</span> },
+    { id: "guarantee", sortValue: (c) => (c.guaranteeRequired ? 1 : 0), header: t("guaranteeRequired"), mobile: "detail", cell: (c) => <span className="text-sm">{c.guaranteeRequired ? (c.acceptedGuaranteeTypes.length ? c.acceptedGuaranteeTypes.map((g) => t(`guarantee_${g}`)).join(", ") : tc("yes")) : tc("no")}</span> },
+    { id: "status", sortValue: (c) => c.status, header: tc("status"), mobile: "badge", cell: (c) => <StatusBadge status={c.status} kind="lifecycle" /> },
+  ];
+  const tableActions: DataTableAction<EqubCategory>[] = canManage
+    ? [
+        { label: t("createEqub"), icon: CirclePlus, onClick: (c) => setCreatingEqubFor(c), disabled: (c) => c.status === "cancelled" },
+        { label: t("edit"), icon: Pencil, onClick: (c) => setEditing({ id: c.id, form: toInput(c) }) },
+        { label: tc("delete"), icon: Trash2, destructive: true, onClick: (c) => setDeleting(c) },
+      ]
+    : [];
 
   const valid = !!editing && !!editing.form.name && editing.form.contribution > 0 && editing.form.membersPerEqub > 0 && editing.form.winnersPerRound > 0 && editing.form.totalRounds > 0;
   const pending = create.isPending || update.isPending;
@@ -116,16 +153,53 @@ function CategoriesInner() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")} />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            {EQUB_SCHEME_STATUSES.map((s) => <SelectItem key={s} value={s}>{te(`status${s.charAt(0).toUpperCase()}${s.slice(1)}`)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+          <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allFrequencies")}</SelectItem>
+            {EQUB_FREQUENCIES.map((f) => <SelectItem key={f} value={f}>{freqLabel(f)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={guaranteeFilter} onValueChange={setGuaranteeFilter}>
+          <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("guaranteeAny")}</SelectItem>
+            <SelectItem value="yes">{t("guaranteeYes")}</SelectItem>
+            <SelectItem value="no">{t("guaranteeNo")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <ViewToggle value={view} onChange={setView} />
         <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground sm:max-w-md">
           <Info size={16} className="mt-0.5 shrink-0 text-primary" />
           <span>{t("advanceNote")}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      {view === "table" && (
+        <DataTable
+          columns={columns}
+          data={shown}
+          rowKey={(c) => c.id}
+          isLoading={isLoading}
+          avatar={(c) => ({ initials: c.code.slice(0, 2), colorClass: "bg-primary/10 text-primary" })}
+          emptyTitle={tc("noData")}
+          actions={tableActions}
+        />
+      )}
+      {view === "cards" && !isLoading && data && shown.length === 0 && (
+        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{tc("noData")}</p>
+      )}
+      {view === "cards" && <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {isLoading || !data
           ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-96 rounded-xl" />)
-          : data.map((c) => (
+          : shown.map((c) => (
               <Card key={c.id} className="flex flex-col">
                 <CardContent className="flex flex-1 flex-col gap-4 p-6">
                   <div className="flex items-start justify-between gap-2">
@@ -181,7 +255,7 @@ function CategoriesInner() {
                 </CardContent>
               </Card>
             ))}
-      </div>
+      </div>}
 
       {/* Create / edit category — mirrors Create/UpdateEqubSchemeRequest */}
       <Modal open={!!editing} onOpenChange={(o) => !o && setEditing(null)} title={editing?.id ? t("edit") : t("create")} className="max-w-2xl">

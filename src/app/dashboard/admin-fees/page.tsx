@@ -7,10 +7,10 @@ import { Coins, CheckCircle2, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { EqubFilter } from "@/components/equb/equb-filter";
+import { EqubFilter, RoundFilter } from "@/components/equb/equb-filter";
 import { AdminFeesTab, SplitCard } from "@/components/equb/admin-fees-tab";
 import { FeeLedger } from "@/components/payments/fee-ledger";
-import { useEqubs, useEqubAdminFeesMany } from "@/hooks/ekub";
+import { useEqubs, useEqubAdminFeesMany, useRounds } from "@/hooks/ekub";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
 import type { EqubAdminFees, FeeSplit } from "@/types/ekub";
@@ -31,6 +31,8 @@ function AdminFeesInner() {
   const equbs = (allEqubs ?? []).filter((e) => e.status !== "draft");
   const [equbId, setEqubId] = useState("all");
   const selected = equbs.find((e) => e.id === equbId);
+  const [roundId, setRoundId] = useState("all");
+  const { data: rounds, isLoading: roundsLoading } = useRounds(selected?.id ?? "");
 
   const ledgers = useEqubAdminFeesMany(selected ? [] : equbs.map((e) => e.id));
   const fees = ledgers.map((l) => l.data).filter((f): f is EqubAdminFees => !!f);
@@ -62,10 +64,13 @@ function AdminFeesInner() {
         )}
       />
 
-      <EqubFilter value={equbId} onChange={setEqubId} equbs={equbs} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <EqubFilter value={equbId} onChange={(v) => { setEqubId(v); setRoundId("all"); }} equbs={equbs} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
+        <RoundFilter value={roundId} onChange={setRoundId} rounds={rounds ?? []} loading={roundsLoading} disabled={!selected} label={t("round")} allLabel={tc("all")} />
+      </div>
 
       {selected ? (
-        <AdminFeesTab key={selected.id} equb={selected} />
+        <AdminFeesTab key={selected.id} equb={selected} round={roundId} />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -78,7 +83,7 @@ function AdminFeesInner() {
       )}
 
       {/* Remounts per selection so the ledger's own Equb filter starts from it. */}
-      <FeeLedger key={equbId} equbId={selected?.id} />
+      <FeeLedger key={`${equbId}:${roundId}`} equbId={selected?.id} roundId={selected && roundId !== "all" ? roundId : undefined} />
     </div>
   );
 }
