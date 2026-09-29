@@ -521,6 +521,16 @@ export interface CollectionsFilters {
   equbId?: string;
   categoryId?: string;
   memberId?: string;
+  /** Admin ledger only: the staff user who recorded the collection. */
+  collectedBy?: string;
+  /** Admin ledger only: payment status. */
+  status?: string;
+}
+/** One page of the SACCO-wide collections ledger. The backend sends no total, only whether a full page came back. */
+export interface CollectionsPage extends CollectionsSummary {
+  page: number;
+  perPage: number;
+  hasMore: boolean;
 }
 export interface CatchUp {
   roundsMissed: number;
@@ -686,6 +696,9 @@ export type DisputeStatus = "open" | "escalated" | "resolved";
 export interface Dispute {
   id: string;
   memberHandle: string;
+  /** Equb the dispute is about, when known. */
+  ekubNumber?: string;
+  round?: number;
   subject: string;
   openedAt: string;
   status: DisputeStatus;
@@ -703,6 +716,25 @@ export interface Agent {
   active: boolean;
   roles: string[];
   createdAt: string;
+  branchId?: string;
+}
+/** Filters for the agents and staff lists (all applied by the server). */
+export interface StaffFilters {
+  search?: string;
+  status?: "true" | "false";
+  branchId?: string;
+  roleId?: string;
+  from?: string;
+  to?: string;
+}
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
+export interface UserRole {
+  id: string;
+  name: string;
 }
 
 export interface StaffMember {
@@ -710,6 +742,7 @@ export interface StaffMember {
   name: string;
   role: "agent" | "manager" | "board_chair" | "admin";
   branch: string;
+  branchId?: string;
   email: string;
   phone: string;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CircleDot,
@@ -19,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader, StatCard, TrustBadge } from "@/components/dashboard/shared";
 import { ChartCard, ChartTooltip, Donut, RingMeter, SampleTag, compact, pct, usePalette } from "@/components/dashboard/charts";
 import { StatusBadge } from "@/components/equb/status-badge";
+import { EqubFilter } from "@/components/equb/equb-filter";
 import { useEqubs, useEqubDashboards, useEqubAdminFeesMany, useTakafulLedgers } from "@/hooks/ekub";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Equb, EqubDashboard } from "@/types/ekub";
@@ -55,9 +57,13 @@ type Row = { equb: Equb; d?: EqubDashboard };
 export default function DashboardPage() {
   const t = useTranslations("overview");
   const tb = useTranslations("brand");
+  const tc = useTranslations("common");
   const c = usePalette();
 
-  const { data: equbs, isLoading } = useEqubs();
+  const { data: allEqubs, isLoading } = useEqubs();
+  const [equbId, setEqubId] = useState("all");
+  // Every tile and chart below follows this: all Equbs, or the one picked.
+  const equbs = equbId === "all" ? allEqubs : (allEqubs ?? []).filter((e) => e.id === equbId);
   // The admin-dashboard endpoint only reports on Equbs that have started.
   const live = (equbs ?? []).filter((e) => e.status !== "draft");
   const liveIds = live.map((e) => e.id);
@@ -191,7 +197,9 @@ export default function DashboardPage() {
     <div className="space-y-6 p-4 lg:p-6">
       <PageHeader title={t("title")} subtitle={t("subtitle")} actions={<TrustBadge label={tb("tagline")} />} />
 
-      {(equbs?.length ?? 0) === 0 && (
+      <EqubFilter value={equbId} onChange={setEqubId} equbs={allEqubs ?? []} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
+
+      {(allEqubs?.length ?? 0) === 0 && (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-8 text-center">
           <CircleDot size={26} className="text-muted-foreground/60" />
           <p className="text-sm text-muted-foreground">{t("noEqubs")}</p>

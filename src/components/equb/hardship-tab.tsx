@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/equb/status-badge";
-import { useEmergencyDraws, useDecideEmergencyDraw, useSubmitEmergencyDraw, useEqubMembers } from "@/hooks/ekub";
+import { useEmergencyDraws, useDecideEmergencyDraw, useSubmitEmergencyDraw, useEqubMembers, useRounds } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime, getErrorMessage } from "@/lib/utils";
@@ -31,7 +31,9 @@ export function HardshipTab({ equb }: { equb: Equb }) {
   const { toast } = useToast();
   const canDecide = has(EKUB_PERMS.PAYOUT_APPROVE) || has(EKUB_PERMS.EQUB_MANAGE);
 
-  const { data, isLoading } = useEmergencyDraws(equb.id);
+  const [statusFilter, setStatusFilter] = useState("all");
+  // Status is applied by the backend; "pending" also covers requested / submitted, so those stay client-side.
+  const { data, isLoading } = useEmergencyDraws(equb.id, statusFilter === "all" || statusFilter === "pending" ? undefined : statusFilter);
   const { data: members, isLoading: membersLoading } = useEqubMembers(equb.id);
   const decide = useDecideEmergencyDraw();
   const submit = useSubmitEmergencyDraw();
@@ -40,10 +42,19 @@ export function HardshipTab({ equb }: { equb: Equb }) {
   const [form, setForm] = useState({ memberId: "", reason: "", evidence: "" });
   const [rejecting, setRejecting] = useState<EmergencyDrawRequest | null>(null);
   const [note, setNote] = useState("");
+  const [query, setQuery] = useState("");
+  const [roundFilter, setRoundFilter] = useState("all");
+  const { data: roundList } = useRounds(equb.id);
+  // The round whose collection window was open when the request came in.
+  const roundOf = (iso: string) => [...(roundList ?? [])].filter((r) => r.scheduledAt && r.scheduledAt <= iso).sort((a, b) => b.roundNumber - a.roundNumber)[0]?.roundNumber;
 
   const memberName = (id: string) => members?.find((m) => m.memberId === id)?.name ?? tc("unknownMember");
   const err = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
   const isOpen = (s: string) => s === "pending" || s === "requested" || s === "submitted";
+  const q = query.trim().toLowerCase();
+  const shown = (data ?? []).filter(
+    (h) => (statusFilter === "all" || (statusFilter === "pending" ? isOpen(h.status) : h.status === statusFilter)) && (!q || memberName(h.memberId).toLowerCase().includes(q) || h.reason.toLowerCase().includes(q)) && (roundFilter === "all" || roundOf(h.createdAt) === Number(roundFilter))
+  );
 
   return (
     <div className="space-y-4">
@@ -58,16 +69,36 @@ export function HardshipTab({ equb }: { equb: Equb }) {
         )}
       </div>
 
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input className="h-9 sm:w-64" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 sm:w-44"><span className="truncate"><span className="text-muted-foreground">{tc("status")}: </span><SelectValue /></span></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tc("all")}</SelectItem>
+            <SelectItem value="pending">{t("statusPending")}</SelectItem>
+            <SelectItem value="approved">{t("statusApproved")}</SelectItem>
+            <SelectItem value="rejected">{t("statusRejected")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={roundFilter} onValueChange={setRoundFilter}>
+          <SelectTrigger className="h-9 sm:w-40"><span className="truncate"><span className="text-muted-foreground">{tc("round")}: </span><SelectValue /></span></SelectTrigger>
+          <SelectContent empty={!roundList?.length}>
+            <SelectItem value="all">{tc("all")}</SelectItem>
+            {[...(roundList ?? [])].sort((a, b) => a.roundNumber - b.roundNumber).map((r) => <SelectItem key={r.id} value={String(r.roundNumber)}>#{r.roundNumber}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
       {isLoading ? (
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
-      ) : (data?.length ?? 0) === 0 ? (
+      ) : shown.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           <Heart size={22} className="mx-auto mb-2 text-muted-foreground/60" />
           {t("noRequests")}
         </div>
       ) : (
         <div className="space-y-3">
-          {data!.map((h) => (
+          {shown.map((h) => (
             <div key={h.id} className="rounded-2xl border border-border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">

@@ -115,13 +115,23 @@ export interface DataTableProps<T> {
 export interface DataTableFacet<T> {
   id: string;
   label: string;
-  /** Value a row belongs to; rows returning empty are only shown under "All". */
-  get: (row: T) => string | null | undefined;
+  /** Value(s) a row belongs to; rows returning empty are only shown under "All". */
+  get: (row: T) => string | string[] | null | undefined;
   /** Fixed options; omitted → the distinct values found in the rows. */
   options?: { value: string; label: string }[];
   /** Label for a derived option. */
   labelOf?: (value: string) => string;
 }
+/** "Round" facet for any row that knows its round number; options sort #1, #2 … #10. */
+export const roundFacet = <T,>(label: string, get: (row: T) => number | null | undefined): DataTableFacet<T> => ({
+  id: "round",
+  label,
+  get: (row) => {
+    const n = get(row);
+    return n ? `#${n}` : null;
+  },
+});
+
 export interface DataTableFilters<T> {
   search?: { placeholder?: string; keys: (row: T) => (string | number | null | undefined)[] };
   facets?: DataTableFacet<T>[];
@@ -233,13 +243,16 @@ export function DataTable<T>({
       if (q && filters.search && !filters.search.keys(row).some((k) => k !== null && k !== undefined && String(k).toLowerCase().includes(q))) return false;
       for (const f of filters.facets ?? []) {
         const want = facetValues[f.id];
-        if (want && want !== "__all" && (f.get(row) ?? "") !== want) return false;
+        if (want && want !== "__all") {
+          const got = f.get(row);
+          if (Array.isArray(got) ? !got.includes(want) : (got ?? "") !== want) return false;
+        }
       }
       return true;
     });
   }, [data, filters, query, facetValues]);
   const facetOptions = (f: DataTableFacet<T>) =>
-    f.options ?? Array.from(new Set(data.map((r) => f.get(r)).filter((v): v is string => !!v))).sort().map((v) => ({ value: v, label: f.labelOf?.(v) ?? v.replace(/_/g, " ") }));
+    f.options ?? Array.from(new Set(data.flatMap((r) => f.get(r) ?? []).filter((v): v is string => !!v))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((v) => ({ value: v, label: f.labelOf?.(v) ?? v.replace(/_/g, " ") }));
   const filtersActive = !!query || Object.values(facetValues).some((v) => v && v !== "__all");
   const toolbar = filters ? (
     <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:flex-wrap sm:items-center">

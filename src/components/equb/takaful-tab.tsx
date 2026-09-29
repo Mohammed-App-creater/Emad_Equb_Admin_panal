@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { PiggyBank, Gift, Undo2, Plus, Info } from "lucide-react";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,7 @@ import {
   useTakafulBalance,
   useDistributeSurplus,
   useSubmitTakafulClaim,
-  useRefundTakaful,
-} from "@/hooks/ekub";
+  useRefundTakaful, useRounds } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime, getErrorMessage } from "@/lib/utils";
@@ -39,14 +38,19 @@ const typeBadge: Record<string, string> = {
 };
 
 /** Takaful (tabarru') fund of one Equb: balance, ledger, claim / refund / surplus. */
-export function TakafulTab({ equb }: { equb: Equb }) {
+/** `roundId`: when set, only that round is listed (balances stay Equb-wide). */
+export function TakafulTab({ equb, roundId }: { equb: Equb; roundId?: string }) {
   const t = useTranslations("takaful");
   const tc = useTranslations("common");
   const { has } = useEkubAccess();
   const { toast } = useToast();
   const canManage = has(EKUB_PERMS.PAYOUT_APPROVE) || has(EKUB_PERMS.EQUB_MANAGE);
 
-  const { data: txns, isLoading } = useTakaful(equb.id);
+  const [typeFilter, setTypeFilter] = useState("all");
+  // Round and type are applied by the backend (GET .../takaful?round_id=&type=).
+  const { data: txns, isLoading } = useTakaful(equb.id, { roundId: roundId && roundId !== "all" ? roundId : undefined, type: typeFilter === "all" ? undefined : typeFilter });
+  const { data: roundList } = useRounds(equb.id);
+  const roundNo = new Map((roundList ?? []).map((r) => [r.id, r.roundNumber]));
   const { data: balance } = useTakafulBalance(equb.id);
   const { data: members, isLoading: membersLoading } = useEqubMembers(equb.id);
   const distribute = useDistributeSurplus();
@@ -101,7 +105,15 @@ export function TakafulTab({ equb }: { equb: Equb }) {
 
       <DataTable
         defaultSort={{ id: "date", dir: "desc" }}
-        filters={{ search: { keys: (r) => [r.memberId ? memberName(r.memberId) : null, r.reference] }, facets: [{ id: "type", label: t("type"), get: (r) => r.type }] }}
+        filters={{ search: { keys: (r) => [r.memberId ? memberName(r.memberId) : null, r.reference] }, facets: [roundFacet(t("round"), (r: TakafulTxn) => (r.roundId ? roundNo.get(r.roundId) : undefined))], extra: (
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-9 sm:w-44"><span className="truncate"><span className="text-muted-foreground">{t("type")}: </span><SelectValue /></span></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc("all")}</SelectItem>
+              {Object.keys(typeBadge).map((k) => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) }}
         columns={columns} data={txns ?? []} rowKey={(r) => r.id} isLoading={isLoading} emptyTitle={tc("noData")} />
 
       {/* Submit claim */}

@@ -10,13 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
@@ -25,7 +18,7 @@ import { WinnersTable } from "@/components/equb/winners-tab";
 import { SplitCard, FeeLinesTable } from "@/components/equb/admin-fees-tab";
 import { RoundAttachments } from "@/components/equb/round-attachments";
 import { useLiveUpdates, eventRoundId } from "@/lib/realtime";
-import { useEqub, useRound, useDrawPreview, useExecuteDraw, useRoundWinners, useRoundAdminFees } from "@/hooks/ekub";
+import { useEqub, useRound, useDrawPreview, useExecuteDraw, useRoundWinners, useRoundAdminFees, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatDateTime, getErrorMessage, humanizeDates } from "@/lib/utils";
@@ -50,7 +43,6 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const execute = useExecuteDraw();
   const { data: fees } = useRoundAdminFees(roundId);
 
-  const [filter, setFilter] = useState<"all" | "paid" | "unpaid">("all");
   const [confirming, setConfirming] = useState(false);
   // Live draw: the backend announces draw.started / completed / failed.
   const [liveDraw, setLiveDraw] = useState<"idle" | "running" | "done" | "failed">("idle");
@@ -63,6 +55,11 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
     else if (e.type === "equb.draw.failed") { setLiveDraw("failed"); setLiveReason(String(e.data.reason ?? e.data.message ?? "")); setConfirming(false); toast({ title: t("drawFailed"), description: String(e.data.reason ?? e.data.message ?? ""), variant: "destructive" }); }
   });
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
+  // Recorded but not yet confirmed (e.g. paid from the mobile app); round detail calls these "pending" like unpaid ones.
+  const { pending } = usePendingPayments(equbId, roundId);
+  const awaiting = (p: RoundMemberPayment) => (isPaid(p) ? undefined : pending.get(`${roundId}:${p.memberId}`));
+  const confirmPay = useConfirmPayment();
+  const canConfirmPay = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
   const canCollect = equb?.status === "active" && round?.status !== "cancelled";
 
   if (isLoading) {
@@ -85,7 +82,8 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
     );
   }
 
-  const payments = round.memberPayments.filter((p) => (filter === "all" ? true : filter === "paid" ? isPaid(p) : !isPaid(p)));
+  const payments = round.memberPayments;
+  const payState = (p: RoundMemberPayment) => (isPaid(p) ? "paid" : awaiting(p) ? "awaiting" : (p.status || "").toLowerCase() === "overdue" ? "overdue" : "unpaid");
   const paidCount = round.memberPayments.length ? round.memberPayments.filter(isPaid).length : round.paidCount;
   const unpaidCount = round.memberPayments.length ? round.memberPayments.length - paidCount : round.unpaidCount;
   // Whether a draw can run is the backend's call alone: GET /draw-preview's
@@ -114,7 +112,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
     { id: "amount", header: tc("amount"), mobile: "detail", align: "right", cell: (r) => <span className="font-medium">{formatCurrency(r.amount)}</span> },
     { id: "paidAt", header: t("paidAt"), mobile: "detail", cell: (r) => <span className="text-sm">{r.paidAt ? formatDateTime(r.paidAt) : "—"}</span> },
     { id: "catchUp", header: t("catchUp"), mobile: "detail", align: "center", cell: (r) => (r.isCatchUp ? <Badge className="bg-info/15 text-info">{t("catchUp")}</Badge> : <span className="text-muted-foreground">—</span>) },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <StatusBadge status={isPaid(r) ? "paid" : r.status || "unpaid"} kind="payment" /> },
+    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => (awaiting(r) ? <Badge className="bg-info/15 text-info">{tp("awaitingConfirmation")}</Badge> : <StatusBadge status={isPaid(r) ? "paid" : r.status || "unpaid"} kind="payment" />) },
   ];
 
   const runDraw = () =>
@@ -161,27 +159,37 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
         <Card className="xl:col-span-2">
           <CardHeader className="flex-row items-center justify-between gap-3">
             <CardTitle className="text-base">{t("memberPayments")}</CardTitle>
-            <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-              <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("filterAll")}</SelectItem>
-                <SelectItem value="paid">{t("filterPaid")}</SelectItem>
-                <SelectItem value="unpaid">{t("filterUnpaid")}</SelectItem>
-              </SelectContent>
-            </Select>
           </CardHeader>
           <CardContent>
             <DataTable
               bare
+              filters={{
+                search: { keys: (r) => [r.name, r.phone] },
+                facets: [
+                  {
+                    id: "status",
+                    label: tc("status"),
+                    get: payState,
+                    options: [{ value: "paid", label: t("filterPaid") }, { value: "unpaid", label: t("filterUnpaid") }, { value: "awaiting", label: tp("awaitingConfirmation") }, { value: "overdue", label: t("statusOverdue") }],
+                  },
+                  { id: "catchUp", label: t("catchUp"), get: (r) => (r.isCatchUp ? "catch_up" : "regular"), options: [{ value: "catch_up", label: t("catchUp") }, { value: "regular", label: t("regular") }] },
+                ],
+              }}
               columns={paymentColumns}
               data={payments}
               rowKey={(r) => r.memberId}
-              avatar={(r) => ({ initials: getInitials(r.name), colorClass: isPaid(r) ? "bg-success/15 text-success" : "bg-warning/15 text-warning" })}
+              avatar={(r) => ({ initials: getInitials(r.name), colorClass: isPaid(r) ? "bg-success/15 text-success" : awaiting(r) ? "bg-info/15 text-info" : "bg-warning/15 text-warning" })}
               emptyTitle={tc("noData")}
               emptyMessage={t("noPayments")}
               renderLeadingActions={(r) =>
-                canCollect && !isPaid(r) && (r.status || "").toLowerCase() !== "processing" ? (
-                  <Button size="sm" onClick={() => setPaying({ equbId, memberId: r.memberId, roundIds: [roundId] })}>
+                awaiting(r) ? (
+                  canConfirmPay ? (
+                    <Button size="sm" className="whitespace-nowrap" disabled={confirmPay.isPending} onClick={() => confirmPay.mutate({ equbId, paymentId: awaiting(r)! }, { onSuccess: () => toast({ title: tp("confirmed"), description: r.name }), onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }) })}>
+                      <CheckCircle2 size={13} className="mr-1" /> {tp("confirmNow")}
+                    </Button>
+                  ) : null
+                ) : canCollect && !isPaid(r) && (r.status || "").toLowerCase() !== "processing" ? (
+                  <Button size="sm" className="whitespace-nowrap" onClick={() => setPaying({ equbId, memberId: r.memberId, roundIds: [roundId] })}>
                     <Wallet size={13} className="mr-1" /> {tp("pay")}
                   </Button>
                 ) : null

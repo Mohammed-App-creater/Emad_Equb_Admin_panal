@@ -7,9 +7,9 @@ import { PiggyBank, CircleDot, Trophy, ExternalLink, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { EqubFilter } from "@/components/equb/equb-filter";
+import { EqubFilter, RoundFilter } from "@/components/equb/equb-filter";
 import { TakafulTab } from "@/components/equb/takaful-tab";
-import { useEqubs, useTakafulBalances } from "@/hooks/ekub";
+import { useEqubs, useTakafulBalances, useRounds } from "@/hooks/ekub";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
 
@@ -28,6 +28,8 @@ function TakafulInner() {
   const equbs = (allEqubs ?? []).filter((e) => e.status !== "draft");
   const [equbId, setEqubId] = useState("all");
   const selected = equbs.find((e) => e.id === equbId);
+  const [roundId, setRoundId] = useState("all");
+  const { data: rounds, isLoading: roundsLoading } = useRounds(selected?.id ?? "");
 
   const balances = useTakafulBalances(selected ? [] : equbs.map((e) => e.id));
   const rows = equbs.map((e, i) => ({ equb: e, balance: balances[i]?.data }));
@@ -47,7 +49,10 @@ function TakafulInner() {
         )}
       />
 
-      <EqubFilter value={equbId} onChange={setEqubId} equbs={equbs} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <EqubFilter value={equbId} onChange={(v) => { setEqubId(v); setRoundId("all"); }} equbs={equbs} loading={isLoading} label={t("equb")} allLabel={tc("all")} />
+        <RoundFilter value={roundId} onChange={setRoundId} rounds={rounds ?? []} loading={roundsLoading} disabled={!selected} label={t("round")} allLabel={tc("all")} />
+      </div>
 
       <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <Info size={16} className="mt-0.5 shrink-0 text-primary" />
@@ -55,7 +60,7 @@ function TakafulInner() {
       </div>
 
       {selected ? (
-        <TakafulTab key={selected.id} equb={selected} />
+        <TakafulTab key={selected.id} equb={selected} roundId={roundId} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard label={t("totalBalance")} value={balancesLoading && !total ? "…" : formatCurrency(total)} icon={PiggyBank} tone="primary" />

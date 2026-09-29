@@ -69,16 +69,18 @@ export const useEqubMembersPage = (equbId: string, status: string | undefined, p
   useQuery({ queryKey: [...qk.members(equbId, status), "page", page, perPage], queryFn: () => ekubService.listEqubMembersPage(equbId, status, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
 export const useTakafulPage = (equbId: string, page: number, perPage: number) =>
   useQuery({ queryKey: [...qk.takaful(equbId), "page", page, perPage], queryFn: () => ekubService.listTakafulPage(equbId, page, perPage), enabled: !!equbId, placeholderData: keepPreviousData });
-export const useAgentsPage = (search: string | undefined, page: number, perPage: number) =>
-  useQuery({ queryKey: ["agents", "page", search ?? "", page, perPage], queryFn: () => ekubService.listAgentsPage(search, page, perPage), placeholderData: keepPreviousData });
+export const useAgentsPage = (filters: import("@/types/ekub").StaffFilters, page: number, perPage: number) =>
+  useQuery({ queryKey: ["agents", "page", filters, page, perPage], queryFn: () => ekubService.listAgentsPage(filters, page, perPage), placeholderData: keepPreviousData });
+export const useBranches = () => useQuery({ queryKey: ["branches"], queryFn: () => ekubService.listBranches(), staleTime: 5 * 60 * 1000 });
+export const useUserRoles = () => useQuery({ queryKey: ["user-roles"], queryFn: () => ekubService.listUserRoles(), staleTime: 5 * 60 * 1000 });
 export const useAgent = (id: string) =>
   useQuery({ queryKey: ["agent", id], queryFn: () => ekubService.getAgent(id), enabled: !!id });
 /** Fee-ledger lines for several Equbs at once (one request per Equb). */
 export const useFeeLedgersMany = (equbIds: string[]) =>
   useQueries({ queries: equbIds.map((id) => ({ queryKey: ["fee-ledger", { equbId: id }, 1, 1000], queryFn: () => ekubService.getFeeLedger({ equbId: id }, 1, 1000) })) });
 
-export const useStaffPage = (search: string | undefined, page: number, perPage: number) =>
-  useQuery({ queryKey: ["staff", "page", search ?? "", page, perPage], queryFn: () => ekubService.listStaffPage(search, page, perPage), placeholderData: keepPreviousData });
+export const useStaffPage = (filters: import("@/types/ekub").StaffFilters, page: number, perPage: number) =>
+  useQuery({ queryKey: ["staff", "page", filters, page, perPage], queryFn: () => ekubService.listStaffPage(filters, page, perPage), placeholderData: keepPreviousData });
 
 export const useEqub = (id: string) =>
   useQuery({ queryKey: qk.equb(id), queryFn: () => ekubService.getEqub(id), enabled: !!id });
@@ -267,10 +269,41 @@ export const useRejectPayment = () => {
 export const useCatchUp = (equbId: string, memberId: string | null, enabled = true) =>
   useQuery({ queryKey: ["catch-up", equbId, memberId ?? ""], queryFn: () => ekubService.getCatchUp(equbId, memberId!), enabled: enabled && !!equbId && !!memberId, retry: false });
 
-export const useMyCollections = (filters: import("@/types/ekub").CollectionsFilters) =>
-  useQuery({ queryKey: ["my-collections", filters], queryFn: () => ekubService.listMyCollections(filters) });
+export const useMyCollections = (filters: import("@/types/ekub").CollectionsFilters, enabled = true) =>
+  useQuery({ queryKey: ["my-collections", filters], queryFn: () => ekubService.listMyCollections(filters), enabled });
+/** SACCO-wide collections (admin), one page at a time. */
+export const useAllCollections = (filters: import("@/types/ekub").CollectionsFilters, page: number, perPage: number, enabled = true) =>
+  useQuery({ queryKey: ["my-collections", "all", filters, page, perPage], queryFn: () => ekubService.listAllCollections(filters, page, perPage), placeholderData: keepPreviousData, enabled });
+/**
+ * Which collections ledger the signed-in user gets: agents see what they
+ * collected (/my-collections); everyone else sees the SACCO-wide ledger.
+ */
+export const useCollectionsScope = (): "mine" | "all" => {
+  const roles = useAuthStore((s) => s.user?.roles ?? []);
+  const perms = useAuthStore((s) => s.permissions);
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return perms.includes("equb:admin") || roles.some((r) => /admin/i.test(r.name)) ? "all" : "mine";
+  const agentOnly = roles.length > 0 && roles.every((r) => /agent/i.test(r.name));
+  return agentOnly ? "mine" : "all";
+};
 
 // ---- SACCO-wide fee ledger ----
+/**
+ * Contributions that were recorded (staff collect or the mobile app) but whose
+ * payment is not confirmed yet. Round detail reports these as plain "pending",
+ * the same as unpaid, and carries no payment id; only the fee ledger links a
+ * contribution to its payment. Key: `${roundId}:${memberId}` -> payment id.
+ */
+export const usePendingPayments = (equbId: string, roundId?: string) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["fee-ledger", { equbId, roundId }, 1, 1000],
+    queryFn: () => ekubService.getFeeLedger({ equbId, roundId }, 1, 1000),
+    enabled: !!equbId,
+  });
+  const map = new Map<string, string>();
+  for (const l of data?.items ?? []) if (l.paymentId && !l.collected) map.set(`${l.roundId}:${l.memberId}`, l.paymentId);
+  return { pending: map, isLoading };
+};
+
 export const useFeeLedger = (filters: import("@/types/ekub").FeeLedgerFilters, page: number, perPage: number) =>
   useQuery({ queryKey: ["fee-ledger", filters, page, perPage], queryFn: () => ekubService.getFeeLedger(filters, page, perPage), placeholderData: keepPreviousData });
 
@@ -374,8 +407,8 @@ export const useProcessPayout = () => {
 };
 
 // ---- Hardship early-turn (emergency draws) ----
-export const useEmergencyDraws = (equbId: string) =>
-  useQuery({ queryKey: qk.emergency(equbId), queryFn: () => ekubService.listEmergencyDraws(equbId), enabled: !!equbId });
+export const useEmergencyDraws = (equbId: string, status?: string) =>
+  useQuery({ queryKey: [...qk.emergency(equbId), status ?? ""], queryFn: () => ekubService.listEmergencyDraws(equbId, status), enabled: !!equbId });
 
 /** Hardship requests for several Equbs at once (the approvals queue). */
 export const useEmergencyDrawsMany = (equbIds: string[]) =>
@@ -397,8 +430,8 @@ export const useSubmitEmergencyDraw = () => {
 };
 
 // ---- Takaful ----
-export const useTakaful = (equbId: string) =>
-  useQuery({ queryKey: qk.takaful(equbId), queryFn: () => ekubService.listTakaful(equbId), enabled: !!equbId });
+export const useTakaful = (equbId: string, filters?: { roundId?: string; type?: string }) =>
+  useQuery({ queryKey: [...qk.takaful(equbId), filters ?? {}], queryFn: () => ekubService.listTakaful(equbId, filters), enabled: !!equbId });
 export const useTakafulBalance = (equbId: string) =>
   useQuery({ queryKey: qk.takafulBalance(equbId), queryFn: () => ekubService.getTakafulBalance(equbId), enabled: !!equbId });
 

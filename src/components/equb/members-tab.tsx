@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { UserPlus, UserMinus, Ban, RotateCcw, ArrowLeftRight, Search, Wallet } from "lucide-react";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
-import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, getInitials, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,7 +93,7 @@ export function MembersTab({ equb }: { equb: Equb }) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-45"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("filterAll")}</SelectItem>
             <SelectItem value="active">{t("filterActive")}</SelectItem>
@@ -114,7 +114,7 @@ export function MembersTab({ equb }: { equb: Equb }) {
 
       <DataTable
         defaultSort={{ id: "joined", dir: "desc" }}
-        filters={{ search: { placeholder: t("searchMember"), keys: (r) => [r.name, r.phone, r.membershipNumber] } }}
+        filters={{ search: { placeholder: t("searchMember"), keys: (r) => [r.name, r.phone, r.membershipNumber, `#${r.position}`] }, facets: [roundFacet(t("position"), (r: EqubMember) => r.position), { id: "status", label: tc("status"), get: (r) => r.status }] }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

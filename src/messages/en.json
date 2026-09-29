@@ -55,7 +55,10 @@
     "refresh": "Refresh",
     "unknownMember": "Unknown member",
     "showingRange": "Showing {from}–{to} of {total}",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "equb": "Equb",
+    "viewCards": "Cards",
+    "viewTable": "Table"
   },
   "nav": {
     "groupOverview": "Overview",
@@ -205,7 +208,12 @@
     "copyMembers": "Copy the members",
     "copyMembersHint": "Carry the {count} active member(s) over, keeping their positions.",
     "carryOver": "Carry over missed-payment history",
-    "carryOverHint": "A repeat defaulter keeps their record; an unserved ban continues for its remaining rounds."
+    "carryOverHint": "A repeat defaulter keeps their record; an unserved ban continues for its remaining rounds.",
+    "capacity": "Capacity",
+    "capacityFull": "Full",
+    "capacityOpen": "Has space",
+    "cycleFirst": "First cycle",
+    "cycleNext": "Next cycle"
   },
   "categories": {
     "title": "Equb Categories",
@@ -246,7 +254,12 @@
     "guaranteeRequiredHint": "Winners must put up a guarantee before their payout is released.",
     "guarantee_member": "Member guarantor",
     "guarantee_cheque": "Cheque",
-    "guarantee_collateral": "Collateral"
+    "guarantee_collateral": "Collateral",
+    "allStatuses": "All statuses",
+    "allFrequencies": "All frequencies",
+    "guaranteeAny": "Guarantee: any",
+    "guaranteeYes": "Guarantee required",
+    "guaranteeNo": "No guarantee"
   },
   "landing": {
     "console": "Admin console",
@@ -494,7 +507,16 @@
     "runningHint": "Selecting {winners} winner(s) from {count} eligible members…",
     "statusConfirmed": "Confirmed",
     "drawFailed": "Draw failed",
-    "notReadyYet": "Not ready yet"
+    "notReadyYet": "Not ready yet",
+    "searchRound": "Search round or due date",
+    "drawnOrClosed": "Drawn / closed",
+    "collection": "Collection",
+    "collectionNone": "Nothing collected",
+    "collectionPartial": "Partly collected",
+    "collectionFull": "Fully collected",
+    "hasWinners": "Has winners",
+    "noWinners": "No winners yet",
+    "regular": "Regular"
   },
   "payouts": {
     "title": "Winners & Payouts",
@@ -546,7 +568,8 @@
     "noRequests": "No hardship requests",
     "statusPending": "Pending",
     "statusApproved": "Approved",
-    "statusRejected": "Rejected"
+    "statusRejected": "Rejected",
+    "search": "Search member or reason"
   },
   "takaful": {
     "title": "Takaful Fund",
@@ -692,7 +715,8 @@
     "catchUp": "catch-up",
     "guarantee": "guarantee",
     "empty": "Nothing waiting for approval",
-    "unknownMember": "Unknown member"
+    "unknownMember": "Unknown member",
+    "round": "Round"
   },
   "declarations": {
     "shariaAccept": "Accepts Sharia rules & commits to avoid haram conduct",
@@ -735,7 +759,10 @@
     "noCollections": "Nothing recorded in this period.",
     "recordPayment": "Record payment",
     "confirm": "Confirm",
-    "unreconciled": "Not reconciled"
+    "unreconciled": "Not reconciled",
+    "tabAllCollections": "Collections",
+    "allAgents": "All agents",
+    "allCollectionsSub": "Every contribution staff recorded in the period, across all agents. Confirm cash here or leave it for reconciliation."
   },
   "disputes": {
     "title": "Sharia Dispute Queue",
@@ -805,7 +832,8 @@
     "showingRound": "Showing round #{n}",
     "showingAll": "Showing all rounds",
     "settled": "Fully collected",
-    "splitTitle": "Collected fee split"
+    "splitTitle": "Collected fee split",
+    "regular": "Regular"
   },
   "recordPayment": {
     "title": "Record payment",
@@ -889,7 +917,10 @@
     "noMatch": "No members match the filters.",
     "allRoundsHint": "Pick a round above to see its figures; the table below lists every round.",
     "noRoundYet": "No round has started yet.",
-    "pay": "Pay"
+    "pay": "Pay",
+    "awaitingConfirmation": "Awaiting confirmation",
+    "confirm": "Confirm",
+    "confirmed": "Payment confirmed"
   },
   "memberProfile": {
     "backToMembers": "Back to members",
@@ -965,7 +996,9 @@
     "paidAt": "Paid at",
     "catchUp": "Catch-up",
     "ofCharged": "of {amount} charged",
-    "scope": "{contributions} contributions · {members} members · {rounds} rounds"
+    "scope": "{contributions} contributions · {members} members · {rounds} rounds",
+    "regular": "Regular",
+    "search": "Search member, Equb or round"
   },
   "reconciliation": {
     "equb": "Equb",
@@ -1010,6 +1043,15 @@
     "position": "Position",
     "staffEmptyHint": "The staff list is empty. The /users endpoint returns no users on this backend yet.",
     "category": "Equb category",
-    "start": "Start"
+    "start": "Start",
+    "managesEqubs": "Manages Equbs",
+    "managesNone": "No Equb yet",
+    "from": "From",
+    "to": "To",
+    "reference": "Reference",
+    "collectedAt": "Collected at",
+    "collectionsByAgentHint": "Contributions this agent recorded in the period.",
+    "joinedFrom": "Joined from",
+    "joinedTo": "Joined until"
   }
 }

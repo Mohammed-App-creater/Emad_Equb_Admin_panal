@@ -124,9 +124,9 @@ export const reconciliation: ReconciliationRow[] = [
 ];
 
 export const disputes: Dispute[] = [
-  { id: "dp-1", memberHandle: "hanan_a", subject: "Payment not reflected in ledger", openedAt: "2026-09-05T09:00:00+03:00", status: "open" },
-  { id: "dp-2", memberHandle: "sara_k", subject: "Question on Takaful surplus split", openedAt: "2026-09-03T14:00:00+03:00", status: "escalated" },
-  { id: "dp-3", memberHandle: "abdi_r", subject: "Draw fairness clarification", openedAt: "2026-08-30T11:00:00+03:00", status: "resolved", resolution: "Shared RNG proof with member.", boardDecision: "Draw upheld as fair." },
+  { id: "dp-1", memberHandle: "hanan_a", ekubNumber: "EQB-GRP-001", round: 3, subject: "Payment not reflected in ledger", openedAt: "2026-09-05T09:00:00+03:00", status: "open" },
+  { id: "dp-2", memberHandle: "sara_k", ekubNumber: "EQB-GRP-002", subject: "Question on Takaful surplus split", openedAt: "2026-09-03T14:00:00+03:00", status: "escalated" },
+  { id: "dp-3", memberHandle: "abdi_r", ekubNumber: "EQB-GRP-001", round: 2, subject: "Draw fairness clarification", openedAt: "2026-08-30T11:00:00+03:00", status: "resolved", resolution: "Shared RNG proof with member.", boardDecision: "Draw upheld as fair." },
 ];
 
 export const staff: StaffMember[] = [

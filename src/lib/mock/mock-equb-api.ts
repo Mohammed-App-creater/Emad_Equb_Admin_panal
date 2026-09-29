@@ -1155,9 +1155,9 @@ export const mockEqubApi: EqubApi = {
   },
 
   // ---- Takaful ----
-  async listTakaful(groupId) {
+  async listTakaful(groupId, params) {
     await delay();
-    return clone(db.takaful.filter((t) => t.equb_group_id === groupId).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    return clone(db.takaful.filter((t) => t.equb_group_id === groupId && (!params?.round_id || t.equb_round_id === params.round_id) && (!params?.type || t.type === params.type)).sort((a, b) => b.created_at.localeCompare(a.created_at)));
   },
   async listTakafulPage(groupId, page, perPage) {
     await delay();
@@ -1231,6 +1231,8 @@ export const mockEqubApi: EqubApi = {
     const rows = staffUsers
       .filter((u) => (u.roles ?? []).some((r) => /agent|manager/i.test(r.name)))
       .filter((u) => matches(params.search, u.full_name, u.email, u.phone))
+      .filter((u) => !params.status || String(u.status) === params.status)
+      .filter((u) => !params.branch_id || u.branch_id === params.branch_id)
       .map((u) => ({ id: u.id, full_name: u.full_name, first_name: u.first_name, last_name: u.last_name, email: u.email, phone: u.phone, status: u.status, is_agent: true, roles: u.roles }));
     return paginate(clone(rows), params.page, params.per_page);
   },
@@ -1241,7 +1243,22 @@ export const mockEqubApi: EqubApi = {
   },
   async listUsersPage(params) {
     await delay(150);
-    return paginate(clone(staffUsers.filter((u) => matches(params.search, u.full_name, u.email, u.phone))), params.page, params.per_page);
+    const rows = staffUsers
+      .filter((u) => matches(params.search, u.full_name, u.email, u.phone))
+      .filter((u) => !params.status || String(u.status) === params.status)
+      .filter((u) => !params.branch_id || u.branch_id === params.branch_id)
+      .filter((u) => !params.role_id || (u.roles ?? []).some((r) => r.id === params.role_id));
+    return paginate(clone(rows), params.page, params.per_page);
+  },
+  async listBranches() {
+    await delay(100);
+    return [{ id: "hq", name: "Head Office", branch_code: "HQ" }, { id: "merkato", name: "Merkato", branch_code: "MKT" }];
+  },
+  async listUserRoles() {
+    await delay(100);
+    const seen = new Map<string, { id: string; name: string }>();
+    for (const u of staffUsers) for (const r of u.roles ?? []) seen.set(r.id, { id: r.id, name: r.name });
+    return [...seen.values()];
   },
 
   // ---- Recording a contribution (staff) ----
@@ -1347,6 +1364,14 @@ export const mockEqubApi: EqubApi = {
     const missed = rounds.filter((r) => open && r.round_number < open.round_number && r.payments.some((p) => p.member_id === memberId && p.status !== "paid"));
     const per = perRound(groupTerms(g));
     return { group_id: groupId, member_id: memberId, rounds_missed: missed.length, per_round_amount: per, total_catch_up: missed.length * per, next_round_number: open?.round_number ?? 0 };
+  },
+  async adminCollections(params) {
+    // Same ledger as my-collections; the mock has one collector, so collected_by is accepted and ignored.
+    const all = await this.myCollections(params);
+    const filtered = all.collections.filter((c) => !params?.status || c.status === params.status || (params.status === "completed" && c.status === "confirmed"));
+    const per = params?.per_page ?? 20;
+    const page = params?.page ?? 1;
+    return { ...all, count: filtered.slice((page - 1) * per, page * per).length, collections: filtered.slice((page - 1) * per, page * per) };
   },
   async myCollections(params) {
     await delay();

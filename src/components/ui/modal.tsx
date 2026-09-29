@@ -28,8 +28,8 @@ export function Modal({
   // overrides win without breaking callers that rely on the default.
   const hasBaseMaxWidth = !!className && /(?:^|\s)max-w-/.test(className);
   const defaultClasses = hasBaseMaxWidth
-    ? "fixed left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-6 shadow-lg z-50"
-    : "fixed left-1/2 top-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-6 shadow-lg z-50";
+    ? "fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-background p-4 shadow-lg sm:p-6"
+    : "fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-background p-4 shadow-lg sm:p-6";
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -41,7 +41,7 @@ export function Modal({
           {title && (
             <Dialog.Title
               className={cn(
-                hideTitle ? "sr-only" : "text-lg font-semibold mb-4"
+                hideTitle ? "sr-only" : "mb-4 pr-8 text-lg font-semibold"
               )}
             >
               {title}

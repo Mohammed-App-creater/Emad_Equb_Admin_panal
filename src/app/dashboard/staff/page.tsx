@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { useAgentsPage, useEqubs, useStaffPage } from "@/hooks/ekub";
+import { useAgentsPage, useEqubs, useStaffPage, useBranches, useUserRoles } from "@/hooks/ekub";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { StaffFilters } from "@/types/ekub";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import { formatDate } from "@/lib/utils";
 import type { Agent, StaffMember } from "@/types/ekub";
@@ -35,14 +37,20 @@ function StaffInner() {
   const [aPage, setAPage] = useState(1);
   const [aPerPage, setAPerPage] = useState(10);
   const [aSearch, setASearch] = useState("");
-  const { data: agentsPage, isLoading: agentsLoading } = useAgentsPage(aSearch || undefined, aPage, aPerPage);
+  const [aFilters, setAFilters] = useState<Omit<StaffFilters, "search">>({});
+  const { data: agentsPage, isLoading: agentsLoading } = useAgentsPage({ search: aSearch || undefined, ...aFilters }, aPage, aPerPage);
+  const { data: branches, isLoading: branchesLoading } = useBranches();
+  const { data: roles, isLoading: rolesLoading } = useUserRoles();
+  const branchName = (id?: string) => branches?.find((b) => b.id === id)?.name;
   const { data: equbs } = useEqubs();
-  const managedCount = (id: string) => (equbs ?? []).filter((e) => e.manager?.userId === id).length;
+  const managedNames = (id: string) => (equbs ?? []).filter((e) => e.manager?.userId === id).map((e) => e.name);
+  const managedCount = (id: string) => managedNames(id).length;
 
   const agentCols: DataTableColumn<Agent>[] = [
     { id: "name", sortValue: (r) => r.name, header: t("name"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
     { id: "email", sortValue: (r) => r.email, header: t("email"), mobile: "detail", cell: (r) => <span className="text-sm">{r.email || "—"}</span> },
     { id: "phone", sortValue: (r) => r.phone, header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone || "—"}</span> },
+    { id: "branch", sortValue: (r) => branchName(r.branchId) ?? null, header: t("branch"), mobile: "detail", cell: (r) => <span className="text-sm">{branchName(r.branchId) ?? "—"}</span> },
     { id: "equbs", sortValue: (r) => managedCount(r.id), header: ta("equbsManaged"), mobile: "detail", align: "right", cell: (r) => <span className="text-sm tabular-nums">{equbs ? managedCount(r.id) : "…"}</span> },
     { id: "joined", sortValue: (r) => r.createdAt, header: ta("joined"), mobile: "detail", cell: (r) => <span className="text-sm">{formatDate(r.createdAt)}</span> },
     { id: "status", sortValue: (r) => (r.active ? 1 : 0), header: tc("status"), mobile: "badge", cell: (r) => <Badge className={r.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}>{r.active ? ta("active") : ta("inactive")}</Badge> },
@@ -52,19 +60,51 @@ function StaffInner() {
   const [sPage, setSPage] = useState(1);
   const [sPerPage, setSPerPage] = useState(10);
   const [sSearch, setSSearch] = useState("");
-  const { data: staffPage, isLoading: staffLoading } = useStaffPage(sSearch || undefined, sPage, sPerPage);
+  const [sFilters, setSFilters] = useState<Omit<StaffFilters, "search">>({});
+  const { data: staffPage, isLoading: staffLoading } = useStaffPage({ search: sSearch || undefined, ...sFilters }, sPage, sPerPage);
   const roleLabel = (r: StaffMember["role"]) => r.replace("_", " ");
 
   const staffCols: DataTableColumn<StaffMember>[] = [
     { id: "name", sortValue: (r) => r.name, header: t("name"), mobile: "title", cell: (r) => <span className="font-medium text-foreground">{r.name}</span> },
     { id: "role", sortValue: (r) => r.role, header: t("role"), mobile: "badge", cell: (r) => <Badge className={`capitalize ${roleBadge[r.role]}`}>{roleLabel(r.role)}</Badge> },
-    { id: "branch", sortValue: (r) => r.branch, header: t("branch"), mobile: "detail", cell: (r) => <span className="text-sm">{r.branch}</span> },
+    { id: "branch", sortValue: (r) => branchName(r.branchId) ?? r.branch, header: t("branch"), mobile: "detail", cell: (r) => <span className="text-sm">{branchName(r.branchId) ?? r.branch}</span> },
     { id: "email", sortValue: (r) => r.email, header: t("email"), mobile: "detail", cell: (r) => <span className="text-sm">{r.email}</span> },
     { id: "phone", sortValue: (r) => r.phone, header: t("phone"), mobile: "detail", cell: (r) => <span className="text-sm">{r.phone}</span> },
   ];
 
   const searchBox = (value: string, set: (v: string) => void, reset: () => void) => (
     <div className="relative sm:w-64"><Input className="h-9" value={value} onChange={(e) => { set(e.target.value); reset(); }} placeholder={tc("search")} /></div>
+  );
+  /** Shared server-side filters: status, branch, joined between. Roles only for staff. */
+  const serverFilters = (f: Omit<StaffFilters, "search">, set: (f: Omit<StaffFilters, "search">) => void, reset: () => void, withRole: boolean) => (
+    <>
+      <Select value={f.status ?? "all"} onValueChange={(v) => { set({ ...f, status: v === "all" ? undefined : (v as "true" | "false") }); reset(); }}>
+        <SelectTrigger className="h-9 sm:w-40"><span className="truncate"><span className="text-muted-foreground">{tc("status")}: </span><SelectValue /></span></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{tc("all")}</SelectItem>
+          <SelectItem value="true">{ta("active")}</SelectItem>
+          <SelectItem value="false">{ta("inactive")}</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={f.branchId ?? "all"} onValueChange={(v) => { set({ ...f, branchId: v === "all" ? undefined : v }); reset(); }}>
+        <SelectTrigger className="h-9 sm:w-48"><span className="truncate"><span className="text-muted-foreground">{t("branch")}: </span><SelectValue /></span></SelectTrigger>
+        <SelectContent loading={branchesLoading} empty={!branchesLoading && !branches?.length}>
+          <SelectItem value="all">{tc("all")}</SelectItem>
+          {(branches ?? []).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {withRole && (
+        <Select value={f.roleId ?? "all"} onValueChange={(v) => { set({ ...f, roleId: v === "all" ? undefined : v }); reset(); }}>
+          <SelectTrigger className="h-9 sm:w-48"><span className="truncate"><span className="text-muted-foreground">{t("role")}: </span><SelectValue /></span></SelectTrigger>
+          <SelectContent loading={rolesLoading} empty={!rolesLoading && !roles?.length}>
+            <SelectItem value="all">{tc("all")}</SelectItem>
+            {(roles ?? []).map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+      <Input type="date" className="h-9 sm:w-40" value={f.from ?? ""} max={f.to} title={ta("joinedFrom")} onChange={(e) => { set({ ...f, from: e.target.value || undefined }); reset(); }} />
+      <Input type="date" className="h-9 sm:w-40" value={f.to ?? ""} min={f.from} title={ta("joinedTo")} onChange={(e) => { set({ ...f, to: e.target.value || undefined }); reset(); }} />
+    </>
   );
 
   return (
@@ -85,7 +125,18 @@ function StaffInner() {
         <TabsContent value="agents">
           <DataTable
             pagination={{ page: aPage, pageSize: aPerPage, total: agentsPage?.total ?? 0, onPageChange: setAPage, onPageSizeChange: (n) => { setAPerPage(n); setAPage(1); } }}
-            filters={{ extra: searchBox(aSearch, setASearch, () => setAPage(1)) }}
+            filters={{
+              facets: [
+                { id: "equbs", label: ta("equbsManaged"), get: (r) => (managedCount(r.id) > 0 ? "yes" : "no"), options: [{ value: "yes", label: ta("managesEqubs") }, { value: "no", label: ta("managesNone") }] },
+                { id: "equb", label: ta("equb"), get: (r) => managedNames(r.id) },
+              ],
+              extra: (
+                <div className="flex flex-wrap items-center gap-2">
+                  {searchBox(aSearch, setASearch, () => setAPage(1))}
+                  {serverFilters(aFilters, setAFilters, () => setAPage(1), false)}
+                </div>
+              ),
+            }}
             columns={agentCols}
             data={agentsPage?.items ?? []}
             rowKey={(r) => r.id}
@@ -100,7 +151,14 @@ function StaffInner() {
         <TabsContent value="staff">
           <DataTable
             pagination={{ page: sPage, pageSize: sPerPage, total: staffPage?.total ?? 0, onPageChange: setSPage, onPageSizeChange: (n) => { setSPerPage(n); setSPage(1); } }}
-            filters={{ facets: [{ id: "role", label: t("role"), get: (r) => r.role, labelOf: (v) => roleLabel(v as StaffMember["role"]) }], extra: searchBox(sSearch, setSSearch, () => setSPage(1)) }}
+            filters={{
+              extra: (
+                <div className="flex flex-wrap items-center gap-2">
+                  {searchBox(sSearch, setSSearch, () => setSPage(1))}
+                  {serverFilters(sFilters, setSFilters, () => setSPage(1), true)}
+                </div>
+              ),
+            }}
             columns={staffCols}
             data={staffPage?.items ?? []}
             rowKey={(r) => r.id}

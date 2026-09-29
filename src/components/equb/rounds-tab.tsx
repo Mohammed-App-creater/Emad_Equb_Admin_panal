@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Eye, AlarmClockOff, Trophy, Info, RefreshCw, CheckCircle2, Hourglass } from "lucide-react";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/equb/status-badge";
 import { useRounds, useMarkOverdue, useRefreshReadiness } from "@/hooks/ekub";
@@ -94,7 +94,26 @@ export function RoundsTab({ equb }: { equb: Equb }) {
       </div>
 
       <DataTable
-        filters={{ facets: [{ id: "status", label: tc("status"), get: (r) => r.status }] }}
+        filters={{
+          search: { placeholder: t("searchRound"), keys: (r) => [`#${r.roundNumber}`, t("roundNo", { n: r.roundNumber }), formatDate(r.contributionDueDate)] },
+          facets: [
+            roundFacet(t("round"), (r: Round) => r.roundNumber),
+            { id: "status", label: tc("status"), get: (r) => r.status },
+            {
+              id: "readiness",
+              label: t("readiness"),
+              get: (r) => (r.status === "drawn" || r.status === "completed" || r.status === "cancelled" ? "done" : r.canExecuteDraw || r.rawStatus === "ready_for_draw" ? "ready" : "not_ready"),
+              options: [{ value: "ready", label: t("readyToDraw") }, { value: "not_ready", label: t("notReadyYet") }, { value: "done", label: t("drawnOrClosed") }],
+            },
+            {
+              id: "collection",
+              label: t("collection"),
+              get: (r) => (r.paidCount === 0 ? "none" : r.unpaidCount === 0 ? "full" : "partial"),
+              options: [{ value: "none", label: t("collectionNone") }, { value: "partial", label: t("collectionPartial") }, { value: "full", label: t("collectionFull") }],
+            },
+            { id: "winners", label: t("winners"), get: (r) => (r.winners.length ? "with" : "without"), options: [{ value: "with", label: t("hasWinners") }, { value: "without", label: t("noWinners") }] },
+          ],
+        }}
         columns={columns}
         data={data ?? []}
         rowKey={(r) => r.id}

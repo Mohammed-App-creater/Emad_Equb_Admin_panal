@@ -46,6 +46,36 @@ export interface UserResponse {
   permissions?: string[];
   roles?: { id: string; name: string; description?: string }[];
 }
+/** GET /branches item (only what the pickers show). */
+export interface BranchResponse {
+  id: string;
+  name: string;
+  branch_code?: string;
+  city?: string;
+  status?: boolean;
+}
+/** GET /user-roles item (only what the role filter needs). */
+export interface UserRoleResponse {
+  id: string;
+  name: string;
+  description?: string;
+}
+/** Server-side filters on GET /agents and GET /users. Dates are YYYY-MM-DD. */
+export interface ListStaffParams {
+  search?: string;
+  status?: "true" | "false";
+  branch_id?: string;
+  role_id?: string;
+  start_date?: string;
+  end_date?: string;
+  page: number;
+  per_page: number;
+}
+/** Server-side filters on GET /equb/admin/groups/{id}/takaful. */
+export interface ListTakafulParams {
+  round_id?: string;
+  type?: string;
+}
 /** Subset of GET /agents used by the staff pickers. `id` is the user id. The live API sends no roles or job_title. */
 export interface AgentSummaryResponse {
   id: string;
@@ -778,6 +808,13 @@ export interface MyCollectionsParams {
   group_id?: string;
   scheme_id?: string;
   member_id?: string;
+}
+/** GET /equb/admin/collections: every agent's collections. No `meta` comes back; `count` is the page size returned. */
+export interface AdminCollectionsParams extends MyCollectionsParams {
+  collected_by?: string;
+  status?: string;
+  page?: number;
+  per_page?: number;
 }
 export interface EqubCollectionListItem {
   payment_id: string;
