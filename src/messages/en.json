@@ -716,7 +716,9 @@
     "guarantee": "guarantee",
     "empty": "Nothing waiting for approval",
     "unknownMember": "Unknown member",
-    "round": "Round"
+    "round": "Round",
+    "filterOn": "Showing only these",
+    "filterHint": "Click to filter"
   },
   "declarations": {
     "shariaAccept": "Accepts Sharia rules & commits to avoid haram conduct",

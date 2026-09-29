@@ -716,7 +716,9 @@
     "guarantee": "ዋስትና",
     "empty": "ማጽደቂያ የሚጠብቅ ነገር የለም",
     "unknownMember": "ያልታወቀ አባል",
-    "round": "ዙር"
+    "round": "ዙር",
+    "filterOn": "እነዚህ ብቻ ይታያሉ",
+    "filterHint": "ለማጣራት ይጫኑ"
   },
   "declarations": {
     "shariaAccept": "የሸሪዓ ደንቦችን ተቀብሎ ሐራም ተግባርን ለማስወገድ ቃል ገብቷል",

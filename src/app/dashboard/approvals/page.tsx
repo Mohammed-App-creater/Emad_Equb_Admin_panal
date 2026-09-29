@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Check, X, ExternalLink, Wallet, Trophy, LifeBuoy } from "lucide-react";
+import { Check, X, ExternalLink, Wallet, Trophy, LifeBuoy, Filter } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, StatCard } from "@/components/dashboard/shared";
+import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
 import {
   useEqubs,
@@ -228,11 +228,33 @@ function ApprovalsInner() {
     } },
   ];
 
-  const kindCard = (k: Kind, icon: typeof Wallet, tone: "primary" | "secondary" | "info") => (
-    <button type="button" onClick={() => setKind(kind === k ? "all" : k)} className={cn("rounded-2xl text-left transition", kind === k && "ring-2 ring-primary ring-offset-2 ring-offset-background")}>
-      <StatCard label={t(`pending_${k}` as never)} value={loading ? "…" : pendingOf(k)} icon={icon} tone={tone} />
-    </button>
-  );
+  // Each card is a filter: it shows the pending count and, when pressed, narrows the queue to that kind.
+  const cardTone = { primary: "bg-primary/10 text-primary", secondary: "bg-secondary/20 text-secondary-foreground", info: "bg-info/15 text-info" } as const;
+  const kindCard = (k: Kind, Icon: typeof Wallet, tone: keyof typeof cardTone) => {
+    const on = kind === k;
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        onClick={() => setKind(on ? "all" : k)}
+        className={cn(
+          "flex w-full items-center gap-4 rounded-2xl border bg-card p-5 text-left shadow-sm transition",
+          on ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent/40"
+        )}
+      >
+        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", cardTone[tone])}>
+          <Icon size={22} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-muted-foreground">{t(`pending_${k}` as never)}</p>
+          <p className="text-xl font-bold text-foreground">{loading ? "…" : pendingOf(k)}</p>
+        </div>
+        <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium", on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+          {on ? <Check size={12} /> : <Filter size={12} />} {on ? t("filterOn") : t("filterHint")}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
