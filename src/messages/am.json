@@ -58,7 +58,8 @@
     "rowsPerPage": "በገጽ ረድፎች",
     "equb": "እቁብ",
     "viewCards": "ካርዶች",
-    "viewTable": "ሠንጠረዥ"
+    "viewTable": "ሠንጠረዥ",
+    "viewDetails": "ዝርዝር ይመልከቱ"
   },
   "nav": {
     "groupOverview": "አጠቃላይ እይታ",
@@ -416,7 +417,7 @@
     "member": "አባል",
     "membershipNumber": "የአባልነት ቁ.",
     "phone": "ስልክ",
-    "position": "ቦታ",
+    "position": "ተራ ቁጥር",
     "joined": "የተቀላቀለበት",
     "add": "አባል ጨምር",
     "remove": "አስወግድ",
@@ -473,7 +474,7 @@
     "running": "በማካሄድ ላይ…",
     "confirmDraw": "ለዙር #{n} እጣ ይካሄድ? አሸናፊዎች በስርዓቱ RNG ይመረጣሉ፤ ውጤቱ የማይለወጥ ነው።",
     "drawDone": "እጣ ተጠናቋል",
-    "position": "ቦታ",
+    "position": "ተራ ቁጥር",
     "reason": "ምክንያት",
     "previouslyWon": "ከዚህ በፊት አሸንፏል",
     "unpaidContribution": "መዋጮ አልተከፈለም",
@@ -922,12 +923,13 @@
     "pay": "ክፈል",
     "awaitingConfirmation": "ማረጋገጫ በመጠባበቅ ላይ",
     "confirm": "አረጋግጥ",
-    "confirmed": "ክፍያው ተረጋግጧል"
+    "confirmed": "ክፍያው ተረጋግጧል",
+    "membersOfRound": "አባላት · ዙር {n}"
   },
   "memberProfile": {
     "backToMembers": "ወደ አባላት ተመለስ",
     "notFound": "ይህ አባል በዚህ እቁብ ውስጥ የለም።",
-    "position": "ቦታ",
+    "position": "ተራ ቁጥር",
     "joined": "ይህን እቁብ የተቀላቀለበት",
     "memberSince": "የሳኮ አባል ከ",
     "profile": "መገለጫ",
@@ -1042,7 +1044,7 @@
     "round": "ዙር",
     "amount": "መጠን",
     "equb": "እቁብ",
-    "position": "ቦታ",
+    "position": "ተራ ቁጥር",
     "staffEmptyHint": "የሠራተኞች ዝርዝር ባዶ ነው። /users ከዚህ ሰርቨር እስካሁን ተጠቃሚ አይመልስም።",
     "category": "የእቁብ ምድብ",
     "start": "መጀመሪያ",
@@ -1055,5 +1057,25 @@
     "collectionsByAgentHint": "ይህ ወኪል በወቅቱ የመዘገባቸው መዋጮዎች።",
     "joinedFrom": "ከተቀላቀለበት",
     "joinedTo": "እስከተቀላቀለበት"
+  },
+  "paymentDetail": {
+    "title": "የክፍያ ዝርዝር",
+    "equb": "እቁብ",
+    "category": "ምድብ",
+    "rounds": "ዙሮች",
+    "method": "ዘዴ",
+    "reference": "ማጣቀሻ",
+    "collectedBy": "የሰበሰበው",
+    "collectedAt": "የተሰበሰበበት ጊዜ",
+    "covers": "ይህ ክፍያ የሚሸፍነው",
+    "noLines": "ለዚህ ክፍያ ምንም መዋጮ አልተገኘም።",
+    "round": "ዙር",
+    "roundNo": "ዙር {n}",
+    "catchUp": "የዘገየ ክፍያ",
+    "contribution": "መዋጮ",
+    "adminFee": "የአስተዳደር ክፍያ",
+    "takafulFee": "ተካፉል",
+    "total": "ጠቅላላ",
+    "noAttachments": "ለዚህ ክፍያ ምንም ደረሰኝ አልተያያዘም።"
   }
 }

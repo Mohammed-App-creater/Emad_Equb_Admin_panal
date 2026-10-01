@@ -3,8 +3,9 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Play, ShieldCheck, Trophy, Info, Users, Wallet, Coins, HandCoins, CalendarClock, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Play, ShieldCheck, Trophy, Info, Users, Wallet, Coins, HandCoins, CalendarClock, Loader2, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,12 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   });
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
   // Recorded but not yet confirmed (e.g. paid from the mobile app); round detail calls these "pending" like unpaid ones.
-  const { pending } = usePendingPayments(equbId, roundId);
+  const { pending, payments: paymentOf } = usePendingPayments(equbId, roundId);
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
+  const view = (p: RoundMemberPayment) => {
+    const paymentId = paymentOf.get(`${roundId}:${p.memberId}`);
+    if (paymentId) setViewing({ paymentId, memberId: p.memberId, equbId, memberName: p.name, equbName: equb?.name });
+  };
   const awaiting = (p: RoundMemberPayment) => (isPaid(p) ? undefined : pending.get(`${roundId}:${p.memberId}`));
   const confirmPay = useConfirmPayment();
   const canConfirmPay = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
@@ -181,6 +187,8 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
               avatar={(r) => ({ initials: getInitials(r.name), colorClass: isPaid(r) ? "bg-success/15 text-success" : awaiting(r) ? "bg-info/15 text-info" : "bg-warning/15 text-warning" })}
               emptyTitle={tc("noData")}
               emptyMessage={t("noPayments")}
+              onRowClick={view}
+              actions={[{ label: tc("viewDetails"), icon: Eye, show: (r) => paymentOf.has(`${roundId}:${r.memberId}`), onClick: view }]}
               renderLeadingActions={(r) =>
                 awaiting(r) ? (
                   canConfirmPay ? (
@@ -303,6 +311,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
       )}
 
       <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
       {/* Confirm draw */}
       <Modal open={confirming || liveDraw === "running"} onOpenChange={(o) => !execute.isPending && liveDraw !== "running" && setConfirming(o)} title={`${t("runDraw")} · ${t("roundNo", { n: round.roundNumber })}`} className="max-w-3xl">

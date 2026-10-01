@@ -28,6 +28,7 @@ import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
 import type { Equb } from "@/types/ekub";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 
 type Kind = "payment" | "winner" | "hardship";
 type Decision = "pending" | "approved" | "rejected";
@@ -40,6 +41,7 @@ interface Item {
   equb?: Equb;
   equbId: string;
   equbName: string;
+  memberId?: string;
   memberName: string;
   detail: string;
   amount?: number;
@@ -116,6 +118,7 @@ function ApprovalsInner() {
         equb: equbById.get(first.equbId),
         equbId: first.equbId,
         equbName: first.equbName,
+        memberId: first.memberId,
         memberName: first.memberName || "—",
         detail: `${t("roundsLabel")} ${rounds}${lines.some((l) => l.isCatchUp) ? ` · ${t("catchUp")}` : ""}`,
         amount: lines.reduce((a, l) => a + l.total, 0),
@@ -177,6 +180,7 @@ function ApprovalsInner() {
   const approveWinner = useApproveWinner();
   const decideHardship = useDecideEmergencyDraw();
   const [rejecting, setRejecting] = useState<Item | null>(null);
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
   const [reason, setReason] = useState("");
   const busy = confirm.isPending || rejectPay.isPending || approveWinner.isPending || decideHardship.isPending;
   const fail = (e: unknown) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" });
@@ -201,7 +205,7 @@ function ApprovalsInner() {
     { id: "member", sortValue: (r) => r.memberName, header: t("member"), mobile: "title", cell: (r) => (
       <div className="min-w-0">
         <p className="truncate font-medium text-foreground">{r.memberName}</p>
-        <Link href={`/dashboard/equbs/${r.equbId}`} className="truncate text-xs text-muted-foreground hover:underline">{r.equbName}</Link>
+        <Link href={`/dashboard/equbs/${r.equbId}`} onClick={(e) => e.stopPropagation()} className="truncate text-xs text-muted-foreground hover:underline">{r.equbName}</Link>
       </div>
     ) },
     { id: "detail", header: t("detail"), mobile: "detail", cell: (r) => <span className="line-clamp-2 text-sm text-muted-foreground">{r.detail}</span> },
@@ -218,7 +222,7 @@ function ApprovalsInner() {
         );
       }
       return (
-        <div className="flex justify-end gap-1.5">
+        <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" disabled={busy} onClick={() => approve(r)}><Check size={14} className="mr-1" /> {t("approve")}</Button>
           {r.kind !== "winner" && (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => { setReason(""); setRejecting(r); }}><X size={14} className="mr-1" /> {t("reject")}</Button>
@@ -306,8 +310,10 @@ function ApprovalsInner() {
         data={shown}
         rowKey={(r) => r.key}
         isLoading={loading}
+        onRowClick={(r) => r.kind === "payment" && setViewing({ paymentId: r.id, memberId: r.memberId, equbId: r.equbId, memberName: r.memberName, equbName: r.equbName, amount: r.amount, status: "pending" })}
         emptyTitle={t("empty")}
       />
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
       <Modal open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)} title={t("rejectTitle")} className="max-w-md">
         {rejecting && (

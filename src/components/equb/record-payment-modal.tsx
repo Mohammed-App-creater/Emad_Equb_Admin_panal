@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment, useIsEqubManager, useRoundDetails } from "@/hooks/ekub";
+import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment, useIsEqubManager, useRoundDetails, usePendingPayments } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import type { RecordedPayment, Round, RoundMemberPayment } from "@/types/ekub";
 import { useToast } from "@/hooks/use-toast";
@@ -83,7 +83,11 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const currentNo =
     sortedRounds.find((r) => r.status === "open")?.roundNumber ??
     sortedRounds.find((r) => r.status !== "drawn" && r.status !== "completed")?.roundNumber;
-  const isPaid = (p?: RoundMemberPayment) => !!p && (p.status?.toLowerCase() === "paid" || !!p.paidAt);
+  // A payment already recorded for the round (confirmed or still awaiting
+  // confirmation, incl. advance payments) takes it off the list; round detail
+  // alone reports an unconfirmed one as plain "pending".
+  const { payments: recorded } = usePendingPayments(equbId);
+  const isPaid = (p?: RoundMemberPayment) => !!p && (["paid", "processing"].includes(p.status?.toLowerCase() ?? "") || !!p.paidAt);
   type Kind = "catchUp" | "current" | "advance";
   const owed = sortedRounds
     .map((round) => {
@@ -93,9 +97,11 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
       return { round: detail, pay, kind };
     })
     // Past and current rounds need the member's row; future rounds may not have one yet.
-    .filter(({ pay, kind }) => (kind === "advance" ? !isPaid(pay) : !!pay && !isPaid(pay)));
+    .filter(({ round, pay, kind }) => !recorded.has(`${round.id}:${memberId}`) && (kind === "advance" ? !isPaid(pay) : !!pay && !isPaid(pay)));
   const perRound = equb?.effectiveTerms?.totalPerRound ?? (equb?.category ? equb.category.contribution + equb.category.adminFee + equb.category.takafulFee : 0);
   const amountOf = (pay?: RoundMemberPayment) => pay?.amount || perRound;
+  // Rounds ticked on open may already be paid; only the ones still owed count.
+  const picked = selected.filter((id) => owed.some((o) => o.round.id === id));
   const estimate = owed.filter(({ round }) => selected.includes(round.id)).reduce((a, { pay }) => a + amountOf(pay), 0);
   const member = members?.find((m) => m.memberId === memberId);
 
@@ -104,7 +110,7 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const catchUpIds = idsOf("catchUp");
   const toggleGroup = (ids: string[]) => setSelected((s) => (ids.every((id) => s.includes(id)) ? s.filter((id) => !ids.includes(id)) : Array.from(new Set([...s, ...ids]))));
   const needsReference = method !== "cash";
-  const valid = isManager === true && !!equbId && !!memberId && selected.length > 0 && (!needsReference || reference.trim().length > 0);
+  const valid = isManager === true && !!equbId && !!memberId && picked.length > 0 && (!needsReference || reference.trim().length > 0);
 
   const isSettled = (s: string) => ["completed", "confirmed", "paid", "success"].includes((s || "").toLowerCase());
 
@@ -114,11 +120,11 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
         equbId,
         memberId,
         input: {
-          roundIds: selected,
+          roundIds: picked,
           method,
           reference,
           // Back-pay flag: set whenever a missed round is in the batch.
-          isCatchUp: selected.some((id) => catchUpIds.includes(id)),
+          isCatchUp: picked.some((id) => catchUpIds.includes(id)),
           description: proofNote,
           proof: proofFile ? { file: proofFile, description: proofNote } : undefined,
         },
@@ -279,8 +285,8 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           )}
           {owed.length > 1 && (
             <div className="flex justify-end">
-              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelected(selected.length === owed.length ? [] : owed.map((o) => o.round.id))}>
-                {selected.length === owed.length ? t("selectNone") : t("selectAllOwed")}
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelected(picked.length === owed.length ? [] : owed.map((o) => o.round.id))}>
+                {picked.length === owed.length ? t("selectNone") : t("selectAllOwed")}
               </Button>
             </div>
           )}
@@ -305,14 +311,14 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           </div>
 
           <div className="flex items-baseline justify-between rounded-xl bg-primary/5 p-3">
-            <span className="text-sm text-muted-foreground">{t("estimate", { count: selected.length })}</span>
+            <span className="text-sm text-muted-foreground">{t("estimate", { count: picked.length })}</span>
             <span className="text-xl font-bold text-primary">{formatCurrency(estimate)}</span>
           </div>
           <div className="space-y-2 rounded-xl border border-dashed border-border p-3">
             <Label className="flex items-center gap-1.5"><Paperclip size={14} className="text-primary" /> {t("proof")} <span className="font-normal text-muted-foreground">({tc("optional")})</span></Label>
             <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary" />
             <Input value={proofNote} onChange={(e) => setProofNote(e.target.value)} placeholder={t("proofNotePlaceholder")} />
-            <p className="text-xs text-muted-foreground">{t("proofHint", { count: selected.length || 1 })}</p>
+            <p className="text-xs text-muted-foreground">{t("proofHint", { count: picked.length || 1 })}</p>
           </div>
           <p className="flex items-start gap-2 text-xs text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0 text-primary" /> {t("serverAmountNote")}</p>
         </>

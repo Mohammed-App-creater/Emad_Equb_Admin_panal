@@ -125,7 +125,7 @@ function EqubDetailInner({ id }: { id: string }) {
           {TABS.map((k) => {
             const Icon = tabIcon[k];
             return (
-              <TabsTrigger key={k} value={k} className="gap-1.5">
+              <TabsTrigger key={k} value={k} className="gap-1.5 data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground!">
                 <Icon size={15} /> {t(`tab${k.charAt(0).toUpperCase()}${k.slice(1)}`)}
               </TabsTrigger>
             );

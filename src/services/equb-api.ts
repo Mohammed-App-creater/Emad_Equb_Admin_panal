@@ -345,9 +345,10 @@ const realEqubApi = {
   async collectContribution(groupId: string, memberId: string, body: EqubPayRoundsRequest, proof?: CollectProof): Promise<EqubPayInitiatedResponse> {
     if (!proof) return unwrap<EqubPayInitiatedResponse>(api.post(EQUB_ENDPOINTS.MANAGER.COLLECT(groupId, memberId), body));
     const form = new FormData();
-    // Per the backend: round_ids as one JSON array field; the file's
-    // description doubles as the collection's description.
-    form.append("round_ids", JSON.stringify(body.round_ids));
+    // Per the backend: one round_ids field per round (a JSON array string is
+    // rejected as an invalid UUID); the file's description doubles as the
+    // collection's description.
+    for (const id of body.round_ids) form.append("round_ids", id);
     if (body.is_catch_up) form.append("is_catch_up", "true");
     if (body.method) form.append("method", body.method);
     if (body.reference) form.append("reference", body.reference);
