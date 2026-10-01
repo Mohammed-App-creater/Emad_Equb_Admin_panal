@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, Eye } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
 import type { FeeLedgerLine } from "@/types/ekub";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 
 /**
  * Collected vs deposited, one row per Equb per round, from the live SACCO fee
@@ -83,6 +84,7 @@ export function ReconciliationTab() {
     { id: "open", header: "", align: "right", cell: () => <ChevronRight size={16} className="text-muted-foreground" /> },
   ];
 
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
   const statusOf = (l: FeeLedgerLine) => (l.collected ? "deposited" : l.paymentId ? "pending" : "unpaid");
 
   return (
@@ -155,7 +157,12 @@ export function ReconciliationTab() {
                       <td className="py-2">
                         <Badge className={s === "deposited" ? "bg-success/15 text-success" : s === "pending" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}>{t(`line_${s}` as never)}</Badge>
                       </td>
-                      <td className="py-2 text-right">
+                      <td className="flex items-center justify-end gap-1 py-2">
+                        {l.paymentId && (
+                          <Button size="sm" variant="ghost" title={tc("viewDetails")} onClick={() => setViewing({ paymentId: l.paymentId, memberId: l.memberId, equbId: l.equbId, memberName: l.memberName })}>
+                            <Eye size={14} />
+                          </Button>
+                        )}
                         {s === "pending" && canConfirm && (
                           <Button
                             size="sm"
@@ -174,6 +181,7 @@ export function ReconciliationTab() {
           </div>
         )}
       </Modal>
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
     </>
   );
 }

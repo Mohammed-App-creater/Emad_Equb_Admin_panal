@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Wallet, CheckCircle2, Clock, ExternalLink, Info, Loader2 } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, ExternalLink, Eye, Info, Loader2 } from "lucide-react";
 import { DataTable, TablePager, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils";
 import { formatCurrency, formatDate, formatDateForInput, formatDateTime } from "@/lib/utils";
 import type { CollectionItem } from "@/types/ekub";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 
 /**
  * "What I collected": the contributions the signed-in staff member recorded
@@ -34,9 +35,13 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
   const tc = useTranslations("common");
   const router = useRouter();
 
-  const today = formatDateForInput(new Date().toISOString());
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
+  // Default to the last month, from one month ago up to today.
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return formatDateForInput(d.toISOString());
+  });
+  const [to, setTo] = useState(() => formatDateForInput(new Date().toISOString()));
   const [equbId, setEqubId] = useState("all");
   const [roundNo, setRoundNo] = useState("all");
   // Collections carry no round; the fee ledger links each payment to the rounds it covers.
@@ -51,6 +56,7 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
   const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
   const confirm = useConfirmPayment();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
   // Agents see their own day; admins see every agent's collections with paging.
   const scope = useCollectionsScope();
   const [collectedBy, setCollectedBy] = useState("all");
@@ -188,6 +194,7 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
         avatar={(r) => ({ initials: getInitials(r.memberName), colorClass: r.status === "confirmed" ? "bg-success/15 text-success" : "bg-warning/15 text-warning" })}
         emptyTitle={tc("noData")}
         emptyMessage={t("noCollections")}
+        onRowClick={(r) => r.paymentId && setViewing(r)}
         renderLeadingActions={(r) =>
           canConfirm && r.status !== "confirmed" && r.paymentId ? (
             <Button
@@ -206,8 +213,9 @@ export function CollectionsTab({ onRecord }: { onRecord: () => void }) {
             </Button>
           ) : null
         }
-        actions={[{ label: tc("view"), icon: ExternalLink, onClick: (r) => router.push(`/dashboard/equbs/${r.equbId}?tab=rounds`) }]}
+        actions={[{ label: tc("viewDetails"), icon: Eye, show: (r) => !!r.paymentId, onClick: (r) => setViewing(r) }, { label: tc("view"), icon: ExternalLink, onClick: (r) => router.push(`/dashboard/equbs/${r.equbId}?tab=rounds`) }]}
       />
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
       {scope === "all" && all.data && (
         // The admin ledger sends no total, so the pager can only say whether another page exists.
         <div className="rounded-xl border border-border">

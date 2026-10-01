@@ -16,6 +16,7 @@ import type {
   ContributionAttachment,
   FeeLedger,
   FeeLedgerFilters,
+  PaymentDetail,
   MemberProfile,
   Page,
   CatchUp,
@@ -925,6 +926,27 @@ export const ekubService = {
   // ---- Contribution attachments ----
   async listRoundAttachments(roundId: string): Promise<ContributionAttachment[]> {
     return ((await equbApi.listRoundAttachments(roundId)).records ?? []).map(attachmentToView);
+  },
+  /**
+   * Everything behind one payment: the contributions it covers (fee-ledger
+   * lines carrying its payment id; the ledger has no payment filter, so it is
+   * narrowed by member/Equb and matched here) and the slips filed against
+   * them. One slip is stored once but filed on every contribution the payment
+   * covers, so the same file comes back per contribution and is shown once.
+   */
+  async getPaymentDetail(paymentId: string, scope: { memberId?: string; equbId?: string }): Promise<PaymentDetail> {
+    const ledger = await ekubService.getFeeLedger({ memberId: scope.memberId, equbId: scope.equbId }, 1, 1000);
+    const lines = ledger.items.filter((l) => l.paymentId === paymentId).sort((a, b) => a.roundNumber - b.roundNumber);
+    const lists = await Promise.all(lines.map((l) => equbApi.listContributionAttachments(l.contributionId).then((r) => (r.records ?? []).map(attachmentToView))));
+    const seen = new Set<string>();
+    const attachments: ContributionAttachment[] = [];
+    for (const a of lists.flat()) {
+      const key = `${a.fileName}|${a.fileSize}|${a.description}|${a.createdAt.slice(0, 16)}`;
+      if (seen.has(a.id) || seen.has(key)) continue;
+      seen.add(a.id).add(key);
+      attachments.push(a);
+    }
+    return { lines, attachments };
   },
   async uploadAttachment(contributionId: string, file: File, description?: string): Promise<ContributionAttachment> {
     return attachmentToView(await equbApi.uploadContributionAttachment(contributionId, file, description));

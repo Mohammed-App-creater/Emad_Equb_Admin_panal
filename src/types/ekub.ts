@@ -439,6 +439,11 @@ export interface FeeLedgerFilters {
 export interface FeeLedger extends Page<FeeLedgerLine> {
   totals: FeeLedgerTotals;
 }
+/** One payment: the contributions it settles and the slips filed for them. */
+export interface PaymentDetail {
+  lines: FeeLedgerLine[];
+  attachments: ContributionAttachment[];
+}
 
 // ---- Contribution attachments -----------------------------------------------
 export interface ContributionAttachment {

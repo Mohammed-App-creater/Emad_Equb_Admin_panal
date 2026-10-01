@@ -235,7 +235,7 @@ export const useMemberStanding = (equbId: string, memberId: string | null, enabl
 
 // A payment moves round totals, readiness, fees, takaful and standing.
 const invAfterPayment = (qc: QC, equbId: string) => {
-  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId], ["round-attachments"], ["fee-ledger"]]) {
+  for (const key of [["equb-rounds", equbId], ["round"], ["draw-preview"], ["round-admin-fees"], ["equb-members", equbId], ["member-standing", equbId], ["member-admin-fees", equbId], qk.adminFees(equbId), qk.dashboard(equbId), qk.takaful(equbId), qk.takafulBalance(equbId), ["payments"], ["my-collections"], ["catch-up", equbId], ["round-attachments"], ["fee-ledger"], ["payment-detail"]]) {
     qc.invalidateQueries({ queryKey: key as readonly unknown[] });
   }
 };
@@ -300,8 +300,14 @@ export const usePendingPayments = (equbId: string, roundId?: string) => {
     enabled: !!equbId,
   });
   const map = new Map<string, string>();
-  for (const l of data?.items ?? []) if (l.paymentId && !l.collected) map.set(`${l.roundId}:${l.memberId}`, l.paymentId);
-  return { pending: map, isLoading };
+  // Every recorded payment, confirmed or not, for opening its details.
+  const payments = new Map<string, string>();
+  for (const l of data?.items ?? []) {
+    if (!l.paymentId) continue;
+    payments.set(`${l.roundId}:${l.memberId}`, l.paymentId);
+    if (!l.collected) map.set(`${l.roundId}:${l.memberId}`, l.paymentId);
+  }
+  return { pending: map, payments, isLoading };
 };
 
 export const useFeeLedger = (filters: import("@/types/ekub").FeeLedgerFilters, page: number, perPage: number) =>
@@ -310,18 +316,20 @@ export const useFeeLedger = (filters: import("@/types/ekub").FeeLedgerFilters, p
 // ---- Contribution attachments ----
 export const useRoundAttachments = (roundId: string) =>
   useQuery({ queryKey: ["round-attachments", roundId], queryFn: () => ekubService.listRoundAttachments(roundId), enabled: !!roundId, staleTime: 60_000 });
+export const usePaymentDetail = (paymentId: string, scope: { memberId?: string; equbId?: string }) =>
+  useQuery({ queryKey: ["payment-detail", paymentId, scope], queryFn: () => ekubService.getPaymentDetail(paymentId, scope), enabled: !!paymentId && !!(scope.memberId || scope.equbId), staleTime: 60_000 });
 export const useUploadAttachment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { roundId: string; contributionId: string; file: File; description?: string }) => ekubService.uploadAttachment(v.contributionId, v.file, v.description),
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }); qc.invalidateQueries({ queryKey: ["payment-detail"] }); },
   });
 };
 export const useDeleteAttachment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { roundId: string; contributionId: string; attachmentId: string }) => ekubService.deleteAttachment(v.contributionId, v.attachmentId),
-    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["round-attachments", v.roundId] }); qc.invalidateQueries({ queryKey: ["payment-detail"] }); },
   });
 };
 

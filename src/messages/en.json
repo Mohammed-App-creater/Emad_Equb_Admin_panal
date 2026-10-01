@@ -58,7 +58,8 @@
     "rowsPerPage": "Rows per page",
     "equb": "Equb",
     "viewCards": "Cards",
-    "viewTable": "Table"
+    "viewTable": "Table",
+    "viewDetails": "View details"
   },
   "nav": {
     "groupOverview": "Overview",
@@ -416,7 +417,7 @@
     "member": "Member",
     "membershipNumber": "Membership no.",
     "phone": "Phone",
-    "position": "Position",
+    "position": "Turn No.",
     "joined": "Joined",
     "add": "Add member",
     "remove": "Remove",
@@ -473,7 +474,7 @@
     "running": "Running…",
     "confirmDraw": "Run the draw for round #{n}? Winners are selected by the backend RNG and the result is immutable.",
     "drawDone": "Draw complete",
-    "position": "Position",
+    "position": "Turn No.",
     "reason": "Reason",
     "previouslyWon": "Previously won",
     "unpaidContribution": "Contribution unpaid",
@@ -716,7 +717,9 @@
     "guarantee": "guarantee",
     "empty": "Nothing waiting for approval",
     "unknownMember": "Unknown member",
-    "round": "Round"
+    "round": "Round",
+    "filterOn": "Showing only these",
+    "filterHint": "Click to filter"
   },
   "declarations": {
     "shariaAccept": "Accepts Sharia rules & commits to avoid haram conduct",
@@ -920,12 +923,13 @@
     "pay": "Pay",
     "awaitingConfirmation": "Awaiting confirmation",
     "confirm": "Confirm",
-    "confirmed": "Payment confirmed"
+    "confirmed": "Payment confirmed",
+    "membersOfRound": "Members · Round {n}"
   },
   "memberProfile": {
     "backToMembers": "Back to members",
     "notFound": "This member is not in this Equb.",
-    "position": "Position",
+    "position": "Turn No.",
     "joined": "Joined this Equb",
     "memberSince": "SACCO member since",
     "profile": "Profile",
@@ -1040,7 +1044,7 @@
     "round": "Round",
     "amount": "Amount",
     "equb": "Equb",
-    "position": "Position",
+    "position": "Turn No.",
     "staffEmptyHint": "The staff list is empty. The /users endpoint returns no users on this backend yet.",
     "category": "Equb category",
     "start": "Start",
@@ -1053,5 +1057,25 @@
     "collectionsByAgentHint": "Contributions this agent recorded in the period.",
     "joinedFrom": "Joined from",
     "joinedTo": "Joined until"
+  },
+  "paymentDetail": {
+    "title": "Payment details",
+    "equb": "Equb",
+    "category": "Category",
+    "rounds": "Rounds",
+    "method": "Method",
+    "reference": "Reference",
+    "collectedBy": "Collected by",
+    "collectedAt": "Collected at",
+    "covers": "What this payment covers",
+    "noLines": "No contributions found for this payment.",
+    "round": "Round",
+    "roundNo": "Round {n}",
+    "catchUp": "Catch-up",
+    "contribution": "Contribution",
+    "adminFee": "Admin fee",
+    "takafulFee": "Takaful",
+    "total": "Total",
+    "noAttachments": "No slip or receipt was attached to this payment."
   }
 }

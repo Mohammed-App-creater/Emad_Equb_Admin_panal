@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, CircleDot, Users, Wallet, Clock, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CircleDot, Users, Wallet, Clock, Mail, Phone, ExternalLink } from "lucide-react";
 import { DataTable, getInitials, roundFacet, type DataTableColumn } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import { StatusBadge as PaymentStatusBadge } from "@/components/equb/status-badg
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import { formatCurrency, formatDate, formatDateForInput, formatDateTime } from "@/lib/utils";
 import type { CollectionItem, Equb, EqubMember } from "@/types/ekub";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 
 type MemberRow = EqubMember & { equb: Equb };
 /** One Equb round's collections: recorded vs confirmed. */
@@ -37,8 +38,13 @@ function AgentInner({ id }: { id: string }) {
   const tc = useTranslations("common");
   const router = useRouter();
   const [tab, setTab] = useState("equbs");
-  // Collections this agent recorded (GET /equb/admin/collections?collected_by=), last 30 days by default.
-  const [from, setFrom] = useState(() => formatDateForInput(new Date(Date.now() - 30 * 86400000).toISOString()));
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
+  // Collections this agent recorded (GET /equb/admin/collections?collected_by=), last month by default.
+  const [from, setFrom] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return formatDateForInput(d.toISOString());
+  });
   const [to, setTo] = useState(() => formatDateForInput(new Date().toISOString()));
   const { data: agentCollections, isLoading: agentCollectionsLoading } = useAllCollections({ from, to, collectedBy: id }, 1, 200);
 
@@ -203,9 +209,11 @@ function AgentInner({ id }: { id: string }) {
             rowKey={(r) => r.paymentId || `${r.memberId}-${r.collectedAt}`}
             isLoading={agentCollectionsLoading}
             avatar={(r) => ({ initials: getInitials(r.memberName), colorClass: r.status === "confirmed" ? "bg-success/15 text-success" : "bg-warning/15 text-warning" })}
-            onRowClick={(r) => router.push(`/dashboard/equbs/${r.equbId}?tab=contributions`)}
+            onRowClick={(r) => r.paymentId && setViewing({ ...r, collectedBy: agent.name })}
+            actions={[{ label: tc("view"), icon: ExternalLink, onClick: (r) => router.push(`/dashboard/equbs/${r.equbId}?tab=contributions`) }]}
             emptyTitle={tc("noData")}
           />
+          <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
           <p className="text-xs text-muted-foreground">{ta("collectionsHint")}</p>
           <DataTable

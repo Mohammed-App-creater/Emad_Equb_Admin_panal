@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft, Wallet, Ban, RotateCcw, CheckCircle2, AlertTriangle, Clock, Trophy, Coins, PiggyBank, Heart,
-  Phone, Mail, MapPin, Building2, UserRound, CalendarDays, Hash,
+  Phone, Mail, MapPin, Building2, UserRound, CalendarDays, Hash, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { RequirePermission } from "@/components/auth/require-permission";
 import { StatusBadge } from "@/components/equb/status-badge";
 import { hasStarted } from "@/components/equb/contributions-tab";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 import { WinnersTable } from "@/components/equb/winners-tab";
 import { FeeLinesTable } from "@/components/equb/admin-fees-tab";
 import {
@@ -62,6 +63,13 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
   const setSuspended = useSetSuspended();
 
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
+  // Only the fee ledger links a round's contribution to the payment that settled it.
+  const paymentOfRound = new Map((fees?.lines ?? []).filter((l) => l.paymentId).map((l) => [l.roundId, l.paymentId] as const));
+  const view = (r: ContributionRow) => {
+    const paymentId = paymentOfRound.get(r.round.id);
+    if (paymentId) setViewing({ paymentId, memberId, equbId, equbName: equb?.name });
+  };
   const [hardshipStatus, setHardshipStatus] = useState("all");
   const [hardshipRound, setHardshipRound] = useState("all");
   const th = useTranslations("hardship");
@@ -275,6 +283,8 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
             emptyTitle={tc("noData")}
             emptyMessage={t("noContributions")}
             defaultSort={{ id: "round", dir: "desc" }}
+            onRowClick={view}
+            actions={[{ label: tc("viewDetails"), icon: Eye, show: (r) => paymentOfRound.has(r.round.id), onClick: view }]}
             renderLeadingActions={(r) =>
               canManage && equb?.status === "active" && !isPaid(r.pay) && (r.pay.status || "").toLowerCase() !== "processing" ? (
                 <Button size="sm" onClick={() => setPaying({ equbId, memberId, roundIds: [r.round.id] })}><Wallet size={13} className="mr-1" /> {tp("pay")}</Button>
@@ -338,6 +348,7 @@ function MemberProfileInner({ equbId, memberId }: { equbId: string; memberId: st
       </Tabs>
 
       <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
       <Modal open={suspending} onOpenChange={setSuspending} title={t("suspend")} className="max-w-md">
         <div className="space-y-4">

@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Wallet, Users, CheckCircle2, Clock, Coins, PiggyBank, CalendarClock, Search, Layers } from "lucide-react";
+import { ChevronDown, ChevronRight, Wallet, Users, CheckCircle2, Clock, Coins, PiggyBank, CalendarClock, Search, Layers, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
 import { StatCard } from "@/components/dashboard/shared";
 import { StatusBadge } from "@/components/equb/status-badge";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
+import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 import { getInitials, TablePager, PAGE_SIZES } from "@/components/ui/data-table";
 import { useRounds, useRoundDetails, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
 import { useToast } from "@/hooks/use-toast";
@@ -96,10 +97,11 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
   const [memberPageSize, setMemberPageSize] = useState(PAGE_SIZES[0]);
   const resetMemberPages = () => setMemberPage({});
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
+  const [viewing, setViewing] = useState<PaymentRef | null>(null);
 
   const started = (rounds ?? []).filter((r) => hasStarted(r) || r.memberPayments.length > 0);
   // Recorded but not yet confirmed (e.g. paid from the mobile app).
-  const { pending } = usePendingPayments(equb.id);
+  const { pending, payments } = usePendingPayments(equb.id);
   const awaiting = (r: Round, p: RoundMemberPayment) => (isPaid(p) ? undefined : pending.get(`${r.id}:${p.memberId}`));
   const canConfirm = has(EKUB_PERMS.PAYMENT_RECONCILE) || has(EKUB_PERMS.PAYOUT_APPROVE);
   const confirm = useConfirmPayment();
@@ -231,9 +233,12 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                       <RoundGroup key={r.id} open={open} onToggle={() => setOpenId(open ? null : r.id)} colSpan={8}
                         head={
                           <>
-                            <td className="px-3 py-3 font-medium text-foreground">
-                              {tr("roundNo", { n: r.roundNumber })}
-                              {r.id === current?.id && <Badge className="ml-2 bg-primary/10 text-primary">{t("currentRound")}</Badge>}
+                            <td className="px-3 py-3 text-foreground">
+                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                <span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-primary/15 px-1.5 text-xs font-bold text-primary">#{r.roundNumber}</span>
+                                <span className="text-base font-semibold">{tr("roundNo", { n: r.roundNumber })}</span>
+                                {r.id === current?.id && <Badge className="bg-primary/10 text-primary">{t("currentRound")}</Badge>}
+                              </span>
                             </td>
                             <td className="px-3 py-3 text-muted-foreground">{formatDate(r.contributionDueDate)}</td>
                             <td className="px-3 py-3 text-right tabular-nums"><span className="text-success">{s.paidCount}</span> / {s.total}</td>
@@ -253,14 +258,14 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                           <p className="px-4 py-3 text-sm text-muted-foreground">{r.memberPayments.length === 0 ? tr("noPayments") : t("noMatch")}</p>
                         ) : (
                           <table className="w-full text-sm">
-                            <thead className="text-xs uppercase text-muted-foreground">
+                            <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                               <tr>
-                                <th className="px-4 py-2 text-left font-medium">{tc("member")}</th>
+                                <th className="px-4 py-2 text-left font-medium">{t("membersOfRound", { n: r.roundNumber })}</th>
                                 <th className="px-3 py-2 text-left font-medium">{tc("phone")}</th>
                                 <th className="px-3 py-2 text-right font-medium">{tc("amount")}</th>
                                 <th className="px-3 py-2 text-left font-medium">{tr("paidAt")}</th>
                                 <th className="px-3 py-2 text-left font-medium">{tc("status")}</th>
-                                {canCollect && <th className="px-3 py-2" />}
+                                <th className="px-3 py-2" />
                               </tr>
                             </thead>
                             <tbody>
@@ -277,9 +282,14 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                                   <td className="px-3 py-2 text-right font-medium tabular-nums">{formatCurrency(p.amount)}</td>
                                   <td className="px-3 py-2 text-muted-foreground">{p.paidAt ? formatDateTime(p.paidAt) : "—"}</td>
                                   <td className="px-3 py-2">{awaiting(r, p) ? <Badge className="bg-info/15 text-info">{t("awaitingConfirmation")}</Badge> : <StatusBadge status={isPaid(p) ? "paid" : p.status || "unpaid"} kind="payment" />}</td>
-                                  {canCollect && (
-                                    <td className="px-3 py-2 text-right">
-                                      {awaiting(r, p) ? (
+                                  <td className="px-3 py-2">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {payments.get(`${r.id}:${p.memberId}`) && (
+                                        <Button size="sm" variant="ghost" title={tc("viewDetails")} onClick={() => setViewing({ paymentId: payments.get(`${r.id}:${p.memberId}`)!, memberId: p.memberId, equbId: equb.id, memberName: p.name, equbName: equb.name })}>
+                                          <Eye size={14} />
+                                        </Button>
+                                      )}
+                                      {canCollect && (awaiting(r, p) ? (
                                         canConfirm && (
                                           <Button size="sm" className="whitespace-nowrap" disabled={confirm.isPending} onClick={() => confirm.mutate({ equbId: equb.id, paymentId: awaiting(r, p)! }, { onSuccess: () => toast({ title: t("confirmed"), description: p.name }), onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }) })}>
                                             <CheckCircle2 size={13} className="mr-1" /> {t("confirm")}
@@ -289,9 +299,9 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
                                         <Button size="sm" variant="outline" className="whitespace-nowrap" onClick={() => setPaying({ equbId: equb.id, memberId: p.memberId, roundIds: [r.id] })}>
                                           <Wallet size={13} className="mr-1" /> {t("pay")}
                                         </Button>
-                                      )}
-                                    </td>
-                                  )}
+                                      ))}
+                                    </div>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -317,6 +327,7 @@ export function ContributionsTab({ equb }: { equb: Equb }) {
       </Card>
 
       <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
+      <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
@@ -350,14 +361,18 @@ export function RoundSelect({ rounds, value, onChange, current, label, allLabel,
 function RoundGroup({ open, onToggle, head, children, colSpan }: { open: boolean; onToggle: () => void; head: ReactNode; children: ReactNode; colSpan: number }) {
   return (
     <>
-      <tr onClick={onToggle} className={cn("cursor-pointer border-t border-border transition-colors hover:bg-muted/60", open && "bg-muted/30")} aria-expanded={open}>
-        <td className="pl-3 text-muted-foreground">{open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}</td>
+      <tr onClick={onToggle} className={cn("cursor-pointer border-t-2 border-border transition-colors", open ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/60")} aria-expanded={open}>
+        <td className="pl-3">
+          <span className={cn("flex h-6 w-6 items-center justify-center rounded-full", open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
+        </td>
         {head}
       </tr>
       {open && (
-        <tr className="border-t border-border/60 bg-background">
-          <td colSpan={colSpan} className="p-0">
-            <div className="border-l-2 border-primary/40">{children}</div>
+        <tr className="bg-primary/5">
+          <td colSpan={colSpan} className="px-3 pb-4 pt-1 sm:pl-12">
+            <div className="overflow-hidden rounded-xl border border-border border-l-4 border-l-primary bg-background shadow-sm">{children}</div>
           </td>
         </tr>
       )}
