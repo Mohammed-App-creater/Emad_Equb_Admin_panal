@@ -151,6 +151,15 @@ export const EQUB_ENDPOINTS = {
     DETAIL: (id: string) => `/agents/${id}`,
   },
   BRANCHES: "/branches", // ?search=&status=&city=&region=&page=&limit=
+  // Banks a member can name as the source of a transfer (bank_id on bank_transfer payments).
+  BANKS: {
+    LIST: "/banks", // ?search=&page=&limit=&sort=&order=
+    ACTIVE: "/banks/active", // every selectable bank, ordered by name
+    DETAIL: (id: string) => `/banks/${id}`,
+  },
+  // Active banks + mobile money providers in one call. Member-authenticated on
+  // the backend, so a staff token may be refused; callers fall back to none.
+  PAYMENT_PROVIDERS: "/portal/payment-methods/providers",
   USERS: {
     LIST: "/users", // ?search=&role_id=&role_slug=&permission_id=&branch_id=&status=&start_date=&end_date=&page=&per_page=&sort=&order=
     PERMISSIONS: "/users/permissions",

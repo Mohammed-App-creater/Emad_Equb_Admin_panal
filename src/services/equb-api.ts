@@ -28,7 +28,11 @@ import type {
   EqubPayRoundsRequest,
   EqubPayoutResponse,
   AgentSummaryResponse,
+  BankCreateRequest,
+  BankResponse,
+  BankUpdateRequest,
   BranchResponse,
+  PaymentProvidersResponse,
   UserRoleResponse,
   ListStaffParams,
   ListTakafulParams,
@@ -331,6 +335,28 @@ const realEqubApi = {
   async listBranches(): Promise<BranchResponse[]> {
     return list<BranchResponse>(api.get(EQUB_ENDPOINTS.BRANCHES, { params: { page: 1, limit: 200 } }));
   },
+  /** GET /banks/active — banks selectable as the source of a bank transfer. */
+  async activeBanks(): Promise<BankResponse[]> {
+    return list<BankResponse>(api.get(EQUB_ENDPOINTS.BANKS.ACTIVE));
+  },
+  /** GET /banks — every bank, deactivated ones included. */
+  async listBanks(params?: { search?: string }): Promise<BankResponse[]> {
+    return list<BankResponse>(api.get(EQUB_ENDPOINTS.BANKS.LIST, { params: { page: 1, limit: 200, sort: "name", order: "asc", ...params } }));
+  },
+  async createBank(body: BankCreateRequest): Promise<BankResponse> {
+    return unwrap<BankResponse>(api.post(EQUB_ENDPOINTS.BANKS.LIST, body));
+  },
+  async updateBank(id: string, body: BankUpdateRequest): Promise<BankResponse> {
+    return unwrap<BankResponse>(api.put(EQUB_ENDPOINTS.BANKS.DETAIL(id), body));
+  },
+  /** Refused (422) once a contribution names the bank; deactivate it instead. */
+  async deleteBank(id: string): Promise<void> {
+    await api.delete(EQUB_ENDPOINTS.BANKS.DETAIL(id));
+  },
+  /** GET /portal/payment-methods/providers — banks + mobile money providers. */
+  async paymentProviders(): Promise<PaymentProvidersResponse> {
+    return unwrap<PaymentProvidersResponse>(api.get(EQUB_ENDPOINTS.PAYMENT_PROVIDERS));
+  },
   /** GET /user-roles — for the staff role filter. */
   async listUserRoles(): Promise<UserRoleResponse[]> {
     return list<UserRoleResponse>(api.get(EQUB_ENDPOINTS.USER_ROLES.LIST, { params: { page: 1, limit: 200 } }));
@@ -352,6 +378,7 @@ const realEqubApi = {
     if (body.is_catch_up) form.append("is_catch_up", "true");
     if (body.method) form.append("method", body.method);
     if (body.reference) form.append("reference", body.reference);
+    if (body.bank_id) form.append("bank_id", body.bank_id);
     form.append("file", proof.file);
     const description = proof.description || body.description;
     if (description) form.append("description", description);

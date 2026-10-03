@@ -10,6 +10,7 @@
 
 import type { EqubApi } from "@/services/equb-api";
 import type {
+  BankResponse,
   EqubContributionAttachmentResponse,
   EqubFeeLine,
   EqubAdminFeeLine,
@@ -126,8 +127,16 @@ const managerInfo = (userId?: string): EqubGroupManagerInfo | null => {
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
+const MOCK_BANKS: BankResponse[] = [
+  { id: "bank-cbe", name: "Commercial Bank of Ethiopia", code: "CBE", city: "Addis Ababa", country: "Ethiopia", status: true },
+  { id: "bank-awash", name: "Awash Bank", code: "AWASH", city: "Addis Ababa", country: "Ethiopia", status: true },
+  { id: "bank-abyssinia", name: "Bank of Abyssinia", code: "BOA", city: "Addis Ababa", country: "Ethiopia", status: true },
+  { id: "bank-dashen", name: "Dashen Bank", code: "DASHEN", city: "Addis Ababa", country: "Ethiopia", status: true },
+  { id: "bank-zamzam", name: "ZamZam Bank", code: "ZAMZAM", city: "Addis Ababa", country: "Ethiopia", status: true },
+];
+const MOCK_MOBILE_MONEY = [{ code: "telebirr", name: "telebirr" }, { code: "mpesa", name: "M-Pesa" }, { code: "cbebirr", name: "CBE Birr" }];
 interface StoredMember { id: string; group_id: string; member_id: string; position: number; status: string; joined_at: string; suspend_reason?: string }
-interface StoredPayment { id: string; member_id: string; amount: number; admin_fee: number; status: string; paid_at: string; payment_id: string; isCatchUp: boolean }
+interface StoredPayment { id: string; member_id: string; amount: number; admin_fee: number; status: string; paid_at: string; payment_id: string; isCatchUp: boolean; bank_id?: string }
 interface StoredRound {
   id: string;
   group_id: string;
@@ -572,6 +581,7 @@ function feeLedgerLines(): EqubFeeLine[] {
         round_id: r.id, round_number: r.round_number, scheduled_at: r.scheduled_at,
         contribution_amount: contribution.toFixed(2), admin_fee: p.admin_fee.toFixed(2), takaful_fee: t.takaful_fee.toFixed(2), total_amount: p.amount.toFixed(2),
         status: p.status === "processing" ? "pending" : p.status, collected: p.status === "paid", is_catch_up: p.isCatchUp, paid_at: p.paid_at, payment_id: p.payment_id, created_at: r.created_at,
+        bank_id: p.bank_id, bank_name: MOCK_BANKS.find((b) => b.id === p.bank_id)?.name,
       });
     }
   }
@@ -1254,6 +1264,40 @@ export const mockEqubApi: EqubApi = {
     await delay(100);
     return [{ id: "hq", name: "Head Office", branch_code: "HQ" }, { id: "merkato", name: "Merkato", branch_code: "MKT" }];
   },
+  async activeBanks() {
+    await delay(100);
+    return MOCK_BANKS.filter((b) => b.status).sort((a, b) => a.name.localeCompare(b.name));
+  },
+  async listBanks(params) {
+    await delay(150);
+    const q = (params?.search ?? "").toLowerCase();
+    return MOCK_BANKS.filter((b) => !q || b.name.toLowerCase().includes(q) || b.code.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name));
+  },
+  async createBank(body) {
+    await delay(300);
+    if (MOCK_BANKS.some((b) => b.code.toLowerCase() === body.code.toLowerCase())) fail("A bank with this code already exists");
+    const bank: BankResponse = { ...body, id: uid("bank"), status: body.status ?? true, created_at: now(), updated_at: now() };
+    MOCK_BANKS.push(bank);
+    return bank;
+  },
+  async updateBank(id, body) {
+    await delay(300);
+    const bank = MOCK_BANKS.find((b) => b.id === id) ?? fail("Bank not found");
+    if (body.code && MOCK_BANKS.some((b) => b.id !== id && b.code.toLowerCase() === body.code!.toLowerCase())) fail("A bank with this code already exists");
+    Object.assign(bank, body, { updated_at: now() });
+    return bank;
+  },
+  async deleteBank(id) {
+    await delay(300);
+    const i = MOCK_BANKS.findIndex((b) => b.id === id);
+    if (i < 0) fail("Bank not found");
+    if (db.rounds.some((r) => r.payments.some((p) => p.bank_id === id))) fail("This bank is named on contributions and cannot be deleted; deactivate it instead");
+    MOCK_BANKS.splice(i, 1);
+  },
+  async paymentProviders() {
+    await delay(100);
+    return { banks: [...MOCK_BANKS], mobile_money: MOCK_MOBILE_MONEY };
+  },
   async listUserRoles() {
     await delay(100);
     const seen = new Map<string, { id: string; name: string }>();
@@ -1268,6 +1312,8 @@ export const mockEqubApi: EqubApi = {
     if (g.status !== "active") fail("Payments can only be recorded for an active Equb");
     if (!groupMembers(groupId).some((m) => m.member_id === memberId)) fail("Member is not in this Equb");
     if (!body.round_ids?.length) fail("Select at least one round");
+    const bankId = body.method === "bank_transfer" ? body.bank_id || fail("bank_id is required for a bank transfer") : undefined;
+    if (bankId && !MOCK_BANKS.some((b) => b.id === bankId && b.status)) fail("Bank not found or inactive");
     const t = groupTerms(g);
     const paidAt = now();
     const rows: { round_id: string; round_number: number; amount: number }[] = [];
@@ -1287,6 +1333,7 @@ export const mockEqubApi: EqubApi = {
       const p = r.payments.find((x) => x.member_id === memberId)!;
       p.status = "processing";
       p.payment_id = paymentId;
+      p.bank_id = bankId;
     }
     db.pendingPayments[paymentId] = { group_id: groupId, member_id: memberId, round_ids: rows.map((r) => r.round_id), status: "pending", collected_at: now(), reference: body.reference ?? "", amount: rows.reduce((a, r) => a + r.amount, 0) };
     setTimeout(() => settlePendingPayment(paymentId, "completed"), 6000);

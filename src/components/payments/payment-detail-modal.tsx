@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/equb/status-badge";
-import { usePaymentDetail } from "@/hooks/ekub";
+import { useActiveBanks, usePaymentDetail } from "@/hooks/ekub";
 import { ekubService } from "@/services/ekub";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatDateTime, getErrorMessage } from "@/lib/utils";
@@ -31,6 +31,8 @@ export interface PaymentRef {
   status?: string;
   reference?: string;
   method?: string;
+  /** Bank a transfer came from, when the caller already knows it. */
+  bankName?: string;
   collectedAt?: string;
   collectedBy?: string;
 }
@@ -62,6 +64,11 @@ function Body({ payment }: { payment: PaymentRef }) {
   const total = payment.amount ?? lines.reduce((a, l) => a + l.total, 0);
   const status = payment.status || (first ? (lines.every((l) => l.collected) ? "confirmed" : "pending") : "");
   const paidAt = payment.collectedAt || first?.paidAt;
+  // The bank is recorded per contribution; one payment's rounds share it.
+  const bankLine = lines.find((l) => l.bankName || l.bankId);
+  const isBankTransfer = payment.method === "bank_transfer";
+  const { data: banks } = useActiveBanks(!payment.bankName && !bankLine?.bankName && !!bankLine?.bankId);
+  const bankName = payment.bankName || bankLine?.bankName || banks?.find((b) => b.id === bankLine?.bankId)?.name || "";
 
   const download = async (a: ContributionAttachment) => {
     setDownloading(a.id);
@@ -85,6 +92,7 @@ function Body({ payment }: { payment: PaymentRef }) {
     [t("category"), payment.categoryName || first?.categoryName || "—"],
     [t("rounds"), lines.length ? lines.map((l) => `#${l.roundNumber}`).join(", ") : "—"],
     [t("method"), payment.method ? <span className="capitalize">{payment.method.replace(/_/g, " ")}</span> : "—"],
+    ...(isBankTransfer || bankName ? ([[t("bank"), bankName || "—"]] as [string, React.ReactNode][]) : []),
     [t("reference"), payment.reference || "—"],
     [t("collectedBy"), payment.collectedBy || "—"],
     [t("collectedAt"), paidAt ? formatDateTime(paidAt) : "—"],

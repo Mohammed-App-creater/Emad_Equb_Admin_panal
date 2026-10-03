@@ -50,7 +50,10 @@ import type {
   StaffMember,
   Agent,
   StaffFilters,
+  Bank,
+  BankInput,
   Branch,
+  MobileMoneyProvider,
   UserRole,
   StaffUser,
   TakafulSettlement,
@@ -83,6 +86,7 @@ import type {
   MemberRegistrationRequestResponse,
   MemberSummaryResponse,
   UserResponse,
+  BankResponse,
 } from "@/types/equb-api";
 import { EQUB_FREQUENCIES } from "@/types/equb-api";
 
@@ -540,6 +544,27 @@ function agentToView(a: AgentSummaryResponse): Agent {
   };
 }
 
+const bankToView = (b: BankResponse): Bank => ({
+  id: b.id,
+  name: b.name,
+  code: b.code ?? "",
+  address: b.address ?? "",
+  city: b.city ?? "",
+  country: b.country ?? "",
+  phone: b.phone_number ?? "",
+  active: b.status !== false,
+});
+/** Optional fields have a 2-char minimum on the backend, so blanks are left out rather than sent empty. */
+const bankBody = (i: BankInput) => ({
+  name: i.name.trim(),
+  code: i.code.trim(),
+  address: i.address.trim() || undefined,
+  city: i.city.trim() || undefined,
+  country: i.country.trim() || undefined,
+  phone_number: i.phone.trim() || undefined,
+  status: i.active,
+});
+
 /** Payment statuses differ between the two collections endpoints ("confirmed" vs "completed"); the UI uses "confirmed". */
 const collectionStatus = (s: string) => ((s || "").toLowerCase() === "completed" ? "confirmed" : s);
 
@@ -826,7 +851,7 @@ export const ekubService = {
     const r = await equbApi.collectContribution(
       equbId,
       memberId,
-      { round_ids: input.roundIds, is_catch_up: input.isCatchUp || undefined, method: (input.method || undefined) as never, reference: input.reference?.trim() || undefined, description: input.description?.trim() || undefined },
+      { round_ids: input.roundIds, is_catch_up: input.isCatchUp || undefined, method: (input.method || undefined) as never, reference: input.reference?.trim() || undefined, description: input.description?.trim() || undefined, bank_id: input.method === "bank_transfer" ? input.bankId || undefined : undefined },
       input.proof ? { file: input.proof.file, description: input.proof.description?.trim() || undefined } : undefined
     );
     return { paymentId: r.payment_id, status: r.status || "pending", totalAmount: num(r.total_amount ?? r.amount), attachmentsFiled: r.attachments?.length ?? 0, attachmentWarning: r.attachment_warning || undefined };
@@ -902,6 +927,8 @@ export const ekubService = {
         isCatchUp: !!l.is_catch_up,
         paidAt: l.paid_at,
         paymentId: l.payment_id ?? "",
+        bankId: l.bank_id ?? "",
+        bankName: l.bank_name ?? "",
       })),
       page: r.page ?? page,
       perPage: r.per_page ?? perPage,
@@ -1152,6 +1179,33 @@ export const ekubService = {
   },
   async listBranches(): Promise<Branch[]> {
     return (await equbApi.listBranches()).map((b) => ({ id: b.id, name: b.name, code: b.branch_code ?? "" }));
+  },
+  async listActiveBanks(): Promise<Bank[]> {
+    return (await equbApi.activeBanks()).map(bankToView);
+  },
+  async listBanks(search?: string): Promise<Bank[]> {
+    return (await equbApi.listBanks({ search: search || undefined })).map(bankToView);
+  },
+  async createBank(input: BankInput): Promise<Bank> {
+    return bankToView(await equbApi.createBank({ ...bankBody(input), name: input.name.trim(), code: input.code.trim() }));
+  },
+  async updateBank(id: string, input: BankInput): Promise<Bank> {
+    return bankToView(await equbApi.updateBank(id, bankBody(input)));
+  },
+  async deleteBank(id: string): Promise<void> {
+    await equbApi.deleteBank(id);
+  },
+  /**
+   * Mobile money providers. The only source is the member portal's providers
+   * endpoint, which may refuse a staff token; an empty list then just hides
+   * the picker.
+   */
+  async listMobileMoneyProviders(): Promise<MobileMoneyProvider[]> {
+    try {
+      return ((await equbApi.paymentProviders()).mobile_money ?? []).map((m) => ({ code: m.code, name: m.name || m.code }));
+    } catch {
+      return [];
+    }
   },
   async listUserRoles(): Promise<UserRole[]> {
     return (await equbApi.listUserRoles()).map((r) => ({ id: r.id, name: r.name }));

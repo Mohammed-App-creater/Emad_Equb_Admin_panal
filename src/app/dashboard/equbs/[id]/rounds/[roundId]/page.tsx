@@ -18,12 +18,13 @@ import { StatusBadge } from "@/components/equb/status-badge";
 import { WinnersTable } from "@/components/equb/winners-tab";
 import { SplitCard, FeeLinesTable } from "@/components/equb/admin-fees-tab";
 import { RoundAttachments } from "@/components/equb/round-attachments";
+import { SpinWheel, type WheelEntry } from "@/components/equb/spin-wheel";
 import { useLiveUpdates, eventRoundId } from "@/lib/realtime";
 import { useEqub, useRound, useDrawPreview, useExecuteDraw, useRoundWinners, useRoundAdminFees, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatDateTime, getErrorMessage, humanizeDates } from "@/lib/utils";
-import type { ExcludedMember, Round, RoundMemberPayment } from "@/types/ekub";
+import type { ExcludedMember, Round, RoundMemberPayment, RoundWinner } from "@/types/ekub";
 
 const isPaid = (p: RoundMemberPayment) => p.status?.toLowerCase() === "paid" || !!p.paidAt;
 
@@ -37,7 +38,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const canExecute = has(EKUB_PERMS.DRAW_EXECUTE);
 
   const { data: equb } = useEqub(equbId);
-  const { data: round, isLoading, isError } = useRound(roundId);
+  const { data: round, isLoading, isError, isFetching } = useRound(roundId);
   const drawn = !!round && (round.status === "drawn" || round.status === "completed" || round.winners.length > 0);
   const { data: preview, isLoading: previewLoading } = useDrawPreview(roundId, !!round && !drawn);
   const { data: winners, isLoading: winnersLoading } = useRoundWinners(roundId, round?.roundNumber, drawn);
@@ -45,15 +46,30 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const { data: fees } = useRoundAdminFees(roundId);
 
   const [confirming, setConfirming] = useState(false);
+  // After a draw this modal stays open to announce who won.
+  const [showResult, setShowResult] = useState(false);
+  // The lottery wheel: spins while the draw runs, then lands on the backend's winners.
+  const [wheel, setWheel] = useState<WheelState | null>(null);
+  // Slices are the members in the draw, frozen when it starts (the preview empties once drawn).
+  const wheelEntries = (): WheelEntry[] => {
+    const names = new Map((round?.memberPayments ?? []).map((p) => [p.memberId, p.name]));
+    const pool = preview?.eligible.length ? preview.eligible : (round?.memberPayments ?? []).map((p, i) => ({ memberId: p.memberId, name: p.name, position: i + 1 }));
+    return pool.map((m) => {
+      const label = m.name || names.get(m.memberId) || "—";
+      return { id: m.memberId, label, short: m.position ? `#${m.position}` : label.slice(0, 3) };
+    });
+  };
+  const landOn = (ws: RoundWinner[]) => setWheel((w) => (w && !w.winners ? withWinners(w, ws) : w));
   // Live draw: the backend announces draw.started / completed / failed.
   const [liveDraw, setLiveDraw] = useState<"idle" | "running" | "done" | "failed">("idle");
   const [liveReason, setLiveReason] = useState("");
   useLiveUpdates(equbId, (e) => {
     const rid = eventRoundId(e);
     if (rid && rid !== roundId) return;
-    if (e.type === "equb.draw.started") { setLiveDraw("running"); setLiveReason(""); }
-    else if (e.type === "equb.draw.completed") { setLiveDraw("done"); setConfirming(false); toast({ title: t("drawDone") }); }
-    else if (e.type === "equb.draw.failed") { setLiveDraw("failed"); setLiveReason(String(e.data.reason ?? e.data.message ?? "")); setConfirming(false); toast({ title: t("drawFailed"), description: String(e.data.reason ?? e.data.message ?? ""), variant: "destructive" }); }
+    if (e.type === "equb.draw.started") { setLiveDraw("running"); setLiveReason(""); setWheel((w) => w ?? { entries: wheelEntries(), winners: null }); }
+    // Winners arrive with the round refetch the live layer triggers; the effect below lands the wheel.
+    else if (e.type === "equb.draw.completed") { setLiveDraw("done"); setConfirming(false); }
+    else if (e.type === "equb.draw.failed") { setLiveDraw("failed"); setWheel(null); setLiveReason(String(e.data.reason ?? e.data.message ?? "")); setConfirming(false); toast({ title: t("drawFailed"), description: String(e.data.reason ?? e.data.message ?? ""), variant: "destructive" }); }
   });
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
   // Recorded but not yet confirmed (e.g. paid from the mobile app); round detail calls these "pending" like unpaid ones.
@@ -105,6 +121,10 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const withName = <M extends { memberId: string; name: string; phone: string }>(m: M): M => ({ ...m, name: m.name || byMember.get(m.memberId)?.name || "—", phone: m.phone || byMember.get(m.memberId)?.phone || "" });
   const eligible = (preview?.eligible ?? []).map(withName);
   const excluded: ExcludedMember[] = (preview?.excluded ?? []).map(withName);
+  // The winners endpoint carries membership numbers and live status; round detail is the fallback.
+  const winnerRows: WinnerRow[] = winners?.length
+    ? winners.map((w) => ({ key: w.id, position: w.position, name: w.name, sub: w.membershipNumber || w.phone, payout: w.payoutAmount, status: w.status }))
+    : round.winners.map((w) => ({ key: `${w.memberId}-${w.position}`, position: w.position, name: w.name, sub: w.phone, payout: w.payoutAmount, status: w.status }));
   const eligibleCount = preview?.eligibleCount ?? 0;
   const excludedCount = preview?.excludedCount ?? round.excludedCount;
 
@@ -121,14 +141,20 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
     { id: "status", header: tc("status"), mobile: "badge", cell: (r) => (awaiting(r) ? <Badge className="bg-info/15 text-info">{tp("awaitingConfirmation")}</Badge> : <StatusBadge status={isPaid(r) ? "paid" : r.status || "unpaid"} kind="payment" />) },
   ];
 
-  const runDraw = () =>
+  // A draw run elsewhere (live event): its winners come in with the round refetch.
+  const shownWheel = wheel && !wheel.winners && liveDraw === "done" && round.winners.length ? withWinners(wheel, round.winners) : wheel;
+
+  const runDraw = () => {
+    setWheel({ entries: wheelEntries(), winners: null });
     execute.mutate(
       { roundId, equbId },
       {
-        onSuccess: (r: Round) => { toast({ title: t("drawDone"), description: `${r.winners.length} ${t("winners")}` }); setConfirming(false); },
-        onError: (e) => toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }),
+        // No toast here: the wheel reveals the winners.
+        onSuccess: (r: Round) => { setConfirming(false); landOn(r.winners); },
+        onError: (e) => { setWheel(null); toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }); },
       }
     );
+  };
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -214,10 +240,13 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
           </CardHeader>
           <CardContent className="space-y-4">
             {drawn ? (
-              <div className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-sm text-success">
-                <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-                <span>{t("immutable")}</span>
-              </div>
+              <>
+                <WinnerList title={`${t("winners")} · ${winnerRows.length}`} rows={winnerRows} loading={winnersLoading && !winnerRows.length} empty={t("noWinnersYet")} />
+                <div className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-sm text-success">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+                  <span>{t("immutable")}</span>
+                </div>
+              </>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 text-center">
@@ -266,20 +295,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base"><Trophy size={18} className="text-secondary-foreground" /> {t("winners")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {round.winners.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {round.winners.map((w) => (
-                  <div key={`${w.memberId}-${w.position}`} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-sm font-bold text-secondary-foreground">{w.position}</span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-foreground">{w.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{formatCurrency(w.payoutAmount)} · {w.status}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <CardContent>
             <WinnersTable equbId={equbId} roundId={roundId} winners={winners ?? []} isLoading={winnersLoading} hideRound guaranteeRequired={equb?.effectiveTerms?.guaranteeRequired ?? equb?.category?.guaranteeRequired ?? true} />
           </CardContent>
         </Card>
@@ -314,12 +330,34 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
       <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
       {/* Confirm draw */}
-      <Modal open={confirming || liveDraw === "running"} onOpenChange={(o) => !execute.isPending && liveDraw !== "running" && setConfirming(o)} title={`${t("runDraw")} · ${t("roundNo", { n: round.roundNumber })}`} className="max-w-3xl">
-        {execute.isPending || liveDraw === "running" ? (
+      <Modal open={confirming || showResult || !!wheel || liveDraw === "running"} onOpenChange={(o) => { if (o || wheel || execute.isPending || liveDraw === "running") return; setConfirming(false); setShowResult(false); }} title={`${t("runDraw")} · ${t("roundNo", { n: round.roundNumber })}`} className="max-w-3xl">
+        {shownWheel ? (
+          <div className="space-y-3 py-2">
+            <p className="text-center text-sm text-muted-foreground">{shownWheel.winners ? t("wheelLanding", { count: shownWheel.winners.length }) : t("runningHint", { count: shownWheel.entries.length, winners: preview?.winnersPerRound ?? equb?.effectiveTerms?.winnersPerRound ?? "" })}</p>
+            <SpinWheel entries={shownWheel.entries} winners={shownWheel.winners} revealedLabel={t("winners")} onDone={() => { setWheel(null); setShowResult(true); }} />
+            {shownWheel.winners && (
+              <div className="flex justify-center">
+                <Button variant="ghost" size="sm" onClick={() => { setWheel(null); setShowResult(true); }}>{t("skipAnimation")}</Button>
+              </div>
+            )}
+          </div>
+        ) : execute.isPending || liveDraw === "running" ? (
           <div className="flex flex-col items-center gap-3 py-10 text-center">
             <Loader2 size={40} className="animate-spin text-primary" />
             <p className="font-medium text-foreground">{t("running")}</p>
             <p className="text-sm text-muted-foreground">{t("runningHint", { count: eligible.length, winners: preview?.winnersPerRound ?? equb?.effectiveTerms?.winnersPerRound ?? "" })}</p>
+          </div>
+        ) : showResult ? (
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/20 text-secondary-foreground"><Trophy size={28} /></span>
+              <p className="text-lg font-semibold text-foreground">{t("drawDone")}</p>
+              <p className="text-sm text-muted-foreground">{t("drawResultHint", { n: round.roundNumber })}</p>
+            </div>
+            <WinnerList title={`${t("winners")} · ${winnerRows.length}`} rows={winnerRows} loading={!winnerRows.length && (winnersLoading || isFetching)} empty={t("noWinnersYet")} />
+            <div className="flex justify-end">
+              <Button onClick={() => setShowResult(false)}>{tc("close")}</Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -352,6 +390,47 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
           </div>
         )}
       </Modal>
+    </div>
+  );
+}
+
+type WheelState = { entries: WheelEntry[]; winners: string[] | null };
+/** Winners in turn order; one missing from the frozen pool still gets a slice to land on. */
+function withWinners(w: WheelState, ws: RoundWinner[]): WheelState {
+  const sorted = [...ws].sort((a, b) => a.position - b.position);
+  const extra = sorted.filter((x) => !w.entries.some((e) => e.id === x.memberId)).map((x) => ({ id: x.memberId, label: x.name, short: x.name.slice(0, 3) }));
+  return { entries: [...w.entries, ...extra], winners: sorted.map((x) => x.memberId) };
+}
+
+interface WinnerRow { key: string; position: number; name: string; sub: string; payout: number; status: string }
+
+function WinnerList({ title, rows, loading, empty }: { title: string; rows: WinnerRow[]; loading: boolean; empty: string }) {
+  return (
+    <div className="rounded-xl border border-secondary/40 bg-secondary/5">
+      <p className="flex items-center gap-1.5 border-b border-secondary/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-secondary-foreground">
+        <Trophy size={14} /> {title}
+      </p>
+      {loading ? (
+        <div className="space-y-2 p-3"><Skeleton className="h-10 rounded-lg" /><Skeleton className="h-10 rounded-lg" /></div>
+      ) : rows.length === 0 ? (
+        <p className="px-3 py-3 text-sm text-muted-foreground">{empty}</p>
+      ) : (
+        <ul className="max-h-72 divide-y divide-border/60 overflow-y-auto">
+          {[...rows].sort((a, b) => a.position - b.position).map((w) => (
+            <li key={w.key} className="flex items-center gap-3 px-3 py-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-sm font-bold text-secondary-foreground">{w.position}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">{w.name}</p>
+                {w.sub && <p className="truncate text-xs text-muted-foreground">{w.sub}</p>}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(w.payout)}</span>
+                <StatusBadge status={w.status} kind="winner" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

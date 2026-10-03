@@ -72,6 +72,26 @@ export const useTakafulPage = (equbId: string, page: number, perPage: number) =>
 export const useAgentsPage = (filters: import("@/types/ekub").StaffFilters, page: number, perPage: number) =>
   useQuery({ queryKey: ["agents", "page", filters, page, perPage], queryFn: () => ekubService.listAgentsPage(filters, page, perPage), placeholderData: keepPreviousData });
 export const useBranches = () => useQuery({ queryKey: ["branches"], queryFn: () => ekubService.listBranches(), staleTime: 5 * 60 * 1000 });
+/** Banks a transfer can come from (bank_transfer payments). */
+export const useActiveBanks = (enabled = true) =>
+  useQuery({ queryKey: ["banks", "active"], queryFn: () => ekubService.listActiveBanks(), staleTime: 5 * 60 * 1000, enabled });
+/** Every bank, deactivated ones included (Banks page). */
+export const useBanks = (search?: string) =>
+  useQuery({ queryKey: ["banks", "all", search ?? ""], queryFn: () => ekubService.listBanks(search), placeholderData: keepPreviousData });
+export const useCreateBank = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (input: import("@/types/ekub").BankInput) => ekubService.createBank(input), onSuccess: () => qc.invalidateQueries({ queryKey: ["banks"] }) });
+};
+export const useUpdateBank = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (v: { id: string; input: import("@/types/ekub").BankInput }) => ekubService.updateBank(v.id, v.input), onSuccess: () => qc.invalidateQueries({ queryKey: ["banks"] }) });
+};
+export const useDeleteBank = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => ekubService.deleteBank(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["banks"] }) });
+};
+export const useMobileMoneyProviders = (enabled = true) =>
+  useQuery({ queryKey: ["mobile-money-providers"], queryFn: () => ekubService.listMobileMoneyProviders(), staleTime: 5 * 60 * 1000, enabled });
 export const useUserRoles = () => useQuery({ queryKey: ["user-roles"], queryFn: () => ekubService.listUserRoles(), staleTime: 5 * 60 * 1000 });
 export const useAgent = (id: string) =>
   useQuery({ queryKey: ["agent", id], queryFn: () => ekubService.getAgent(id), enabled: !!id });

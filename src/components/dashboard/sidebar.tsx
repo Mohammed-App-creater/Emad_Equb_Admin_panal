@@ -17,6 +17,7 @@ import {
   PiggyBank,
   Coins,
   Landmark,
+  Building2,
   PieChart,
   LogOut,
   ChevronDown,
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
     items: [
       { labelKey: "approvals", href: "/dashboard/approvals", icon: ClipboardCheck },
       { labelKey: "payments", href: "/dashboard/payments", icon: Wallet },
+      { labelKey: "banks", href: "/dashboard/banks", icon: Building2 },
     ],
   },
   {
