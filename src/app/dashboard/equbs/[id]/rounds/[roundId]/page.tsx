@@ -2,14 +2,14 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Play, ShieldCheck, Trophy, Info, Users, Wallet, Coins, HandCoins, CalendarClock, Loader2, CheckCircle2, XCircle, Eye } from "lucide-react";
+import { ArrowLeft, Play, ShieldCheck, Trophy, Info, Users, Wallet, Coins, HandCoins, CalendarClock, Loader2, CheckCircle2, Eye, Radio } from "lucide-react";
 import { RecordPaymentModal, type RecordPaymentTarget } from "@/components/equb/record-payment-modal";
 import { PaymentDetailModal, type PaymentRef } from "@/components/payments/payment-detail-modal";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, getInitials, type DataTableColumn } from "@/components/ui/data-table";
 import { StatCard } from "@/components/dashboard/shared";
@@ -18,18 +18,19 @@ import { StatusBadge } from "@/components/equb/status-badge";
 import { WinnersTable } from "@/components/equb/winners-tab";
 import { SplitCard, FeeLinesTable } from "@/components/equb/admin-fees-tab";
 import { RoundAttachments } from "@/components/equb/round-attachments";
-import { SpinWheel, type WheelEntry } from "@/components/equb/spin-wheel";
+import { WinnerList, exclusionReason, toWinnerRows } from "@/components/equb/draw-parts";
 import { useLiveUpdates, eventRoundId } from "@/lib/realtime";
-import { useEqub, useRound, useDrawPreview, useExecuteDraw, useRoundWinners, useRoundAdminFees, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
+import { useEqub, useRound, useDrawPreview, useRoundWinners, useRoundAdminFees, usePendingPayments, useConfirmPayment } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatDateTime, getErrorMessage, humanizeDates } from "@/lib/utils";
-import type { ExcludedMember, Round, RoundMemberPayment, RoundWinner } from "@/types/ekub";
+import type { ExcludedMember, RoundMemberPayment } from "@/types/ekub";
 
 const isPaid = (p: RoundMemberPayment) => p.status?.toLowerCase() === "paid" || !!p.paidAt;
 
 function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string }) {
   const t = useTranslations("rounds");
+  const router = useRouter();
   const tc = useTranslations("common");
   const tf = useTranslations("adminFees");
   const tp = useTranslations("recordPayment");
@@ -38,38 +39,21 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const canExecute = has(EKUB_PERMS.DRAW_EXECUTE);
 
   const { data: equb } = useEqub(equbId);
-  const { data: round, isLoading, isError, isFetching } = useRound(roundId);
+  const { data: round, isLoading, isError } = useRound(roundId);
   const drawn = !!round && (round.status === "drawn" || round.status === "completed" || round.winners.length > 0);
   const { data: preview, isLoading: previewLoading } = useDrawPreview(roundId, !!round && !drawn);
   const { data: winners, isLoading: winnersLoading } = useRoundWinners(roundId, round?.roundNumber, drawn);
-  const execute = useExecuteDraw();
   const { data: fees } = useRoundAdminFees(roundId);
 
-  const [confirming, setConfirming] = useState(false);
-  // After a draw this modal stays open to announce who won.
-  const [showResult, setShowResult] = useState(false);
-  // The lottery wheel: spins while the draw runs, then lands on the backend's winners.
-  const [wheel, setWheel] = useState<WheelState | null>(null);
-  // Slices are the members in the draw, frozen when it starts (the preview empties once drawn).
-  const wheelEntries = (): WheelEntry[] => {
-    const names = new Map((round?.memberPayments ?? []).map((p) => [p.memberId, p.name]));
-    const pool = preview?.eligible.length ? preview.eligible : (round?.memberPayments ?? []).map((p, i) => ({ memberId: p.memberId, name: p.name, position: i + 1 }));
-    return pool.map((m) => {
-      const label = m.name || names.get(m.memberId) || "—";
-      return { id: m.memberId, label, short: m.position ? `#${m.position}` : label.slice(0, 3) };
-    });
-  };
-  const landOn = (ws: RoundWinner[]) => setWheel((w) => (w && !w.winners ? withWinners(w, ws) : w));
   // Live draw: the backend announces draw.started / completed / failed.
   const [liveDraw, setLiveDraw] = useState<"idle" | "running" | "done" | "failed">("idle");
   const [liveReason, setLiveReason] = useState("");
   useLiveUpdates(equbId, (e) => {
     const rid = eventRoundId(e);
     if (rid && rid !== roundId) return;
-    if (e.type === "equb.draw.started") { setLiveDraw("running"); setLiveReason(""); setWheel((w) => w ?? { entries: wheelEntries(), winners: null }); }
-    // Winners arrive with the round refetch the live layer triggers; the effect below lands the wheel.
-    else if (e.type === "equb.draw.completed") { setLiveDraw("done"); setConfirming(false); }
-    else if (e.type === "equb.draw.failed") { setLiveDraw("failed"); setWheel(null); setLiveReason(String(e.data.reason ?? e.data.message ?? "")); setConfirming(false); toast({ title: t("drawFailed"), description: String(e.data.reason ?? e.data.message ?? ""), variant: "destructive" }); }
+    if (e.type === "equb.draw.started") { setLiveDraw("running"); setLiveReason(""); }
+    else if (e.type === "equb.draw.completed") setLiveDraw("done");
+    else if (e.type === "equb.draw.failed") { setLiveDraw("failed"); setLiveReason(String(e.data.reason ?? e.data.message ?? "")); toast({ title: t("drawFailed"), description: String(e.data.reason ?? e.data.message ?? ""), variant: "destructive" }); }
   });
   const [paying, setPaying] = useState<RecordPaymentTarget | null>(null);
   // Recorded but not yet confirmed (e.g. paid from the mobile app); round detail calls these "pending" like unpaid ones.
@@ -121,10 +105,7 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
   const withName = <M extends { memberId: string; name: string; phone: string }>(m: M): M => ({ ...m, name: m.name || byMember.get(m.memberId)?.name || "—", phone: m.phone || byMember.get(m.memberId)?.phone || "" });
   const eligible = (preview?.eligible ?? []).map(withName);
   const excluded: ExcludedMember[] = (preview?.excluded ?? []).map(withName);
-  // The winners endpoint carries membership numbers and live status; round detail is the fallback.
-  const winnerRows: WinnerRow[] = winners?.length
-    ? winners.map((w) => ({ key: w.id, position: w.position, name: w.name, sub: w.membershipNumber || w.phone, payout: w.payoutAmount, status: w.status }))
-    : round.winners.map((w) => ({ key: `${w.memberId}-${w.position}`, position: w.position, name: w.name, sub: w.phone, payout: w.payoutAmount, status: w.status }));
+  const winnerRows = toWinnerRows(winners, round);
   const eligibleCount = preview?.eligibleCount ?? 0;
   const excludedCount = preview?.excludedCount ?? round.excludedCount;
 
@@ -140,21 +121,6 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
     { id: "catchUp", header: t("catchUp"), mobile: "detail", align: "center", cell: (r) => (r.isCatchUp ? <Badge className="bg-info/15 text-info">{t("catchUp")}</Badge> : <span className="text-muted-foreground">—</span>) },
     { id: "status", header: tc("status"), mobile: "badge", cell: (r) => (awaiting(r) ? <Badge className="bg-info/15 text-info">{tp("awaitingConfirmation")}</Badge> : <StatusBadge status={isPaid(r) ? "paid" : r.status || "unpaid"} kind="payment" />) },
   ];
-
-  // A draw run elsewhere (live event): its winners come in with the round refetch.
-  const shownWheel = wheel && !wheel.winners && liveDraw === "done" && round.winners.length ? withWinners(wheel, round.winners) : wheel;
-
-  const runDraw = () => {
-    setWheel({ entries: wheelEntries(), winners: null });
-    execute.mutate(
-      { roundId, equbId },
-      {
-        // No toast here: the wheel reveals the winners.
-        onSuccess: (r: Round) => { setConfirming(false); landOn(r.winners); },
-        onError: (e) => { setWheel(null); toast({ title: "Error", description: getErrorMessage(e, "Request failed"), variant: "destructive" }); },
-      }
-    );
-  };
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -236,12 +202,15 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck size={18} className="text-primary" /> {t("draw")}</CardTitle>
-            {drawn && <Badge className="bg-success/15 text-success">{t("drawDone")}</Badge>}
+            {drawn ? <Badge className="bg-success/15 text-success">{t("drawDone")}</Badge> : (
+              <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/equbs/${equbId}/rounds/${roundId}/draw`)}>{t("openDraw")}</Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {drawn ? (
               <>
                 <WinnerList title={`${t("winners")} · ${winnerRows.length}`} rows={winnerRows} loading={winnersLoading && !winnerRows.length} empty={t("noWinnersYet")} />
+                <Button variant="outline" className="w-full" onClick={() => router.push(`/dashboard/equbs/${equbId}/rounds/${roundId}/draw`)}><Trophy size={16} className="mr-2" /> {t("viewDraw")}</Button>
                 <div className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-sm text-success">
                   <ShieldCheck size={16} className="mt-0.5 shrink-0" />
                   <span>{t("immutable")}</span>
@@ -276,13 +245,13 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
                   <MemberChips title={`${t("excluded")} · ${excluded.length}`} items={excluded.map((m) => ({ id: m.memberId, label: m.name, tone: "bg-muted text-muted-foreground", hint: exclusionReason(m, t) }))} />
                 )}
 
-                {canExecute ? (
-                  <Button className="w-full" size="lg" disabled={!canDraw || execute.isPending} onClick={() => setConfirming(true)}>
-                    {execute.isPending ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Play size={18} className="mr-2" />} {execute.isPending ? t("running") : t("runDraw")}
-                  </Button>
-                ) : (
-                  <p className="rounded-xl bg-muted/40 p-3 text-center text-sm text-muted-foreground">{tc("noDataHint")}</p>
+                {liveDraw === "running" && (
+                  <div className="flex items-center gap-2 rounded-xl border border-info/30 bg-info/10 p-3 text-sm text-info">
+                    <Radio size={16} className="shrink-0 animate-pulse" /> {t("drawInProgress")}
+                  </div>
                 )}
+                {/* The draw itself (wheel, member lists, confirmation) runs on its own page: ~200 members don't fit a modal. */}
+                <Button className="w-full" size="lg" variant={canExecute && canDraw ? "primary" : "outline"} onClick={() => router.push(`/dashboard/equbs/${equbId}/rounds/${roundId}/draw`)}><Play size={18} className="mr-2" /> {liveDraw === "running" ? t("watchDraw") : canExecute && canDraw ? t("runDraw") : t("openDraw")}</Button>
               </>
             )}
           </CardContent>
@@ -329,139 +298,8 @@ function RoundDetailInner({ equbId, roundId }: { equbId: string; roundId: string
       <RecordPaymentModal target={paying} onClose={() => setPaying(null)} />
       <PaymentDetailModal payment={viewing} onClose={() => setViewing(null)} />
 
-      {/* Confirm draw */}
-      <Modal open={confirming || showResult || !!wheel || liveDraw === "running"} onOpenChange={(o) => { if (o || wheel || execute.isPending || liveDraw === "running") return; setConfirming(false); setShowResult(false); }} title={`${t("runDraw")} · ${t("roundNo", { n: round.roundNumber })}`} className="max-w-3xl">
-        {shownWheel ? (
-          <div className="space-y-3 py-2">
-            <p className="text-center text-sm text-muted-foreground">{shownWheel.winners ? t("wheelLanding", { count: shownWheel.winners.length }) : t("runningHint", { count: shownWheel.entries.length, winners: preview?.winnersPerRound ?? equb?.effectiveTerms?.winnersPerRound ?? "" })}</p>
-            <SpinWheel entries={shownWheel.entries} winners={shownWheel.winners} revealedLabel={t("winners")} onDone={() => { setWheel(null); setShowResult(true); }} />
-            {shownWheel.winners && (
-              <div className="flex justify-center">
-                <Button variant="ghost" size="sm" onClick={() => { setWheel(null); setShowResult(true); }}>{t("skipAnimation")}</Button>
-              </div>
-            )}
-          </div>
-        ) : execute.isPending || liveDraw === "running" ? (
-          <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <Loader2 size={40} className="animate-spin text-primary" />
-            <p className="font-medium text-foreground">{t("running")}</p>
-            <p className="text-sm text-muted-foreground">{t("runningHint", { count: eligible.length, winners: preview?.winnersPerRound ?? equb?.effectiveTerms?.winnersPerRound ?? "" })}</p>
-          </div>
-        ) : showResult ? (
-          <div className="space-y-4">
-            <div className="flex flex-col items-center gap-2 py-2 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/20 text-secondary-foreground"><Trophy size={28} /></span>
-              <p className="text-lg font-semibold text-foreground">{t("drawDone")}</p>
-              <p className="text-sm text-muted-foreground">{t("drawResultHint", { n: round.roundNumber })}</p>
-            </div>
-            <WinnerList title={`${t("winners")} · ${winnerRows.length}`} rows={winnerRows} loading={!winnerRows.length && (winnersLoading || isFetching)} empty={t("noWinnersYet")} />
-            <div className="flex justify-end">
-              <Button onClick={() => setShowResult(false)}>{tc("close")}</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-foreground">{t("confirmDraw", { n: round.roundNumber })}</p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <EligibilityList
-                title={t("drawEligibleList")}
-                count={eligible.length}
-                tone="success"
-                icon={<CheckCircle2 size={14} />}
-                items={eligible.map((m) => ({ id: m.memberId, name: m.name, meta: m.position ? `#${m.position}` : m.phone }))}
-                empty={t("noneEligible")}
-              />
-              <EligibilityList
-                title={t("drawExcludedList")}
-                count={excluded.length}
-                tone="muted"
-                icon={<XCircle size={14} />}
-                items={excluded.map((m) => ({ id: m.memberId, name: m.name, meta: exclusionReason(m, t) || t("unpaidContribution") }))}
-                empty={t("noneExcluded")}
-              />
-            </div>
-            {!canDraw && <p className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">{t("cannotDraw")}{blockReason ? ` — ${blockReason}` : ""}</p>}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirming(false)}>{tc("cancel")}</Button>
-              <Button disabled={!canDraw || execute.isPending} onClick={runDraw}>
-                <Play size={14} className="mr-1" /> {t("runDraw")}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
-}
-
-type WheelState = { entries: WheelEntry[]; winners: string[] | null };
-/** Winners in turn order; one missing from the frozen pool still gets a slice to land on. */
-function withWinners(w: WheelState, ws: RoundWinner[]): WheelState {
-  const sorted = [...ws].sort((a, b) => a.position - b.position);
-  const extra = sorted.filter((x) => !w.entries.some((e) => e.id === x.memberId)).map((x) => ({ id: x.memberId, label: x.name, short: x.name.slice(0, 3) }));
-  return { entries: [...w.entries, ...extra], winners: sorted.map((x) => x.memberId) };
-}
-
-interface WinnerRow { key: string; position: number; name: string; sub: string; payout: number; status: string }
-
-function WinnerList({ title, rows, loading, empty }: { title: string; rows: WinnerRow[]; loading: boolean; empty: string }) {
-  return (
-    <div className="rounded-xl border border-secondary/40 bg-secondary/5">
-      <p className="flex items-center gap-1.5 border-b border-secondary/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-secondary-foreground">
-        <Trophy size={14} /> {title}
-      </p>
-      {loading ? (
-        <div className="space-y-2 p-3"><Skeleton className="h-10 rounded-lg" /><Skeleton className="h-10 rounded-lg" /></div>
-      ) : rows.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-muted-foreground">{empty}</p>
-      ) : (
-        <ul className="max-h-72 divide-y divide-border/60 overflow-y-auto">
-          {[...rows].sort((a, b) => a.position - b.position).map((w) => (
-            <li key={w.key} className="flex items-center gap-3 px-3 py-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-sm font-bold text-secondary-foreground">{w.position}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{w.name}</p>
-                {w.sub && <p className="truncate text-xs text-muted-foreground">{w.sub}</p>}
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(w.payout)}</span>
-                <StatusBadge status={w.status} kind="winner" />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function EligibilityList({ title, count, tone, icon, items, empty }: { title: string; count: number; tone: "success" | "muted"; icon: React.ReactNode; items: { id: string; name: string; meta?: string }[]; empty: string }) {
-  return (
-    <div className="rounded-xl border border-border">
-      <p className={`flex items-center gap-1.5 border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide ${tone === "success" ? "text-success" : "text-muted-foreground"}`}>
-        {icon} {title} <span className="ml-auto rounded-full bg-muted px-2 py-px text-[11px] text-foreground">{count}</span>
-      </p>
-      <ul className="max-h-64 divide-y divide-border/60 overflow-y-auto">
-        {items.length === 0 && <li className="px-3 py-3 text-sm text-muted-foreground">{empty}</li>}
-        {items.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-            <span className="truncate text-foreground">{m.name}</span>
-            {m.meta && <span className="shrink-0 text-xs text-muted-foreground">{m.meta}</span>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function exclusionReason(m: ExcludedMember, t: ReturnType<typeof useTranslations<"rounds">>): string {
-  const parts: string[] = [];
-  if (!m.contributionPaid) parts.push(t("unpaidContribution"));
-  if (m.previouslyWon) parts.push(t("previouslyWon"));
-  if (m.isBanned) parts.push(t("banned"));
-  if (m.hasUnpaidCatchUp) parts.push(t("unpaidCatchUp"));
-  if (m.reason) parts.push(m.reason);
-  return parts.join(" · ");
 }
 
 function MemberChips({ title, items }: { title: string; items: { id: string; label: string; tone: string; hint?: string }[] }) {

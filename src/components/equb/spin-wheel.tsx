@@ -29,11 +29,29 @@ const easeOut = (x: number) => 1 - Math.pow(1 - x, 4);
 
 /**
  * Lottery wheel for the round draw. It is presentation only: the backend's
- * RNG picks the winners. While `winners` is null the wheel spins freely (the
- * draw request is in flight); once the result arrives it slows down and stops
- * on each winner in turn, then calls `onDone`.
+ * RNG picks the winners. While `winners` is null and `spinning` is on the
+ * wheel spins freely (the draw request is in flight); once the result arrives
+ * it slows down and stops on each winner in turn, then calls `onDone`.
+ * With `spinning` off and no winners it just sits still (before the draw).
+ * `highlighted` marks winners already known, e.g. a round drawn earlier.
  */
-export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries: WheelEntry[]; winners: string[] | null; onDone: () => void; revealedLabel: string }) {
+export function SpinWheel({
+  entries,
+  winners,
+  onDone,
+  revealedLabel,
+  spinning = true,
+  highlighted,
+  className,
+}: {
+  entries: WheelEntry[];
+  winners: string[] | null;
+  onDone?: () => void;
+  revealedLabel: string;
+  spinning?: boolean;
+  highlighted?: string[];
+  className?: string;
+}) {
   const n = Math.max(entries.length, 1);
   const seg = 360 / n;
   const wheelRef = useRef<SVGGElement>(null);
@@ -41,7 +59,7 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
   const rot = useRef(0);
   const doneRef = useRef(onDone);
   useEffect(() => { doneRef.current = onDone; }, [onDone]);
-  const [revealed, setRevealed] = useState<string[]>([]);
+  const [revealed, setRevealed] = useState<string[]>(highlighted ?? []);
   const [landing, setLanding] = useState<string | null>(null);
 
   const apply = () => {
@@ -52,7 +70,7 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
 
   // Free spin while waiting for the backend.
   useEffect(() => {
-    if (winners) return;
+    if (winners || !spinning) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     let last = performance.now();
@@ -65,7 +83,7 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [winners, n]);
+  }, [winners, spinning, n]);
 
   // Land on each winner in turn. Keyed by ids so a re-created array doesn't restart it.
   const winnersKey = winners?.join(",") ?? null;
@@ -105,7 +123,7 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
         await wait(reduce ? 400 : 1600);
         if (cancelled) return;
       }
-      doneRef.current();
+      doneRef.current?.();
     })();
     return () => {
       cancelled = true;
@@ -114,14 +132,15 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [winnersKey]);
 
-  const text = n <= 16 ? "label" : n <= 90 ? "short" : null;
-  const fontSize = n <= 8 ? 9 : n <= 16 ? 7 : n <= 40 ? 6 : 4.5;
+  // Few slices: names across the slice. Many (up to ~250): turn numbers along the rim, sized to the slice.
+  const text = n <= 16 ? "label" : n <= 260 ? "short" : null;
+  const fontSize = n <= 8 ? 9 : n <= 16 ? 7 : Math.max(2.4, Math.min(6, ((2 * Math.PI * R * 0.9) / n) * 0.8));
   const maxChars = n <= 8 ? 16 : 12;
   const byId = new Map(entries.map((e) => [e.id, e]));
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative w-full max-w-[340px]">
+      <div className={cn("relative w-full", className ?? "max-w-[340px]")}>
         <svg viewBox="-112 -118 224 230" className="h-auto w-full drop-shadow-xl" role="img" aria-label="Draw wheel">
           <circle r={R + 8} fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth={2} />
           <g ref={wheelRef}>
@@ -140,7 +159,7 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
                     fill={won ? "hsl(var(--secondary))" : c.fill}
                     fillOpacity={revealed.length && !won ? 0.55 : 1}
                     stroke="hsl(var(--card))"
-                    strokeWidth={n > 60 ? 0.3 : 0.8}
+                    strokeWidth={n > 120 ? 0.15 : n > 60 ? 0.3 : 0.8}
                   />
                 );
               })
@@ -150,12 +169,12 @@ export function SpinWheel({ entries, winners, onDone, revealedLabel }: { entries
                 const mid = i * seg + seg / 2;
                 const c = FILLS[(n % 3 === 1 && i === n - 1 ? 1 : i) % 3];
                 const raw = text === "label" ? e.label : e.short;
-                const label = raw.length > maxChars ? `${raw.slice(0, maxChars - 1)}…` : raw;
+                const label = text === "label" && raw.length > maxChars ? `${raw.slice(0, maxChars - 1)}…` : raw;
                 return (
                   <text
                     key={`t-${e.id}`}
-                    transform={`rotate(${mid - 90}) translate(${R * 0.6} 0)`}
-                    textAnchor="middle"
+                    transform={`rotate(${mid - 90}) translate(${text === "label" ? R * 0.6 : R * 0.95} 0)`}
+                    textAnchor={text === "label" ? "middle" : "end"}
                     dominantBaseline="middle"
                     fontSize={fontSize}
                     fontWeight={600}
