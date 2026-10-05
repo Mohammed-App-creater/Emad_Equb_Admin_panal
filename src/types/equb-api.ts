@@ -602,6 +602,9 @@ export interface EqubFeeLine {
   paid_at: string;
   payment_id: string;
   created_at: string;
+  /** Not in swagger for this endpoint yet; contributions carry them when paid by bank transfer. */
+  bank_id?: string;
+  bank_name?: string;
 }
 export interface EqubFeesTotals {
   contributions: number;
@@ -750,6 +753,42 @@ export interface EqubPayRoundsRequest {
   method?: PaymentMethod;
   reference?: string;
   description?: string;
+  /** Bank the member transferred from; required when method is bank_transfer, ignored otherwise. */
+  bank_id?: string;
+}
+
+/** GET /banks/active, /banks */
+export interface BankResponse {
+  id: string;
+  name: string;
+  code: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone_number?: string;
+  status: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+/** POST /banks (code + name required); PUT /banks/{id} takes the same fields, all optional. */
+export interface BankCreateRequest {
+  name: string;
+  code: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone_number?: string;
+  status?: boolean;
+}
+export type BankUpdateRequest = Partial<BankCreateRequest>;
+/** GET /portal/payment-methods/providers */
+export interface MobileMoneyProviderResponse {
+  code: string;
+  name: string;
+}
+export interface PaymentProvidersResponse {
+  banks?: BankResponse[] | null;
+  mobile_money?: MobileMoneyProviderResponse[] | null;
 }
 export interface EqubPayInitiatedResponse {
   group_id: string;

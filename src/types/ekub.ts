@@ -415,6 +415,9 @@ export interface FeeLedgerLine {
   paidAt: string;
   /** Set once a collection was recorded; empty while nothing was collected. */
   paymentId: string;
+  /** Bank the money came from; only for bank transfers, and only when the backend sends it. */
+  bankId: string;
+  bankName: string;
 }
 export interface FeeLedgerTotals {
   contributions: number;
@@ -486,6 +489,8 @@ export interface RecordPaymentInput {
   isCatchUp?: boolean;
   /** Free-text note on the collection. */
   description?: string;
+  /** Bank the transfer came from; required for bank_transfer. */
+  bankId?: string;
   /** Optional slip / receipt, filed against every round in this payment. */
   proof?: { file: File; description?: string };
 }
@@ -736,6 +741,30 @@ export interface Branch {
   id: string;
   name: string;
   code: string;
+}
+export interface Bank {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+  city: string;
+  country: string;
+  phone: string;
+  /** False once deactivated: kept for history, no longer selectable for a payment. */
+  active: boolean;
+}
+export interface BankInput {
+  name: string;
+  code: string;
+  address: string;
+  city: string;
+  country: string;
+  phone: string;
+  active: boolean;
+}
+export interface MobileMoneyProvider {
+  code: string;
+  name: string;
 }
 export interface UserRole {
   id: string;

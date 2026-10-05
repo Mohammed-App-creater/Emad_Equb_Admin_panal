@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Wallet, AlertTriangle, CheckCircle2, Info, Loader2, Clock, Paperclip, ListChecks } from "lucide-react";
+import { Wallet, AlertTriangle, CheckCircle2, Info, Loader2, Clock, Paperclip, ListChecks, Landmark, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment, useIsEqubManager, useRoundDetails, usePendingPayments } from "@/hooks/ekub";
+import { useEqubs, useEqub, useEqubMembers, useRounds, useMemberStanding, useRecordPayment, useCatchUp, useConfirmPayment, useIsEqubManager, useRoundDetails, usePendingPayments, useActiveBanks, useMobileMoneyProviders } from "@/hooks/ekub";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import type { RecordedPayment, Round, RoundMemberPayment } from "@/types/ekub";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, formatDate, getErrorMessage } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/types/equb-api";
+import { BankFormModal } from "@/components/banks/bank-form-modal";
 
 export interface RecordPaymentTarget {
   /** Fixed Equb; omit to let the user pick one (Payments page). */
@@ -56,6 +57,9 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const [selected, setSelected] = useState<string[]>(target.roundIds ?? []);
   const [method, setMethod] = useState<string>("cash");
   const [reference, setReference] = useState("");
+  const [bankId, setBankId] = useState("");
+  const [providerCode, setProviderCode] = useState("");
+  const [addingBank, setAddingBank] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofNote, setProofNote] = useState("");
   const [result, setResult] = useState<RecordedPayment | null>(null);
@@ -72,6 +76,14 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const { data: standing, isLoading: standingLoading, error: standingError } = useMemberStanding(equbId, memberId || null, isManager === true);
   const { data: catchUp } = useCatchUp(equbId, memberId || null, isManager === true);
   const record = useRecordPayment();
+  const isBank = method === "bank_transfer";
+  const isMobile = method === "mobile_money";
+  const { data: banks, isLoading: banksLoading } = useActiveBanks(isBank);
+  const { data: providers, isLoading: providersLoading } = useMobileMoneyProviders(isMobile);
+  const bank = banks?.find((b) => b.id === bankId);
+  const provider = providers?.find((p) => p.code === providerCode);
+  // The collect endpoint has no provider field, so the provider rides on the collection's note.
+  const note = [isMobile && provider ? `${t("method_mobile_money")}: ${provider.name}` : "", proofNote.trim()].filter(Boolean).join(" · ");
 
   // The rounds list carries no per-member payment rows; round detail does.
   const sortedRounds = [...(rounds ?? [])].filter((r) => r.status !== "cancelled").sort((a, b) => a.roundNumber - b.roundNumber);
@@ -110,7 +122,11 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
   const catchUpIds = idsOf("catchUp");
   const toggleGroup = (ids: string[]) => setSelected((s) => (ids.every((id) => s.includes(id)) ? s.filter((id) => !ids.includes(id)) : Array.from(new Set([...s, ...ids]))));
   const needsReference = method !== "cash";
-  const valid = isManager === true && !!equbId && !!memberId && picked.length > 0 && (!needsReference || reference.trim().length > 0);
+  // A provider is only asked for when the backend lists some.
+  const needsProvider = isMobile && !!providers?.length;
+  const valid =
+    isManager === true && !!equbId && !!memberId && picked.length > 0 &&
+    (!needsReference || reference.trim().length > 0) && (!isBank || !!bankId) && (!needsProvider || !!providerCode);
 
   const isSettled = (s: string) => ["completed", "confirmed", "paid", "success"].includes((s || "").toLowerCase());
 
@@ -125,8 +141,9 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           reference,
           // Back-pay flag: set whenever a missed round is in the batch.
           isCatchUp: picked.some((id) => catchUpIds.includes(id)),
-          description: proofNote,
-          proof: proofFile ? { file: proofFile, description: proofNote } : undefined,
+          description: note,
+          bankId: isBank ? bankId : undefined,
+          proof: proofFile ? { file: proofFile, description: note } : undefined,
         },
       },
       {
@@ -158,7 +175,7 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           <p className={cn("flex items-center gap-2 font-medium", settled ? "text-success" : "text-info")}>
             {settled ? <CheckCircle2 size={18} /> : <Clock size={18} />} {settled ? t("recorded") : t("awaitingConfirmation")}
           </p>
-          <p className="mt-1 text-sm text-foreground">{member?.name ?? "…"} · <strong>{formatCurrency(result.totalAmount)}</strong> · {t(`method_${method}` as never)}{reference ? ` · ${reference}` : ""}</p>
+          <p className="mt-1 text-sm text-foreground">{member?.name ?? "…"} · <strong>{formatCurrency(result.totalAmount)}</strong> · {t(`method_${method}` as never)}{isBank && bank ? ` · ${bank.name}` : isMobile && provider ? ` · ${provider.name}` : ""}{reference ? ` · ${reference}` : ""}</p>
           <p className="mt-2 text-xs text-muted-foreground">{settled ? t("completedNote") : t("pendingConfirmNote")}</p>
         </div>
         <div className="flex justify-end gap-2">
@@ -304,7 +321,32 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
                 <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{t(`method_${m}` as never)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            {isBank && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="flex items-center gap-1.5"><Landmark size={14} className="text-primary" /> {t("bank")}</Label>
+                  <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setAddingBank(true)}>+ {t("addBank")}</button>
+                </div>
+                <Select value={bankId} onValueChange={setBankId}>
+                  <SelectTrigger><SelectValue placeholder={t("selectBank")} /></SelectTrigger>
+                  <SelectContent loading={banksLoading} empty={!banks?.length}>
+                    {(banks ?? []).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}{b.code && <span className="text-muted-foreground"> · {b.code}</span>}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isMobile && (providersLoading || !!providers?.length) && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><Smartphone size={14} className="text-primary" /> {t("mobileProvider")}</Label>
+                <Select value={providerCode} onValueChange={setProviderCode}>
+                  <SelectTrigger><SelectValue placeholder={t("selectMobileProvider")} /></SelectTrigger>
+                  <SelectContent loading={providersLoading} empty={!providers?.length}>
+                    {(providers ?? []).map((p) => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className={cn("space-y-1.5", (isBank || (isMobile && (providersLoading || !!providers?.length))) && "sm:col-span-2")}>
               <Label>{t("reference")} {!needsReference && <span className="font-normal text-muted-foreground">({tc("optional")})</span>}</Label>
               <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={needsReference ? t("referencePlaceholder") : ""} />
             </div>
@@ -323,6 +365,8 @@ function Body({ target, onClose }: { target: RecordPaymentTarget; onClose: () =>
           <p className="flex items-start gap-2 text-xs text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0 text-primary" /> {t("serverAmountNote")}</p>
         </>
       )}
+
+      <BankFormModal bank={addingBank ? "new" : null} onClose={() => setAddingBank(false)} onSaved={(b) => b.active && setBankId(b.id)} />
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>{tc("cancel")}</Button>
