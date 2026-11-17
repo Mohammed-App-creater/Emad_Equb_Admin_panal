@@ -24,6 +24,7 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  Plane,
 } from "lucide-react";
 import { Logo } from "../ui/logo";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
       { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard },
       { labelKey: "equbs", href: "/dashboard/equbs", icon: CircleDot },
       { labelKey: "categories", href: "/dashboard/categories", icon: Layers },
+      { labelKey: "pilgrimage", href: "/dashboard/pilgrimage", icon: Plane },
     ],
   },
   {

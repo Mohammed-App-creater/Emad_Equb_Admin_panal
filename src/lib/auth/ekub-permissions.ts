@@ -31,6 +31,12 @@ export const EKUB_PERMS = {
   STAFF_READ: "staff:read",
   STAFF_MANAGE: "staff:manage",
   ROLE_READ: "role:read",
+  // Hajj & Umrah Equb (backend pilgrimage:* slugs)
+  PILGRIMAGE_READ: "pilgrimage:read",
+  PILGRIMAGE_REGISTER: "pilgrimage:register",
+  PILGRIMAGE_MANAGE: "pilgrimage:manage",
+  PILGRIMAGE_DRAW: "pilgrimage:draw",
+  PILGRIMAGE_APPROVE: "pilgrimage:approve",
 } as const;
 
 export type EkubPerm = (typeof EKUB_PERMS)[keyof typeof EKUB_PERMS];

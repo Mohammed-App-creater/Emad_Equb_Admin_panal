@@ -69,7 +69,7 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { identifier: "admin@emadekub.com", password: "demo" },
+    defaultValues: { identifier: "sysadmin@emad.com", password: "Pa$$w0rd" },
   });
 
   const onSubmit = async (values: FormValues) => {
