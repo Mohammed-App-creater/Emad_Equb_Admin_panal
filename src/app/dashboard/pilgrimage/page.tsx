@@ -93,7 +93,9 @@ function GroupsTab({ productId, emptyLabel }: { productId?: string; emptyLabel: 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const { data, isLoading } = usePilgrimageGroups({ product_id: productId, page, limit: perPage });
-  const active = (g: PilgrimageGroup) => g.members.filter((m) => m.status === "active");
+  const active = (g: PilgrimageGroup) => (g.members ?? []).filter((m) => m.status === "active");
+  // Only open invitations; declined, left and removed members are history.
+  const invited = (g: PilgrimageGroup) => (g.members ?? []).filter((m) => m.status === "invited");
   const columns: DataTableColumn<PilgrimageGroup>[] = [
     { id: "name", header: tc("name"), mobile: "title", cell: (g) => (
       <div>
@@ -102,10 +104,10 @@ function GroupsTab({ productId, emptyLabel }: { productId?: string; emptyLabel: 
       </div>
     ) },
     { id: "members", header: t("members"), mobile: "detail", cell: (g) => (
-      <span className="text-sm">{t("membersLine", { active: active(g).length, max: g.max_members, invited: g.members.length - active(g).length })}</span>
+      <span className="text-sm">{t("membersLine", { active: active(g).length, max: g.max_members, invited: invited(g).length })}</span>
     ) },
     { id: "eligible", header: t("eligibleMembers"), mobile: "detail", cell: (g) => <span className="text-sm">{active(g).filter((m) => m.eligible).length}</span> },
-    { id: "admin", header: t("admin"), mobile: "detail", cell: (g) => <span className="text-sm">{g.members.find((m) => m.role === "admin")?.member_name ?? "—"}</span> },
+    { id: "admin", header: t("admin"), mobile: "detail", cell: (g) => <span className="text-sm">{(g.members ?? []).find((m) => m.role === "admin")?.member_name ?? "—"}</span> },
     { id: "status", header: tc("status"), mobile: "badge", cell: (g) => (
       <span className="text-xs">{g.status === "dissolved" ? t("dissolved") : g.locked ? t("locked") : t("open")}</span>
     ) },
