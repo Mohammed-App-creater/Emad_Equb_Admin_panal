@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pilgrimageApi } from "@/services/pilgrimage-api";
 import type {
   ContributeInput,
@@ -46,6 +46,9 @@ export const useUpdatePilgrimageProduct = () =>
 // ---- Cycles and draws ----
 export const usePilgrimageCycles = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.cycles(params), queryFn: () => pilgrimageApi.listCycles(params), placeholderData: keepPreviousData });
+/** Every cycle of every product; the Hajj/Umrah lists narrow it by product kind. */
+export const useAllPilgrimageCycles = () =>
+  useQuery({ queryKey: [...pk.cycles(), "all"], queryFn: () => pilgrimageApi.listAllCycles() });
 export const usePilgrimageCycle = (id: string) =>
   useQuery({ queryKey: pk.cycle(id), queryFn: () => pilgrimageApi.getCycle(id), enabled: !!id });
 export const useDrawResult = (id: string) =>
@@ -65,10 +68,21 @@ export const useCancelCycle = () => useModuleMutation((v: { id: string; reason: 
 // ---- Registrations ----
 export const useParticipations = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.participations(params), queryFn: () => pilgrimageApi.listParticipations(params), placeholderData: keepPreviousData });
+/** Every registration of one product (the backend cannot filter by cycle). */
+export const useProductParticipations = (productId: string | undefined) =>
+  useQuery({ queryKey: [...pk.participations({ product_id: productId }), "all"], queryFn: () => pilgrimageApi.listAllParticipations({ product_id: productId }), enabled: !!productId });
+/** The same for several products at once, keyed so they share the cache with the hook above. */
+export const useProductsParticipations = (productIds: string[]) =>
+  useQueries({
+    queries: productIds.map((id) => ({
+      queryKey: [...pk.participations({ product_id: id }), "all"],
+      queryFn: () => pilgrimageApi.listAllParticipations({ product_id: id }),
+    })),
+  });
 export const useParticipation = (id: string) =>
   useQuery({ queryKey: pk.participation(id), queryFn: () => pilgrimageApi.getParticipation(id), enabled: !!id });
-export const useContributions = (id: string, page = 1) =>
-  useQuery({ queryKey: pk.contributions(id, page), queryFn: () => pilgrimageApi.contributions(id, { page, limit: 10 }), enabled: !!id });
+export const useContributions = (id: string, page = 1, limit = 10) =>
+  useQuery({ queryKey: [...pk.contributions(id, page), limit], queryFn: () => pilgrimageApi.contributions(id, { page, limit }), enabled: !!id });
 export const useRegisterParticipant = () =>
   useModuleMutation((b: { product_id: string; member_id: string }) => pilgrimageApi.register(b));
 export const useContribute = () => useModuleMutation((v: { id: string; body: ContributeInput }) => pilgrimageApi.contribute(v.id, v.body));
@@ -77,6 +91,8 @@ export const useCancelParticipation = () => useModuleMutation((id: string) => pi
 // ---- Groups ----
 export const usePilgrimageGroups = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.groups(params), queryFn: () => pilgrimageApi.listGroups(params), placeholderData: keepPreviousData });
+export const useAllPilgrimageGroups = (productId: string | undefined) =>
+  useQuery({ queryKey: [...pk.groups({ product_id: productId }), "all"], queryFn: () => pilgrimageApi.listAllGroups({ product_id: productId }), enabled: !!productId });
 export const usePilgrimageGroup = (id: string | null) =>
   useQuery({ queryKey: pk.group(id ?? ""), queryFn: () => pilgrimageApi.getGroup(id!), enabled: !!id });
 

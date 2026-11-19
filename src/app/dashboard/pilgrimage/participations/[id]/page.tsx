@@ -3,21 +3,19 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Ban, Loader2, Plus, Target, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeft, Ban, Plus, Target, UsersRound, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { Detail, emptyPayment, Field, PaymentFields, paymentBody, PStatus, useErrorToast, type PaymentChoice } from "@/components/pilgrimage/shared";
+import { Detail, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { ContributeModal, ContributionHistory } from "@/components/pilgrimage/contributions";
 import { Progress } from "@/components/pilgrimage/participations-tab";
-import { useCancelParticipation, useContribute, useContributions, useParticipation, usePilgrimageGroup } from "@/hooks/pilgrimage";
+import { useCancelParticipation, useParticipation, usePilgrimageGroup } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { GroupMemberView, Participation } from "@/types/pilgrimage";
 
 function ParticipationInner({ id }: { id: string }) {
@@ -38,8 +36,8 @@ function ParticipationInner({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <Link href="/dashboard/pilgrimage?tab=registrations" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft size={14} /> {t("back")}
+      <Link href={p.current_cycle ? `/dashboard/pilgrimage/cycles/${p.current_cycle.id}?tab=members` : `/dashboard/pilgrimage?kind=${p.product?.kind ?? "hajj"}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft size={14} /> {p.current_cycle ? t("backToCycle", { name: p.current_cycle.name }) : t("back")}
       </Link>
       <PageHeader
         title={p.member_name || tc("unknownMember")}
@@ -87,8 +85,11 @@ function ParticipationInner({ id }: { id: string }) {
         <GroupCard participation={p} />
       </div>
 
-      <Contributions id={p.id} />
-      <ContributeModal participation={contributing ? p : null} onClose={() => setContributing(false)} />
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t("history")}</h3>
+        <ContributionHistory id={p.id} />
+      </section>
+      <ContributeModal target={contributing ? { id: p.id, memberName: p.member_name, remainingToEligibility: s.remaining_to_eligibility } : null} onClose={() => setContributing(false)} />
     </div>
   );
 }
@@ -131,80 +132,6 @@ function GroupMemberRow({ member: m, current }: { member: GroupMemberView; curre
       </span>
       <span className={m.eligible ? "text-xs text-success" : "text-xs text-muted-foreground"}>{m.eligible ? t("eligible") : t("notEligible")}</span>
     </li>
-  );
-}
-
-type ContributionRow = { id: string; amount: number; status: string; payment_type: string; payment_method: string; reference_number?: string; created_at: string };
-
-function Contributions({ id }: { id: string }) {
-  const t = useTranslations("pilgrimage.participation");
-  const tc = useTranslations("common");
-  const [page, setPage] = useState(1);
-  const { data, isLoading } = useContributions(id, page);
-  const columns: DataTableColumn<ContributionRow>[] = [
-    { id: "date", header: tc("date"), mobile: "title", cell: (r) => <span className="text-sm">{formatDateTime(r.created_at)}</span> },
-    { id: "type", header: t("type"), mobile: "detail", cell: (r) => <span className="text-sm">{t(`paymentType_${r.payment_type}` as never)}</span> },
-    { id: "method", header: t("method"), mobile: "detail", cell: (r) => <span className="text-sm">{r.payment_method?.replace(/_/g, " ")}</span> },
-    { id: "ref", header: t("reference"), mobile: "detail", cell: (r) => <span className="font-mono text-xs">{r.reference_number || "—"}</span> },
-    { id: "amount", header: tc("amount"), align: "right", mobile: "detail", cell: (r) => (
-      <span className={r.payment_type === "savings_deposit" ? "tabular-nums" : "tabular-nums text-destructive"}>
-        {r.payment_type === "savings_deposit" ? "" : "−"}{formatCurrency(r.amount)}
-      </span>
-    ) },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <span className="text-xs capitalize">{r.status}</span> },
-  ];
-  return (
-    <section className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">{t("history")}</h3>
-      <DataTable
-        columns={columns}
-        data={data?.items ?? []}
-        rowKey={(r) => r.id}
-        isLoading={isLoading}
-        emptyTitle={tc("noData")}
-        emptyMessage={t("noContributions")}
-        pagination={{ page, pageSize: 10, total: data?.meta.total ?? 0, onPageChange: setPage }}
-      />
-    </section>
-  );
-}
-
-/** Records a contribution: a deposit on the member's own saving contract, credited when accounting confirms it. */
-function ContributeModal({ participation: p, onClose }: { participation: Participation | null; onClose: () => void }) {
-  const t = useTranslations("pilgrimage.participation");
-  const tc = useTranslations("common");
-  const { toast } = useToast();
-  const onError = useErrorToast();
-  const contribute = useContribute();
-  const [amount, setAmount] = useState("");
-  const [payment, setPayment] = useState<PaymentChoice>(emptyPayment());
-  const close = () => { setAmount(""); setPayment(emptyPayment()); onClose(); };
-  const valid = Number(amount) > 0 && !!payment.method && !!payment.accountId;
-  return (
-    <Modal open={!!p} onOpenChange={(o) => !o && close()} title={t("contribute")} className="max-w-xl">
-      {p && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{t("contributeHint", { remaining: formatCurrency(p.standing.remaining_to_eligibility) })}</p>
-          <Field label={tc("amount")}>
-            <Input type="number" min={0} step="any" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
-          </Field>
-          <PaymentFields value={payment} onChange={setPayment} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
-            <Button disabled={!valid || contribute.isPending}
-              onClick={() => {
-                const pay = paymentBody(payment);
-                contribute.mutate(
-                  { id: p.id, body: { amount: Number(amount), payment_method: pay.payment_method!, payment_account_id: pay.payment_account_id, transaction_id: pay.transaction_id } },
-                  { onSuccess: () => { toast({ title: t("contributed"), description: t("awaitingConfirmation") }); close(); }, onError },
-                );
-              }}>
-              {contribute.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("contribute")}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Modal>
   );
 }
 

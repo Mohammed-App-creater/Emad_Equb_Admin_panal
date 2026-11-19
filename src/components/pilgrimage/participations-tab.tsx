@@ -101,7 +101,7 @@ export function Progress({ participation: p }: { participation: Participation })
  * backend records which). The backend validates SACCO membership and opens
  * the member's saving contract.
  */
-function RegisterModal({ open, defaultProductId, onClose, onRegistered }: {
+export function RegisterModal({ open, defaultProductId, onClose, onRegistered }: {
   open: boolean; defaultProductId?: string; onClose: () => void; onRegistered: (p: Participation) => void;
 }) {
   const t = useTranslations("pilgrimage.participation");

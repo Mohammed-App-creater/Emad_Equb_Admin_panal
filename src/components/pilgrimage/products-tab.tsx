@@ -2,16 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarPlus, Loader2, Pencil, Plus } from "lucide-react";
+import { CalendarPlus, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { DataTable, type DataTableAction, type DataTableColumn } from "@/components/ui/data-table";
-import { useToast } from "@/hooks/use-toast";
-import { useOpenCycle, usePilgrimageProducts } from "@/hooks/pilgrimage";
+import { usePilgrimageProducts } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
-import { Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { PStatus } from "@/components/pilgrimage/shared";
+import { OpenCycleModal } from "@/components/pilgrimage/open-cycle-modal";
 import { ProductFormModal } from "@/components/pilgrimage/product-form-modal";
 import type { PilgrimageProduct } from "@/types/pilgrimage";
 
@@ -69,7 +67,7 @@ export function ProductsTab() {
         actions={actions}
       />
       <ProductFormModal product={editing} onClose={() => setEditing(null)} />
-      <OpenCycleModal product={opening} onClose={() => setOpening(null)} />
+      <OpenCycleModal open={!!opening} product={opening} onClose={() => setOpening(null)} />
     </div>
   );
 }
@@ -84,51 +82,5 @@ function FeesSummary({ product: p }: { product: PilgrimageProduct }) {
       <p>{t("serviceShort")}: {fee(p.service_charge_value, p.service_charge_basis)}</p>
       <p>{t("takafulShort")}: {fee(p.takaful_value, p.takaful_basis)}</p>
     </div>
-  );
-}
-
-/** Opens a product's next cycle; dates default from the product when left empty. */
-function OpenCycleModal({ product, onClose }: { product: PilgrimageProduct | null; onClose: () => void }) {
-  const t = useTranslations("pilgrimage.cycle");
-  const tc = useTranslations("common");
-  const { toast } = useToast();
-  const onError = useErrorToast();
-  const open = useOpenCycle();
-  const [name, setName] = useState("");
-  const [opensAt, setOpensAt] = useState("");
-  const [drawAt, setDrawAt] = useState("");
-  const close = () => { setName(""); setOpensAt(""); setDrawAt(""); onClose(); };
-  const badDates = !!opensAt && !!drawAt && drawAt <= opensAt;
-
-  const submit = () =>
-    product &&
-    open.mutate(
-      { productId: product.id, name: name.trim() || undefined, opens_at: opensAt || undefined, draw_at: drawAt || undefined },
-      { onSuccess: (c) => { toast({ title: t("opened"), description: c.name }); close(); }, onError },
-    );
-
-  return (
-    <Modal open={!!product} onOpenChange={(o) => !o && close()} title={t("openTitle", { product: product?.name ?? "" })} className="max-w-lg">
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{t("openHint")}</p>
-        <Field label={`${tc("name")} (${tc("optional")})`}>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePlaceholder")} />
-        </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={`${t("opensAt")} (${tc("optional")})`}>
-            <Input type="date" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} />
-          </Field>
-          <Field label={`${t("drawAt")} (${tc("optional")})`} error={badDates ? t("drawAfterOpen") : undefined}>
-            <Input type="date" value={drawAt} onChange={(e) => setDrawAt(e.target.value)} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
-          <Button onClick={submit} disabled={open.isPending || badDates}>
-            {open.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("open")}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }

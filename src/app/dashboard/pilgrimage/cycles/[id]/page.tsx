@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { Suspense, use, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Ban, CheckCircle2, Dices, Lock, ShieldCheck, Target, Trophy, UsersRound } from "lucide-react";
+import { ArrowLeft, Ban, Dices, Hand, LayoutDashboard, Lock, ShieldCheck, Trophy, UserRoundCog, UsersRound, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,61 +14,125 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { Detail, Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { WinnersTab } from "@/components/pilgrimage/winners-tab";
 import { DecisionsTab } from "@/components/pilgrimage/decisions-tab";
-import { useApproveDraw, useCancelCycle, useDrawResult, useLockCycle, useRunDraw } from "@/hooks/pilgrimage";
+import { CycleGroupsTab } from "@/components/pilgrimage/groups-tab";
+import { CycleOverview } from "@/components/pilgrimage/cycle-overview";
+import { CycleMembersTab } from "@/components/pilgrimage/cycle-members-tab";
+import { CyclePaymentsTab } from "@/components/pilgrimage/cycle-payments-tab";
+import { cycleYear, isLive, useCycleMembers } from "@/components/pilgrimage/cycle-members";
+import { useApproveDraw, useCancelCycle, useDrawResult, useLockCycle, usePilgrimageProduct, useRunDraw } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type { DrawEntry, PilgrimageCycle } from "@/types/pilgrimage";
 
+const TABS = ["overview", "members", "payments", "draw", "groups", "winners", "decisions"] as const;
+type Tab = (typeof TABS)[number];
+const tabIcon: Record<Tab, typeof LayoutDashboard> = {
+  overview: LayoutDashboard,
+  members: UsersRound,
+  payments: Wallet,
+  draw: Dices,
+  groups: UserRoundCog,
+  winners: Trophy,
+  decisions: Hand,
+};
+
 /**
- * One cycle's draw: lock → draw → approve (by a second person), and the draw
- * record — every entry with its balance, eligibility, group and outcome, plus
- * the seed commitment anyone can verify once the seed is revealed.
+ * One Hajj/Umrah Equb (a product's cycle), laid out like an Equb's page:
+ * overview, members, their payments, the draw record with its lock -> draw ->
+ * approve (by a second person) steps, groups, winners and non-winners'
+ * decisions.
  */
 function CycleInner({ id }: { id: string }) {
   const t = useTranslations("pilgrimage.cycle");
-  const { data, isLoading } = useDrawResult(id);
+  const tl = useTranslations("pilgrimage.list");
+  const tt = useTranslations("pilgrimage.cycleTabs");
+  const tp = useTranslations("pilgrimage.product");
+  const router = useRouter();
+  const params = useSearchParams();
+  const { data, isLoading, isError } = useDrawResult(id);
+  const { data: fetchedProduct } = usePilgrimageProduct(data?.cycle.product_id ?? "");
+  const { members, isLoading: membersLoading } = useCycleMembers(data?.cycle, data?.entries);
+  const memberIds = useMemo(() => new Set(members.map((m) => m.participationId)), [members]);
 
-  if (isLoading || !data) {
-    return <div className="space-y-4 p-4 lg:p-6"><Skeleton className="h-10 w-64" /><Skeleton className="h-40 w-full" /></div>;
+  const requested = params.get("tab") as Tab | null;
+  const tab: Tab = requested && TABS.includes(requested) ? requested : "overview";
+  const setTab = (next: string) => router.replace(`/dashboard/pilgrimage/cycles/${id}?tab=${next}`, { scroll: false });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-4 lg:p-6">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-10 w-72" />
+        <Skeleton className="h-10 w-full max-w-2xl" />
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="space-y-4 p-4 lg:p-6">
+        <Link href="/dashboard/pilgrimage" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft size={16} /> {tl("backToList")}
+        </Link>
+        <p className="rounded-xl border border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground">{tl("notFound")}</p>
+      </div>
+    );
   }
   const { cycle, entries } = data;
-  const settled = cycle.status === "approved" || cycle.status === "closed";
+  const product = fetchedProduct ?? cycle.product ?? undefined;
+  const live = isLive(cycle, entries);
+  const kind = product?.kind ?? "hajj";
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <Link href="/dashboard/pilgrimage?tab=cycles" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft size={14} /> {t("back")}
+      <Link href={`/dashboard/pilgrimage?kind=${kind}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft size={16} /> {tl("backTo", { kind: tl(`kind_${kind}`) })}
       </Link>
-      <PageHeader
-        title={cycle.name}
-        subtitle={`${cycle.product?.name ?? ""} · #${cycle.number} · ${t("drawAt")} ${formatDate(cycle.draw_at)}`}
-        actions={<><PStatus status={cycle.status} /><CycleActions cycle={cycle} /></>}
-      />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t("required")} value={formatCurrency(cycle.required_contribution)} hint={t("ofPackage", { percent: cycle.eligibility_percent, amount: formatCurrency(cycle.package_cost) })} icon={Target} tone="info" />
-        <StatCard label={t("entries")} value={cycle.status === "open" ? "—" : entries.length} hint={cycle.status === "open" ? t("notLocked") : t("eligibleCount", { count: cycle.eligible_count })} icon={UsersRound} tone="primary" />
-        <StatCard label={t("winners")} value={cycle.drawn_at ? `${cycle.winner_count} / ${cycle.winners_per_cycle}` : `— / ${cycle.winners_per_cycle}`} hint={cycle.overflow > 0 ? t("overflowHint", { count: cycle.overflow }) : undefined} icon={Trophy} tone={cycle.overflow > 0 ? "warning" : "success"} />
-        <StatCard label={t("decisionDeadline")} value={cycle.decision_deadline ? formatDate(cycle.decision_deadline) : "—"} icon={CheckCircle2} tone="secondary" />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-bold text-foreground">{cycle.name}</h2>
+            <PStatus status={cycle.status} />
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {product && <><span className="font-mono">{product.code}</span> · {tp(`kind_${product.kind}` as never)} · </>}
+            #{cycle.number} · {cycleYear(cycle)}
+            {" · "}{t("drawAt")}: <span className="text-foreground">{formatDate(cycle.draw_at)}</span>
+            {" · "}{tl("membersCount", { count: members.length })}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2"><CycleActions cycle={cycle} /></div>
       </div>
 
-      <FairnessCard cycle={cycle} />
-
-      <Tabs defaultValue="entries">
-        <TabsList>
-          <TabsTrigger value="entries">{t("tabEntries")}</TabsTrigger>
-          {settled && <TabsTrigger value="winners">{t("tabWinners")}</TabsTrigger>}
-          {settled && <TabsTrigger value="decisions">{t("tabDecisions")}</TabsTrigger>}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1">
+          {TABS.map((k) => {
+            const Icon = tabIcon[k];
+            return (
+              <TabsTrigger key={k} value={k} className="gap-1.5 data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground!">
+                <Icon size={15} /> {tt(k)}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
-        <TabsContent value="entries"><EntriesTable entries={entries} /></TabsContent>
-        {settled && <TabsContent value="winners"><WinnersTab cycleId={cycle.id} /></TabsContent>}
-        {settled && <TabsContent value="decisions"><DecisionsTab cycleId={cycle.id} /></TabsContent>}
+        <TabsContent value="overview" className="mt-4">
+          <CycleOverview cycle={cycle} product={product} members={members} membersLoading={membersLoading} live={live} />
+        </TabsContent>
+        <TabsContent value="members" className="mt-4"><CycleMembersTab cycle={cycle} members={members} isLoading={membersLoading} live={live} /></TabsContent>
+        <TabsContent value="payments" className="mt-4"><CyclePaymentsTab cycle={cycle} members={members} isLoading={membersLoading} live={live} /></TabsContent>
+        <TabsContent value="draw" className="mt-4 space-y-4">
+          <FairnessCard cycle={cycle} />
+          <EntriesTable entries={entries} />
+        </TabsContent>
+        <TabsContent value="groups" className="mt-4"><CycleGroupsTab productId={cycle.product_id} participationIds={memberIds} /></TabsContent>
+        <TabsContent value="winners" className="mt-4"><WinnersTab cycleId={cycle.id} /></TabsContent>
+        <TabsContent value="decisions" className="mt-4"><DecisionsTab cycleId={cycle.id} /></TabsContent>
       </Tabs>
     </div>
   );
@@ -257,7 +322,9 @@ export default function PilgrimageCyclePage({ params }: { params: Promise<{ id: 
   const { id } = use(params);
   return (
     <RequirePermission anyOf={[EKUB_PERMS.PILGRIMAGE_READ]}>
-      <CycleInner id={id} />
+      <Suspense fallback={<div className="p-6"><Skeleton className="h-72 rounded-xl" /></div>}>
+        <CycleInner id={id} />
+      </Suspense>
     </RequirePermission>
   );
 }

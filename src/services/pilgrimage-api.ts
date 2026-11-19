@@ -59,6 +59,21 @@ const page = async <T>(p: Promise<{ data: ApiEnvelope<T[] | null> }>, params?: P
   return { items, meta: env.meta ?? { page: params?.page ?? 1, per_page: params?.limit ?? items.length, total: items.length, total_pages: 1 } };
 };
 
+/**
+ * Every row of a paged list. The backend filters cycles by product only and
+ * registrations not by cycle at all, so the Hajj/Umrah views fetch a
+ * product's whole list and narrow it here. Capped so a runaway total cannot
+ * fire unbounded requests.
+ */
+const MAX_PAGES = 50;
+const all = async <T>(fetchPage: (p: PilgrimageListParams) => Promise<Page<T>>, params?: PilgrimageListParams): Promise<T[]> => {
+  const limit = 100;
+  const first = await fetchPage({ ...params, page: 1, limit });
+  const pages = Math.min(first.meta.total_pages || 1, MAX_PAGES);
+  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => fetchPage({ ...params, page: i + 2, limit })));
+  return [first, ...rest].flatMap((p) => p.items);
+};
+
 export const pilgrimageApi = {
   // Products
   listProducts: (activeOnly = false) =>
@@ -71,6 +86,7 @@ export const pilgrimageApi = {
   openCycle: (productId: string, body: { name?: string; opens_at?: string; draw_at?: string }) =>
     unwrap<PilgrimageCycle>(api.post(E.OPEN_CYCLE(productId), body)),
   listCycles: (params?: PilgrimageListParams) => page<PilgrimageCycle>(api.get(E.CYCLES, { params }), params),
+  listAllCycles: (params?: PilgrimageListParams) => all((p) => pilgrimageApi.listCycles(p), params),
   getCycle: (id: string) => unwrap<PilgrimageCycle>(api.get(E.CYCLE(id))),
   drawResult: (id: string) => unwrap<DrawResult>(api.get(E.CYCLE_RESULT(id))),
   lockCycle: (id: string) => unwrap<PilgrimageCycle>(api.post(E.CYCLE_ACTION(id, "lock"))),
@@ -81,6 +97,7 @@ export const pilgrimageApi = {
 
   // Registrations
   listParticipations: (params?: PilgrimageListParams) => page<Participation>(api.get(E.PARTICIPATIONS, { params }), params),
+  listAllParticipations: (params?: PilgrimageListParams) => all((p) => pilgrimageApi.listParticipations(p), params),
   getParticipation: (id: string) => unwrap<Participation>(api.get(E.PARTICIPATION(id))),
   register: (body: { product_id: string; member_id: string }) => unwrap<Participation>(api.post(E.PARTICIPATIONS, body)),
   contribute: (id: string, body: ContributeInput) => unwrap<{ id: string; amount: number; status: string }>(api.post(E.CONTRIBUTIONS(id), body)),
@@ -93,6 +110,7 @@ export const pilgrimageApi = {
 
   // Groups
   listGroups: (params?: PilgrimageListParams) => page<PilgrimageGroup>(api.get(E.GROUPS, { params }), params),
+  listAllGroups: (params?: PilgrimageListParams) => all((p) => pilgrimageApi.listGroups(p), params),
   getGroup: (id: string) => unwrap<PilgrimageGroup>(api.get(E.GROUP(id))),
 
   // Winners
