@@ -1730,6 +1730,36 @@
       "upload": "ስቀል",
       "uploaded": "ማስረጃ ቀርቧል",
       "full": "ይህ ክፍያ የሚፈቀደውን ከፍተኛ {max} ፋይሎች አሉት።"
+    },
+    "testTools": {
+      "title": "የሙከራ መሳሪያዎች — በምርት አገልጋይ ላይ አይገኙም",
+      "hint": "ይህን ዙር ሳይጠብቁ በቀነ ገደቦቹ ውስጥ ያሳልፉ። እያንዳንዱ እርምጃ ቀነ ገደቡን ወደ ኋላ ያንቀሳቅሳል፤ ከዚያም ሂደቱ በዚያ ቀን ሊያደርገው የሚገባውን (ማስታወሻዎች፣ ነባሪ ምርጫዎች፣ መዝጋት) ያደርጋል። በሙከራ መረጃ ላይ ብቻ ይጠቀሙ።",
+      "runSweep": "ሂደቱን አሁን አስኪድ",
+      "swept": "ሂደቱ ተካሂዷል",
+      "forward": "ወደፊት አሳልፍ",
+      "forwarded": "ወደፊት ተሳልፏል፦ {target}",
+      "winnersMoved": "{count} አሸናፊ(ዎች) ተንቀሳቅሰዋል።",
+      "decisionsMoved": "{count} ውሳኔ(ዎች) ተንቀሳቅሰዋል።",
+      "sweepError": "የሂደቱ አንድ እርምጃ አልተሳካም፦ {error}",
+      "notApproved": "ቀነ ገደቦች ወደፊት ሊሳለፉ የሚችሉት ዙሩ ከጸደቀ በኋላ ነው። ዛሬውኑ ለመድረስ፦ የመክፈቻ፣ የምዝገባ መዝጊያ እና የዕጣ ቀናትን ዛሬ አድርገው ዙሩን ይክፈቱ፣ ይቆልፉ፣ ዕጣውን ያውጡ፣ ሌላ ሠራተኛ ያጽድቀው።",
+      "target_week_reminder": "የውል ቀነ ገደብ በአንድ ሳምንት",
+      "targetHint_week_reminder": "ውላቸው ገና ያልተላከ አሸናፊዎች የሳምንት ማስታወሻ ይደርሳቸዋል።",
+      "target_day_reminder": "የውል ቀነ ገደብ ነገ",
+      "targetHint_day_reminder": "የመጨረሻው ማስታወሻ ይደርሳቸዋል።",
+      "target_contract_deadline": "የውል ቀነ ገደብ አልፏል",
+      "targetHint_contract_deadline": "የማሳሰቢያ መልእክት ይደርሳቸዋል፤ ጊዜው እንዳለፈ ይጠቆማሉ።",
+      "target_decision_deadline": "የውሳኔ ቀነ ገደብ አልፏል",
+      "targetHint_decision_deadline": "ያልመረጡ ያላሸነፉ አባላት የምርቱን ነባሪ ምርጫ ያገኛሉ።",
+      "target_close": "ዙሩን ዝጋ",
+      "targetHint_close": "ዙሩ ይዘጋል፤ ምርቱ ዙሮችን በራሱ የሚከፍት ከሆነ ቀጣዩ ይከፈታል።",
+      "odooTitle": "የሙከራ መሳሪያዎች፦ በOdoo ምትክ መልስ",
+      "odooHint": "ይህ ውል ወደ Odoo ተልኳል። ማረጋገጥ ውሉን ያነቃል፤ የአሸናፊውን ቁጠባ ማስተላለፍም ይጀምራል (ያን ክፍያ ከዚያ በኋላ ያረጋግጡ)። ውድቅ ማድረግ ይመልሰዋል።",
+      "odooConfirm": "Odoo አረጋግጧል",
+      "odooReject": "Odoo ውድቅ አድርጓል",
+      "rejectReason": "ምክንያት (አማራጭ)",
+      "cancel": "ተው",
+      "odooConfirmed": "ውሉ Odoo እንደሚያደርገው ተረጋግጧል",
+      "odooRejected": "ውሉ Odoo እንደሚያደርገው ውድቅ ተደርጓል"
     }
   }
 }

@@ -12,6 +12,7 @@ import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PaymentOutcomeButtons, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { WinnerTestTools } from "@/components/pilgrimage/test-tools";
 import { WINNER_STEPS, type PilgrimageWinner } from "@/types/pilgrimage";
 
 /**
@@ -52,7 +53,12 @@ export function WinnersTab({ cycleId }: { cycleId?: string }) {
     ) },
     { id: "deadline", header: t("contractDeadline"), mobile: "detail", cell: (w) => <DeadlineCell winner={w} /> },
     { id: "journey", header: t("journey"), mobile: "detail", cell: (w) => <Journey winner={w} /> },
-    { id: "next", header: t("next"), mobile: "badge", cell: (w) => <NextStep winner={w} canManage={canManage} /> },
+    { id: "next", header: t("next"), mobile: "badge", cell: (w) => (
+      <div className="space-y-2">
+        <NextStep winner={w} canManage={canManage} />
+        <WinnerTestTools winner={w} />
+      </div>
+    ) },
   ];
   const actions: DataTableAction<PilgrimageWinner>[] = canManage
     ? [

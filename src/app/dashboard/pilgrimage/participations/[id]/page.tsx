@@ -15,6 +15,7 @@ import { ContributeModal, ContributionHistory } from "@/components/pilgrimage/co
 import { Progress } from "@/components/pilgrimage/participations-tab";
 import { DeadlineCell, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
 import { CycleCalendar } from "@/components/pilgrimage/cycle-dates";
+import { WinnerTestTools } from "@/components/pilgrimage/test-tools";
 import {
   useCancelParticipation, useParticipation, usePilgrimageGroup, usePilgrimageWinners, useRetryWinner,
   useSetParticipationAgent,
@@ -197,6 +198,7 @@ function WinnerCard({ participation: p }: { participation: Participation }) {
           )}
         </div>
         <NextStep winner={w} canManage={canManage} />
+        <WinnerTestTools winner={w} />
         {canManage && w.status !== "completed" && (
           <Button size="sm" variant="outline" disabled={retry.isPending}
             onClick={() => retry.mutate(w.id, { onSuccess: (r) => toast({ title: r.failure_reason ? t("stillWaiting") : t("retried"), description: r.failure_reason }), onError })}>

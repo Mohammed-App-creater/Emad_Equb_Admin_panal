@@ -9,6 +9,7 @@ import type {
   PilgrimageProductInput,
   ReviewDecisionInput,
   CycleDatesInput,
+  FastForwardTarget,
 } from "@/types/pilgrimage";
 
 /** Query keys of the Hajj & Umrah module; every mutation invalidates the whole module prefix. */
@@ -96,6 +97,15 @@ export const useCancelParticipation = () => useModuleMutation((id: string) => pi
 export const useContributionLedger = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.ledger(params), queryFn: () => pilgrimageApi.contributionLedger(params), placeholderData: keepPreviousData });
 export const useContribute = () => useModuleMutation((v: { id: string; body: ContributeInput }) => pilgrimageApi.contribute(v.id, v.body));
+// ---- Test tools (development / staging only) ----
+/** Whether the backend serves the test tools to this user; false (never an error) elsewhere. */
+export const useTestToolsOn = () =>
+  useQuery({ queryKey: ["pilgrimage-test-tools"], queryFn: () => pilgrimageApi.testToolsOn(), staleTime: 5 * 60_000, retry: false });
+export const useTestSweep = () => useModuleMutation(() => pilgrimageApi.testSweep());
+export const useTestFastForward = () => useModuleMutation((v: { id: string; to: FastForwardTarget }) => pilgrimageApi.testFastForward(v.id, v.to));
+export const useTestOdooReply = () =>
+  useModuleMutation((v: { contractId: string; confirm: boolean; reason?: string }) => pilgrimageApi.testOdooReply(v.contractId, v.confirm, v.reason));
+
 export const useContributionProofs = (id: string, contributionId: string, enabled = true) =>
   useQuery({ queryKey: pk.proofs(contributionId), queryFn: () => pilgrimageApi.contributionProofs(id, contributionId), enabled: enabled && !!id && !!contributionId });
 export const useUploadContributionProof = () =>

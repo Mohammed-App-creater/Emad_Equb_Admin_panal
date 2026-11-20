@@ -23,6 +23,7 @@ import { CycleGroupsTab } from "@/components/pilgrimage/groups-tab";
 import { CycleOverview } from "@/components/pilgrimage/cycle-overview";
 import { CycleMembersTab } from "@/components/pilgrimage/cycle-members-tab";
 import { CyclePaymentsTab } from "@/components/pilgrimage/cycle-payments-tab";
+import { CycleTestTools } from "@/components/pilgrimage/test-tools";
 import { cycleYear, isLive, useCycleMembers } from "@/components/pilgrimage/cycle-members";
 import { useApproveDraw, useCancelCycle, useDrawResult, useLockCycle, usePilgrimageProduct, useRunDraw } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
@@ -123,6 +124,7 @@ function CycleInner({ id }: { id: string }) {
           })}
         </TabsList>
         <TabsContent value="overview" className="mt-4 space-y-4">
+          <CycleTestTools cycle={cycle} />
           <CalendarCard cycle={cycle} />
           <CycleOverview cycle={cycle} product={product} members={members} membersLoading={membersLoading} live={live} />
         </TabsContent>

@@ -37,6 +37,8 @@ export const EKUB_PERMS = {
   PILGRIMAGE_MANAGE: "pilgrimage:manage",
   PILGRIMAGE_DRAW: "pilgrimage:draw",
   PILGRIMAGE_APPROVE: "pilgrimage:approve",
+  // Test tools (served only on servers with PILGRIMAGE_TEST_TOOLS on, never production)
+  PILGRIMAGE_TEST: "pilgrimage:test",
 } as const;
 
 export type EkubPerm = (typeof EKUB_PERMS)[keyof typeof EKUB_PERMS];

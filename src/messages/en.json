@@ -1730,6 +1730,36 @@
       "upload": "Upload",
       "uploaded": "Proof filed",
       "full": "This payment already has {max} files, the most it can take."
+    },
+    "testTools": {
+      "title": "Test tools — not available in production",
+      "hint": "Walk this cycle through its deadlines without waiting. Each step moves the deadline into the past and runs the sweep, which then does what it would have done that day (reminders, defaults, closing). Use on test data only.",
+      "runSweep": "Run sweep now",
+      "swept": "Sweep ran",
+      "forward": "Fast-forward",
+      "forwarded": "Fast-forwarded: {target}",
+      "winnersMoved": "{count} winner(s) moved.",
+      "decisionsMoved": "{count} decision(s) moved.",
+      "sweepError": "A sweep step failed: {error}",
+      "notApproved": "Deadlines can be fast-forwarded once the cycle is approved. To get there today: open the cycle with its opening, registration-closing and draw dates all today, lock it, run the draw, and have a second staff user approve it.",
+      "target_week_reminder": "Contract deadline in a week",
+      "targetHint_week_reminder": "Winners whose contract is not sent yet get the week reminder.",
+      "target_day_reminder": "Contract deadline tomorrow",
+      "targetHint_day_reminder": "They get the last reminder.",
+      "target_contract_deadline": "Contract deadline passed",
+      "targetHint_contract_deadline": "They get the overdue notice and are flagged overdue.",
+      "target_decision_deadline": "Decision deadline passed",
+      "targetHint_decision_deadline": "Non-winners who did not choose get the product's default.",
+      "target_close": "Close the cycle",
+      "targetHint_close": "The cycle closes; the next one opens if the product opens cycles automatically.",
+      "odooTitle": "Test tools: answer for Odoo",
+      "odooHint": "This contract was sent to Odoo. Confirming activates it and raises the winner's savings transfer (confirm that payment afterwards); rejecting sends it back.",
+      "odooConfirm": "Odoo confirms",
+      "odooReject": "Odoo rejects",
+      "rejectReason": "Reason (optional)",
+      "cancel": "Cancel",
+      "odooConfirmed": "Contract confirmed as Odoo would",
+      "odooRejected": "Contract rejected as Odoo would"
     }
   }
 }

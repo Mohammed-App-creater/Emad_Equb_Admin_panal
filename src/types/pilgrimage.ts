@@ -435,3 +435,18 @@ export interface PilgrimageListParams {
   page?: number;
   limit?: number;
 }
+
+// ---- Test tools (development / staging only) ----
+
+/** The deadline a test fast-forward moves an approved cycle to, in the order a cycle reaches them. */
+export const FAST_FORWARD_TARGETS = ["week_reminder", "day_reminder", "contract_deadline", "decision_deadline", "close"] as const;
+export type FastForwardTarget = (typeof FAST_FORWARD_TARGETS)[number];
+
+export interface FastForwardResult {
+  target: FastForwardTarget;
+  cycle: PilgrimageCycle;
+  winners_moved: number;
+  decisions_moved: number;
+  /** A sweep step failed (the others ran). */
+  sweep_error?: string;
+}

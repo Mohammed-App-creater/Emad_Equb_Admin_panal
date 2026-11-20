@@ -19,6 +19,8 @@ import type {
   ReviewDecisionInput,
   SavingTypeOption,
   CycleDatesInput,
+  FastForwardResult,
+  FastForwardTarget,
 } from "@/types/pilgrimage";
 
 /**
@@ -48,6 +50,11 @@ export const PILGRIMAGE_ENDPOINTS = {
   DECISIONS: "/pilgrimage/decisions",
   CHOOSE: (id: string) => `/pilgrimage/decisions/${id}/choose`,
   REVIEW: (id: string) => `/pilgrimage/decisions/${id}/review`,
+  // Test tools: served only where the backend has them on (404 elsewhere).
+  TEST: "/pilgrimage/test",
+  TEST_SWEEP: "/pilgrimage/test/sweep",
+  TEST_FAST_FORWARD: (id: string) => `/pilgrimage/test/cycles/${id}/fast-forward`,
+  TEST_ODOO_REPLY: (contractId: string) => `/pilgrimage/test/contracts/${contractId}/odoo-reply`,
   // SACCO-wide endpoints the module uses.
   PAYMENT_STATUS: (id: string) => `/payments/${id}/status`,
   SAVING_TYPES: "/saving-types",
@@ -127,6 +134,15 @@ export const pilgrimageApi = {
 
   // Contributions (the Equb ledger)
   contribute: (id: string, body: ContributeInput) => unwrap<Contribution>(api.post(E.PARTICIPATION_CONTRIBUTIONS(id), body)),
+  // Test tools. testToolsOn is false wherever the backend does not serve them
+  // (404) or the user may not use them (403).
+  testToolsOn: () =>
+    api.get(E.TEST).then(() => true, () => false),
+  testSweep: () => unwrap<unknown>(api.post(E.TEST_SWEEP)),
+  testFastForward: (id: string, to: FastForwardTarget) => unwrap<FastForwardResult>(api.post(E.TEST_FAST_FORWARD(id), { to })),
+  testOdooReply: (contractId: string, confirm: boolean, reason?: string) =>
+    unwrap<unknown>(api.post(E.TEST_ODOO_REPLY(contractId), { confirm, reason })),
+
   // Proof of a payment (receipt or screenshot), filed while it waits to be confirmed.
   contributionProofs: (id: string, contributionId: string) =>
     unwrap<PaymentProof[] | null>(api.get(E.CONTRIBUTION_PROOFS(id, contributionId))).then((r) => r ?? []),
