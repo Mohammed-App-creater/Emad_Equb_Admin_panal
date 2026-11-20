@@ -90,7 +90,7 @@ export function MetricsBar() {
   const t = useTranslations("landing");
   const metrics = [
     { v: "0%", l: t("mInterest") },
-    { v: "7", l: t("mWinners") },
+    { v: "5", l: t("mWinners") },
     { v: "200", l: t("mGroup") },
     { v: "24h", l: t("mPayout") },
     { v: "99.5%", l: t("mUptime") },

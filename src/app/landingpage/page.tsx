@@ -468,7 +468,7 @@ export default function LandingPage() {
           >
             {[
               { n: 200, suffix: "", label: t("statMembers") },
-              { n: 7, suffix: "", label: t("statWinners") },
+              { n: 5, suffix: "", label: t("statWinners") },
               { n: 10, suffix: "M Br", label: t("statPayout") },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur">
