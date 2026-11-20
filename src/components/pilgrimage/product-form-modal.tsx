@@ -15,12 +15,10 @@ import { feeTotal, Field, useErrorToast } from "@/components/pilgrimage/shared";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { addDays, addMonths, addYears } from "date-fns";
 import {
-  CHARGE_BASES,
   FEE_PARTIES,
   FEE_SHARE_BASES,
   NON_WINNER_OPTIONS,
   type AdminFeeSplit,
-  type ChargeBasis,
   type FeeParty,
   type FeeShareBasis,
   type Frequency,
@@ -53,14 +51,6 @@ interface Form {
   decisionWindowDays: string;
   defaultDecision: NonWinnerOption;
   contractDays: string;
-  financeMonths: string;
-  repaymentInterval: string;
-  maxFinance: string;
-  serviceBasis: ChargeBasis | "";
-  serviceValue: string;
-  equbShare: string;
-  takafulBasis: ChargeBasis | "";
-  takafulValue: string;
   active: boolean;
 }
 
@@ -73,8 +63,7 @@ const blank = (kind: PilgrimageKind = "hajj"): Form => ({
   split: { agent: { basis: "percent", value: "0" }, broker: { basis: "percent", value: "0" }, sacco: { basis: "percent", value: "100" } },
   holdingBankId: "",
   decisionWindowDays: kind === "hajj" ? "14" : "7", defaultDecision: "carry_forward", contractDays: "30",
-  financeMonths: "12", repaymentInterval: "1", maxFinance: "",
-  serviceBasis: "percent_of_financed", serviceValue: "2", equbShare: "50", takafulBasis: "percent_of_installment", takafulValue: "1", active: true,
+  active: true,
 });
 
 const fromProduct = (p: PilgrimageProduct): Form => ({
@@ -90,9 +79,7 @@ const fromProduct = (p: PilgrimageProduct): Form => ({
   },
   holdingBankId: p.holding_bank_id ?? "",
   decisionWindowDays: String(p.decision_window_days), defaultDecision: p.default_decision, contractDays: String(p.winner_contract_days || 30),
-  financeMonths: String(p.finance_duration_months), repaymentInterval: String(p.repayment_interval_months), maxFinance: String(p.max_finance_amount || ""),
-  serviceBasis: p.service_charge_basis || "", serviceValue: String(p.service_charge_value), equbShare: String(p.equb_service_charge_share),
-  takafulBasis: p.takaful_basis || "", takafulValue: String(p.takaful_value), active: p.status === "active",
+  active: p.status === "active",
 });
 
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
@@ -127,10 +114,7 @@ const toInput = (f: Form): PilgrimageProductInput => ({
   },
   holding_bank_id: f.holdingBankId.trim(),
   decision_window_days: num(f.decisionWindowDays), default_decision: f.defaultDecision, winner_contract_days: num(f.contractDays),
-  finance_duration_months: num(f.financeMonths), repayment_interval_months: num(f.repaymentInterval),
-  max_finance_amount: num(f.maxFinance) > 0 ? num(f.maxFinance) : undefined,
-  service_charge_basis: f.serviceBasis || undefined, service_charge_value: num(f.serviceValue) || 0, equb_service_charge_share: num(f.equbShare),
-  takaful_basis: f.takafulBasis || undefined, takaful_value: num(f.takafulValue) || 0, status: f.active ? "active" : "inactive",
+  status: f.active ? "active" : "inactive",
 });
 
 /** Rules the backend enforces too (domain PilgrimageProduct.Validate); shown inline so a save rarely fails. */
@@ -139,18 +123,14 @@ type ProblemKey = keyof Form | `split.${FeeParty}` | "splitTotal";
 function problems(f: Form): Partial<Record<ProblemKey, string>> {
   const p: Partial<Record<ProblemKey, string>> = {};
   const positive = (k: keyof Form) => { if (!(num(f[k] as string) > 0)) p[k] = "positive"; };
-  const percent = (k: keyof Form) => { const v = num(f[k] as string); if (!(v >= 0 && v <= 100)) p[k] = "percent"; };
   if (f.code.trim().length < 2) p.code = "required";
   if (f.name.trim().length < 2) p.name = "required";
   if (!f.savingTypeId) p.savingTypeId = "required";
-  (["packageCost", "winnersPerCycle", "financeMonths", "repaymentInterval", "decisionWindowDays", "contractDays"] as const).forEach(positive);
+  (["packageCost", "winnersPerCycle", "decisionWindowDays", "contractDays"] as const).forEach(positive);
   const pct = num(f.eligibilityPercent);
   if (!(pct > 0 && pct <= 100)) p.eligibilityPercent = "percent";
   if (!(num(f.groupMin) >= 2)) p.groupMin = "groupMin";
   if (!(num(f.groupMax) >= num(f.groupMin))) p.groupMax = "groupMax";
-  if (num(f.repaymentInterval) > num(f.financeMonths)) p.repaymentInterval = "interval";
-  if (f.maxFinance.trim() !== "" && !(num(f.maxFinance) > 0)) p.maxFinance = "positive";
-  percent("equbShare");
   if (!(num(f.adminWeekly) >= 0)) p.adminWeekly = "notNegative";
   if (!(num(f.takafulWeekly) >= 0)) p.takafulWeekly = "notNegative";
   if (!(num(f.feeWeeks) >= 1)) p.feeWeeks = "positive";
@@ -160,8 +140,6 @@ function problems(f: Form): Partial<Record<ProblemKey, string>> {
     else if (f.split[party].basis === "percent" && v > 100) p[`split.${party}`] = "percent";
   });
   if (!p["split.agent"] && !p["split.broker"] && !p["split.sacco"] && splitTotal(f) !== adminFeeOf(f)) p.splitTotal = "splitTotal";
-  if (num(f.serviceValue) > 0 && !f.serviceBasis) p.serviceBasis = "basis";
-  if (num(f.takafulValue) > 0 && !f.takafulBasis) p.takafulBasis = "basis";
   return p;
 }
 
@@ -179,7 +157,6 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
   const tc = useTranslations("common");
   const tr = useTranslations("pilgrimage.rules");
   const to = useTranslations("pilgrimage.option");
-  const tb = useTranslations("pilgrimage.basis");
   const { toast } = useToast();
   const onError = useErrorToast();
   const isNew = product === "new";
@@ -198,9 +175,6 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
   const adminFee = adminFeeOf(form);
   const amounts = configuredAmounts(form);
   const total = splitTotal(form);
-  // What the value of a loan charge means, for the way it is charged.
-  const valueHint = (basis: ChargeBasis | "") =>
-    !basis ? t("valueHintNone") : basis.startsWith("percent") ? t("valueHintPercent") : t("valueHintFixed");
   const valid = Object.keys(errs).length === 0;
 
   const save = () => {
@@ -350,7 +324,7 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
         </Field>
       </Section>
 
-      <Section step={7} title={t("sectionFinance")} hint={t("sectionFinanceHint")}>
+      <Section step={7} title={t("sectionWinnerContract")} hint={t("sectionWinnerContractHint")}>
         <Field label={t("savingType")} hint={t("savingTypeHint")} error={err("savingTypeId")} className="sm:col-span-2">
           <Select value={form.savingTypeId} onValueChange={(v) => set("savingTypeId", v)}>
             <SelectTrigger><SelectValue placeholder={t("selectSavingType")} /></SelectTrigger>
@@ -359,16 +333,6 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t("maxFinance")} hint={t("maxFinanceHint")} error={err("maxFinance")}>{amount("maxFinance", { placeholder: form.packageCost || undefined })}</Field>
-        <Field label={t("financeMonths")} hint={t("financeMonthsHint")} error={err("financeMonths")}>{amount("financeMonths", { step: 1 })}</Field>
-        <Field label={t("repaymentInterval")} hint={t("repaymentIntervalHint")} error={err("repaymentInterval")}>{amount("repaymentInterval", { step: 1 })}</Field>
-        <div />
-        <BasisSelect label={t("serviceBasis")} hint={t("serviceBasisHint")} value={form.serviceBasis} onChange={(v) => set("serviceBasis", v)} error={err("serviceBasis")} tb={tb} none={t("chargeNone")} />
-        <Field label={t("serviceValue")} hint={valueHint(form.serviceBasis)}>{amount("serviceValue")}</Field>
-        <Field label={t("equbShare")} hint={t("equbShareHint")} error={err("equbShare")}>{amount("equbShare", { max: 100 })}</Field>
-        <div />
-        <BasisSelect label={t("takafulBasis")} hint={t("takafulBasisHint")} value={form.takafulBasis} onChange={(v) => set("takafulBasis", v)} error={err("takafulBasis")} tb={tb} none={t("chargeNone")} />
-        <Field label={t("takafulValue")} hint={valueHint(form.takafulBasis)}>{amount("takafulValue")}</Field>
       </Section>
 
       <Toggle label={t("active")} hint={t("activeHint")} checked={form.active} onChange={(v) => set("active", v)} />
@@ -425,19 +389,3 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint: strin
   );
 }
 
-function BasisSelect({ label, hint, value, onChange, error, tb, none }: {
-  label: string; hint?: string; value: ChargeBasis | ""; onChange: (v: ChargeBasis | "") => void; error?: string;
-  tb: ReturnType<typeof useTranslations>; none: string;
-}) {
-  return (
-    <Field label={label} hint={hint} error={error}>
-      <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : (v as ChargeBasis))}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{none}</SelectItem>
-          {CHARGE_BASES.map((b) => <SelectItem key={b} value={b}>{tb(b)}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}

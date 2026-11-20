@@ -13,7 +13,7 @@ import { RequirePermission } from "@/components/auth/require-permission";
 import { AgentSelect, Detail, FeeStatus, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { ContributeModal, ContributionHistory } from "@/components/pilgrimage/contributions";
 import { Progress } from "@/components/pilgrimage/participations-tab";
-import { AgreeTermsModal, DeadlineCell, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
+import { DeadlineCell, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
 import { CycleCalendar } from "@/components/pilgrimage/cycle-dates";
 import {
   useCancelParticipation, useParticipation, usePilgrimageGroup, usePilgrimageWinners, useRetryWinner,
@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { GroupMemberView, Participation, PilgrimageWinner } from "@/types/pilgrimage";
+import type { GroupMemberView, Participation } from "@/types/pilgrimage";
 
 function ParticipationInner({ id }: { id: string }) {
   const t = useTranslations("pilgrimage.participation");
@@ -160,7 +160,7 @@ function AgentLine({ participation: p }: { participation: Participation }) {
   );
 }
 
-/** A winner's way from the draw to their finance, with the action due now. */
+/** A winner's way into EMAD SACCO, with what has to happen next. */
 function WinnerCard({ participation: p }: { participation: Participation }) {
   const t = useTranslations("pilgrimage.winner");
   const { has } = useEkubAccess();
@@ -169,7 +169,6 @@ function WinnerCard({ participation: p }: { participation: Participation }) {
   const retry = useRetryWinner();
   const { data } = usePilgrimageWinners({ member_id: p.member_id, limit: 20 });
   const w = data?.items.find((x) => x.participation_id === p.id);
-  const [agreeing, setAgreeing] = useState<PilgrimageWinner | null>(null);
   if (!w) return <Skeleton className="h-40 w-full" />;
   const canManage = has(EKUB_PERMS.PILGRIMAGE_MANAGE);
   return (
@@ -185,19 +184,24 @@ function WinnerCard({ participation: p }: { participation: Participation }) {
         <div className="rounded-xl border border-border p-3">
           <Detail label={t("savingsMoved")}>{formatCurrency(w.recognised_savings)}</Detail>
           <Detail label={t("contractDeadline")}><DeadlineCell winner={w} /></Detail>
-          <Detail label={t("financeAmount")}>{w.finance_amount > 0 ? formatCurrency(w.finance_amount) : "—"}</Detail>
-          <Detail label={t("contractTotal")}>{w.finance_amount > 0 ? formatCurrency(w.recognised_savings + w.finance_amount) : "—"}</Detail>
-          {w.loan_application && <Detail label={t("financeNumber")}>{w.loan_application.finance_number} · {w.loan_application.status}</Detail>}
+          {w.saving_contract && (
+            <>
+              <Detail label={t("contract")}>
+                <span className="font-mono">{w.saving_contract.contract_number || t("draftNumber")}</span> <span className="text-xs text-muted-foreground">({w.saving_contract.status})</span>
+              </Detail>
+              <Detail label={t("contractTotal")}>{formatCurrency(w.saving_contract.requested_amount)}</Detail>
+              <Detail label={t("toFinance")}>{w.saving_contract.financed_amount > 0 ? formatCurrency(w.saving_contract.financed_amount) : t("setInSacco")}</Detail>
+            </>
+          )}
         </div>
-        <NextStep winner={w} canManage={canManage} onAgree={() => setAgreeing(w)} />
-        {canManage && w.status !== "awaiting_terms" && w.status !== "finance_opened" && (
+        <NextStep winner={w} canManage={canManage} />
+        {canManage && w.status !== "completed" && (
           <Button size="sm" variant="outline" disabled={retry.isPending}
             onClick={() => retry.mutate(w.id, { onSuccess: (r) => toast({ title: r.failure_reason ? t("stillWaiting") : t("retried"), description: r.failure_reason }), onError })}>
             {t("retry")}
           </Button>
         )}
       </div>
-      <AgreeTermsModal winner={agreeing} onClose={() => setAgreeing(null)} />
     </Card>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, ArrowRight, CalendarClock, Clock, HandCoins, PiggyBank, Trophy, UserRoundCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, Clock, FileText, HandCoins, PiggyBank, Trophy, UserRoundCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/dashboard/shared";
@@ -23,9 +23,9 @@ export function OverviewTab({ productId, onOpenTab }: { productId?: string; onOp
   const pendingContributions = useContributionLedger({ ...product, status: "pending", limit: 1 });
   const saving = useParticipations({ ...product, status: "active", limit: 1 });
   const cycles = usePilgrimageCycles({ ...product, limit: 10 });
-  const awaitingTerms = usePilgrimageWinners({ status: "awaiting_terms", limit: 5 });
+  const awaitingFees = usePilgrimageWinners({ status: "awaiting_fees", limit: 5 });
+  const drafts = usePilgrimageWinners({ status: "contract_draft", limit: 1 });
   const transferring = usePilgrimageWinners({ status: "transferring", limit: 1 });
-  const stuck = usePilgrimageWinners({ status: "finance_pending", limit: 1 });
   const pendingDecisions = usePilgrimageDecisions({ status: "pending_approval", limit: 1 });
   const refunds = usePilgrimageDecisions({ status: "processing", limit: 1 });
   const { data: products } = usePilgrimageProducts();
@@ -36,9 +36,9 @@ export function OverviewTab({ productId, onOpenTab }: { productId?: string; onOp
 
   const queue = [
     { key: "contributions", count: pendingContributions.data?.meta.total ?? 0, tab: "contributions", icon: PiggyBank },
-    { key: "terms", count: awaitingTerms.data?.meta.total ?? 0, tab: "winners", icon: HandCoins },
+    { key: "winnerFees", count: awaitingFees.data?.meta.total ?? 0, tab: "winners", icon: HandCoins },
+    { key: "drafts", count: drafts.data?.meta.total ?? 0, tab: "winners", icon: FileText },
     { key: "transfers", count: transferring.data?.meta.total ?? 0, tab: "winners", icon: Clock },
-    { key: "finances", count: stuck.data?.meta.total ?? 0, tab: "winners", icon: AlertTriangle },
     { key: "withdrawals", count: pendingDecisions.data?.meta.total ?? 0, tab: "decisions", icon: UserRoundCheck },
     { key: "refunds", count: refunds.data?.meta.total ?? 0, tab: "decisions", icon: HandCoins },
   ];
@@ -102,10 +102,10 @@ export function OverviewTab({ productId, onOpenTab }: { productId?: string; onOp
               <p className="text-xs text-muted-foreground">{t("requiredLine", { amount: formatCurrency(c.required_contribution), slots: c.winners_per_cycle })}</p>
             </Link>
           ))}
-          {(awaitingTerms.data?.items ?? []).length > 0 && (
+          {(awaitingFees.data?.items ?? []).length > 0 && (
             <div className="space-y-2 border-t border-border pt-3">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-foreground"><Trophy size={13} className="text-primary" /> {t("awaitingTerms")}</p>
-              {awaitingTerms.data!.items.map((w) => (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-foreground"><Trophy size={13} className="text-primary" /> {t("awaitingFees")}</p>
+              {awaitingFees.data!.items.map((w) => (
                 <Link key={w.id} href={`/dashboard/pilgrimage/participations/${w.participation_id}`} className="flex justify-between text-xs hover:underline">
                   <span>{w.member?.full_name}</span>
                   <span className="tabular-nums text-muted-foreground">{formatCurrency(w.recognised_savings)}</span>

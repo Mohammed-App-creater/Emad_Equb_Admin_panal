@@ -3,24 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Check, HandCoins, Loader2, RotateCw } from "lucide-react";
+import { Check, ExternalLink, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { DataTable, type DataTableAction, type DataTableColumn } from "@/components/ui/data-table";
 import { useToast } from "@/hooks/use-toast";
-import { usePilgrimageCycle, usePilgrimageWinners, useRetryWinner, useSetWinnerTerms } from "@/hooks/pilgrimage";
+import { usePilgrimageWinners, useRetryWinner } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Detail, Field, PaymentOutcomeButtons, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { PaymentOutcomeButtons, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { WINNER_STEPS, type PilgrimageWinner } from "@/types/pilgrimage";
 
 /**
- * Winners leave the Equb one step at a time: staff agree the finance amount,
- * a saving contract is opened for savings + finance, Odoo activates it, the
- * savings move onto it, and a draft Murabaha finance is opened for the member
- * to sign. Each winner is processed on their own.
+ * Winners leave the Equb one step at a time: once their fees are paid a
+ * draft contract is created in EMAD SACCO; SACCO staff complete it and send
+ * it to Odoo; once Odoo confirms it their savings move onto it, and the
+ * SACCO's own saving and finance flow takes over. Each winner on their own.
  */
 export function WinnersTab({ cycleId }: { cycleId?: string }) {
   const t = useTranslations("pilgrimage.winner");
@@ -32,7 +30,6 @@ export function WinnersTab({ cycleId }: { cycleId?: string }) {
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
-  const [agreeing, setAgreeing] = useState<PilgrimageWinner | null>(null);
   const { data, isLoading } = usePilgrimageWinners({ cycle_id: cycleId, status, page, limit: perPage });
   const canManage = has(EKUB_PERMS.PILGRIMAGE_MANAGE);
 
@@ -46,19 +43,21 @@ export function WinnersTab({ cycleId }: { cycleId?: string }) {
     { id: "money", header: t("money"), mobile: "detail", cell: (w) => (
       <div className="text-xs leading-5">
         <p>{t("savings")}: <span className="tabular-nums font-medium">{formatCurrency(w.recognised_savings)}</span></p>
-        <p>{t("finance")}: <span className="tabular-nums font-medium">{w.finance_amount > 0 ? formatCurrency(w.finance_amount) : "—"}</span></p>
-        {w.loan_application && <p className="font-mono text-muted-foreground">{w.loan_application.finance_number} · {w.loan_application.status}</p>}
+        {w.saving_contract && (
+          <p className="text-muted-foreground">
+            {t("contract")}: <span className="font-mono">{w.saving_contract.contract_number || t("draftNumber")}</span> · {w.saving_contract.status}
+          </p>
+        )}
       </div>
     ) },
     { id: "deadline", header: t("contractDeadline"), mobile: "detail", cell: (w) => <DeadlineCell winner={w} /> },
     { id: "journey", header: t("journey"), mobile: "detail", cell: (w) => <Journey winner={w} /> },
-    { id: "next", header: t("next"), mobile: "badge", cell: (w) => <NextStep winner={w} canManage={canManage} onAgree={() => setAgreeing(w)} /> },
+    { id: "next", header: t("next"), mobile: "badge", cell: (w) => <NextStep winner={w} canManage={canManage} /> },
   ];
   const actions: DataTableAction<PilgrimageWinner>[] = canManage
     ? [
-        { label: t("agree"), icon: HandCoins, show: (w) => w.status === "awaiting_terms", onClick: setAgreeing },
         {
-          label: t("retry"), icon: RotateCw, show: (w) => w.status !== "awaiting_terms" && w.status !== "finance_opened", disabled: () => retry.isPending,
+          label: t("retry"), icon: RotateCw, show: (w) => w.status !== "completed", disabled: () => retry.isPending,
           onClick: (w) => retry.mutate(w.id, { onSuccess: (r) => toast({ title: r.failure_reason ? t("stillWaiting") : t("retried"), description: r.failure_reason }), onError }),
         },
       ]
@@ -86,7 +85,6 @@ export function WinnersTab({ cycleId }: { cycleId?: string }) {
         actions={actions}
         pagination={{ page, pageSize: perPage, total: data?.meta.total ?? 0, onPageChange: setPage, onPageSizeChange: (n) => { setPerPage(n); setPage(1); } }}
       />
-      <AgreeTermsModal winner={agreeing} onClose={() => setAgreeing(null)} />
     </div>
   );
 }
@@ -98,8 +96,8 @@ export function Journey({ winner: w, vertical }: { winner: PilgrimageWinner; ver
   return (
     <ol className={cn(vertical ? "space-y-3" : "flex items-center gap-1")}>
       {WINNER_STEPS.map((s, i) => {
-        const done = i < at || w.status === "finance_opened";
-        const current = i === at && w.status !== "finance_opened";
+        const done = i < at || w.status === "completed";
+        const current = i === at && w.status !== "completed";
         const failed = current && !!w.failure_reason;
         const dot = (
           <span className={cn(
@@ -135,21 +133,42 @@ export function Journey({ winner: w, vertical }: { winner: PilgrimageWinner; ver
   );
 }
 
-/** What has to happen next for a winner, as a button where staff can act. */
-export function NextStep({ winner: w, canManage, onAgree }: { winner: PilgrimageWinner; canManage: boolean; onAgree: () => void }) {
+/** Where the SACCO portal is, to open a winner's draft contract there (unset: no link). */
+const SACCO_PORTAL_URL = process.env.NEXT_PUBLIC_SACCO_PORTAL_URL?.replace(/\/$/, "");
+
+/** A link to a winner's contract in the SACCO portal, where staff complete and send it. */
+export function SaccoContractLink({ winner: w }: { winner: PilgrimageWinner }) {
+  const t = useTranslations("pilgrimage.winner");
+  if (!w.saving_contract_id || !SACCO_PORTAL_URL) return null;
+  return (
+    <a href={`${SACCO_PORTAL_URL}/dashboard/saving-contracts/${w.saving_contract_id}`} target="_blank" rel="noreferrer"
+      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+      {t("openInSacco")} <ExternalLink size={12} />
+    </a>
+  );
+}
+
+/** What has to happen next for a winner, and who does it. */
+export function NextStep({ winner: w, canManage }: { winner: PilgrimageWinner; canManage: boolean }) {
   const t = useTranslations("pilgrimage.winner");
   const owed = winnerFeesOwed(w);
-  if (w.status === "awaiting_terms" && owed > 0) {
-    // The contract is opened only once the fees are paid (on the participation page).
+  if (w.status === "awaiting_fees") {
     return (
       <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
-        <p className="max-w-xs text-xs text-warning">{t("feesDue", { amount: formatCurrency(owed) })}</p>
-        <Link href={`/dashboard/pilgrimage/participations/${w.participation_id}`} className="text-xs font-medium text-primary hover:underline">{t("collectFees")}</Link>
+        <p className="max-w-xs text-xs text-warning">{owed > 0 ? t("feesDue", { amount: formatCurrency(owed) }) : t("paymentClearing")}</p>
+        {owed > 0 && <Link href={`/dashboard/pilgrimage/participations/${w.participation_id}`} className="text-xs font-medium text-primary hover:underline">{t("collectFees")}</Link>}
+        {w.failure_reason && <p className="max-w-xs text-xs text-destructive">{w.failure_reason}</p>}
       </div>
     );
   }
-  if (w.status === "awaiting_terms" && canManage) {
-    return <Button size="sm" onClick={(e) => { e.stopPropagation(); onAgree(); }}><HandCoins size={14} className="mr-1" /> {t("agree")}</Button>;
+  if (w.status === "contract_draft") {
+    return (
+      <div className="space-y-1">
+        <p className="max-w-xs text-xs text-muted-foreground">{t("draftInSacco")}</p>
+        <SaccoContractLink winner={w} />
+        {w.failure_reason && <p className="max-w-xs text-xs text-destructive">{w.failure_reason}</p>}
+      </div>
+    );
   }
   if (w.status === "transferring" && w.transfer_payment_id && canManage) {
     return (
@@ -167,11 +186,11 @@ export function NextStep({ winner: w, canManage, onAgree }: { winner: Pilgrimage
   );
 }
 
-/** A winner's contract deadline, flagged once it has passed without a contract. */
+/** A winner's contract deadline, flagged once it has passed without the contract sent to Odoo. */
 export function DeadlineCell({ winner: w }: { winner: PilgrimageWinner }) {
   const t = useTranslations("pilgrimage.winner");
   if (!w.contract_deadline) return <span className="text-muted-foreground">—</span>;
-  if (w.status !== "awaiting_terms") return <span className="text-xs text-muted-foreground">{formatDate(w.contract_deadline)}</span>;
+  if (w.status !== "awaiting_fees" && w.status !== "contract_draft") return <span className="text-xs text-muted-foreground">{formatDate(w.contract_deadline)}</span>;
   return (
     <span className="flex flex-col gap-0.5 text-sm">
       <span className={cn("tabular-nums", w.contract_overdue && "font-medium text-destructive")}>{formatDate(w.contract_deadline)}</span>
@@ -186,50 +205,4 @@ function winnerFeesOwed(w: PilgrimageWinner) {
   if (!p) return 0;
   const owed = Math.max(0, (p.admin_fee_due ?? 0) - (p.admin_fee_paid ?? 0)) + Math.max(0, (p.takaful_fee_due ?? 0) - (p.takaful_fee_paid ?? 0));
   return Math.round(owed * 100) / 100;
-}
-
-/** Records the Murabaha finance agreed with a winner, which opens their saving contract. */
-export function AgreeTermsModal({ winner, onClose }: { winner: PilgrimageWinner | null; onClose: () => void }) {
-  const t = useTranslations("pilgrimage.winner");
-  const tc = useTranslations("common");
-  const { toast } = useToast();
-  const onError = useErrorToast();
-  const setTerms = useSetWinnerTerms();
-  const { data: cycle } = usePilgrimageCycle(winner?.cycle_id ?? "");
-  const max = cycle?.product?.max_finance_amount ?? 0;
-  const suggested = winner ? Math.max(0, winner.package_cost - winner.recognised_savings) : 0;
-  const [amount, setAmount] = useState("");
-  const close = () => { setAmount(""); onClose(); };
-  const value = Number(amount || suggested);
-  const tooMuch = max > 0 && value > max;
-
-  return (
-    <Modal open={!!winner} onOpenChange={(o) => !o && close()} title={t("agreeTitle")} className="max-w-lg">
-      {winner && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{t("agreeHint", { name: winner.member?.full_name ?? "" })}</p>
-          <Field label={t("financeAmount")} hint={max > 0 ? t("maxHint", { max: formatCurrency(max) }) : undefined} error={tooMuch ? t("aboveMax", { max: formatCurrency(max) }) : undefined}>
-            <Input type="number" min={0} step="any" value={amount} placeholder={String(suggested)} onChange={(e) => setAmount(e.target.value)} autoFocus />
-          </Field>
-          <div className="rounded-xl border border-border p-3">
-            <Detail label={t("savingsMoved")}>{formatCurrency(winner.recognised_savings)}</Detail>
-            <Detail label={t("financeAmount")}>{formatCurrency(value)}</Detail>
-            <div className="border-t border-border">
-              <Detail label={t("contractTotal")}>{formatCurrency(winner.recognised_savings + value)}</Detail>
-            </div>
-            <p className="pt-1 text-xs text-muted-foreground">{t("packageRef", { amount: formatCurrency(winner.package_cost) })}</p>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
-            <Button disabled={!(value > 0) || tooMuch || setTerms.isPending}
-              onClick={() => setTerms.mutate({ id: winner.id, financeAmount: value }, {
-                onSuccess: () => { toast({ title: t("agreed"), description: t("agreedHint") }); close(); }, onError,
-              })}>
-              {setTerms.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("agreeAndOpen")}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
 }

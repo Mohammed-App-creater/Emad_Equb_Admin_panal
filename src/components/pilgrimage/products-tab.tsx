@@ -37,7 +37,6 @@ export function ProductsTab() {
       <div className="text-right">
         <p className="tabular-nums">{formatCurrency(p.package_cost)}</p>
         <p className="text-xs text-muted-foreground">{t("eligibilityShort", { percent: p.eligibility_percent })}</p>
-        <p className="text-xs text-muted-foreground">{t("maxFinanceShort", { amount: formatCurrency(p.max_finance_amount) })}</p>
       </div>
     ) },
     { id: "draw", header: t("frequency"), mobile: "detail", cell: (p) => (

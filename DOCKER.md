@@ -28,6 +28,7 @@ problem.
 | `NEXT_PUBLIC_API_BASE_URL` | **Build** — Next inlines it into the JS bundle | `docker compose up -d --build` |
 | `NEXT_PUBLIC_USE_MOCK` | **Build** | `docker compose up -d --build` |
 | `NEXT_PUBLIC_ENFORCE_PERMS` | **Build** | `docker compose up -d --build` |
+| `NEXT_PUBLIC_SACCO_PORTAL_URL` | **Build** (optional) — the SACCO portal, linked from Hajj/Umrah winners' draft contracts | `docker compose up -d --build` |
 | `BACKEND_API_BASE_URL` | **Run** — read per request by the proxy route | `docker compose up -d` |
 
 Setting `NEXT_PUBLIC_API_BASE_URL` in the container's environment does nothing.
@@ -96,7 +97,7 @@ this repository:
 
 1. **CI/CD variables.** In *Settings → CI/CD → Variables*, add
    `NEXT_PUBLIC_API_BASE_URL` (and optionally `NEXT_PUBLIC_USE_MOCK`,
-   `NEXT_PUBLIC_ENFORCE_PERMS`, `BACKEND_API_BASE_URL`) **scoped per
+   `NEXT_PUBLIC_ENFORCE_PERMS`, `NEXT_PUBLIC_SACCO_PORTAL_URL`, `BACKEND_API_BASE_URL`) **scoped per
    environment**, plus the deploy secrets: `STAGING_SSH_PRIVATE_KEY`,
    `STAGING_SSH_KNOWN_HOSTS`, `PRODUCTION_SSH_PRIVATE_KEY`,
    `PRODUCTION_SSH_KNOWN_HOSTS`, `REGISTRY_USER`, `REGISTRY_TOKEN`, and

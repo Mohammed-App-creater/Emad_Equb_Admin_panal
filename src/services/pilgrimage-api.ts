@@ -42,7 +42,6 @@ export const PILGRIMAGE_ENDPOINTS = {
   GROUPS: "/pilgrimage/groups",
   GROUP: (id: string) => `/pilgrimage/groups/${id}`,
   WINNERS: "/pilgrimage/winners",
-  WINNER_TERMS: (id: string) => `/pilgrimage/winners/${id}/terms`,
   WINNER_RETRY: (id: string) => `/pilgrimage/winners/${id}/retry`,
   DECISIONS: "/pilgrimage/decisions",
   CHOOSE: (id: string) => `/pilgrimage/decisions/${id}/choose`,
@@ -140,7 +139,6 @@ export const pilgrimageApi = {
 
   // Winners
   listWinners: (params?: PilgrimageListParams) => page<PilgrimageWinner>(api.get(E.WINNERS, { params }), params),
-  setWinnerTerms: (id: string, financeAmount: number) => unwrap<PilgrimageWinner>(api.post(E.WINNER_TERMS(id), { finance_amount: financeAmount })),
   retryWinner: (id: string) => unwrap<PilgrimageWinner>(api.post(E.WINNER_RETRY(id))),
 
   // Non-winner decisions

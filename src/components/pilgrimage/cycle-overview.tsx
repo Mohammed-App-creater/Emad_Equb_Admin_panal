@@ -29,12 +29,9 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
   const td = useTranslations("pilgrimage.cycleDates");
   const tp = useTranslations("pilgrimage.product");
   const to = useTranslations("pilgrimage.option");
-  const tb = useTranslations("pilgrimage.basis");
   const tc = useTranslations("common");
   const s = summarizeMembers(members);
   const p = product ?? cycle.product ?? undefined;
-  const fee = (value?: number, basis?: string) =>
-    value && value > 0 && basis ? `${basis.startsWith("percent") ? `${value}%` : formatCurrency(value)} ${tb(`${basis}_short` as never)}` : "—";
 
   return (
     <div className="space-y-6">
@@ -101,19 +98,6 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
                 </>
               )}
             </dl>
-            {p && (
-              <div className="border-t border-border pt-3">
-                <p className="mb-2 text-xs text-muted-foreground">{tp("sectionFinance")}</p>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                  <Row label={tp("financeMonths")} value={p.finance_duration_months} />
-                  <Row label={tp("repaymentInterval")} value={p.repayment_interval_months} />
-                  <Row label={tp("serviceBasis")} value={fee(p.service_charge_value, p.service_charge_basis)} />
-                  <Row label={tp("takafulBasis")} value={fee(p.takaful_value, p.takaful_basis)} />
-                  <Row label={t("equbShare")} value={`${p.equb_service_charge_share}%`} />
-
-                </dl>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -63,11 +63,10 @@ const tones: Record<string, string> = {
   paid: "bg-success/15 text-success",
   failed: "bg-destructive/15 text-destructive",
   // winners
-  awaiting_terms: "bg-warning/15 text-warning",
+  awaiting_fees: "bg-warning/15 text-warning",
+  contract_draft: "bg-info/15 text-info",
   contract_pending: "bg-info/15 text-info",
   transferring: "bg-secondary/20 text-secondary-foreground",
-  finance_pending: "bg-warning/15 text-warning",
-  finance_opened: "bg-success/15 text-success",
   // decisions
   awaiting_choice: "bg-warning/15 text-warning",
   pending_approval: "bg-info/15 text-info",

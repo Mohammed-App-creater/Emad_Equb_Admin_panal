@@ -11,12 +11,10 @@
 
 export type PilgrimageKind = "hajj" | "umrah";
 export type Frequency = "daily" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semi_annual" | "annual";
-export type ChargeBasis = "fixed_total" | "percent_of_financed" | "fixed_per_installment" | "percent_of_installment";
 /** How one party's share of the admin fee is set: an ETB amount per participant, or a percentage of the fee. */
 export type FeeShareBasis = "fixed" | "percent";
 export type NonWinnerOption = "withdraw" | "carry_forward";
 
-export const CHARGE_BASES: ChargeBasis[] = ["fixed_total", "percent_of_financed", "fixed_per_installment", "percent_of_installment"];
 export const FEE_SHARE_BASES: FeeShareBasis[] = ["fixed", "percent"];
 export const FEE_PARTIES = ["agent", "broker", "sacco"] as const;
 export type FeeParty = (typeof FEE_PARTIES)[number];
@@ -70,14 +68,6 @@ export interface PilgrimageProduct {
   default_decision: NonWinnerOption;
   /** Default time from the draw for winners to pay their fees and have their contract opened. */
   winner_contract_days: number;
-  finance_duration_months: number;
-  repayment_interval_months: number;
-  max_finance_amount: number;
-  service_charge_basis?: ChargeBasis | "";
-  service_charge_value: number;
-  equb_service_charge_share: number;
-  takaful_basis?: ChargeBasis | "";
-  takaful_value: number;
   created_at: string;
 }
 
@@ -107,14 +97,6 @@ export interface PilgrimageProductInput {
   decision_window_days?: number;
   default_decision?: NonWinnerOption;
   winner_contract_days?: number;
-  finance_duration_months?: number;
-  repayment_interval_months?: number;
-  max_finance_amount?: number;
-  service_charge_basis?: ChargeBasis;
-  service_charge_value?: number;
-  equb_service_charge_share?: number;
-  takaful_basis?: ChargeBasis;
-  takaful_value?: number;
   status?: "active" | "inactive";
 }
 
@@ -319,7 +301,13 @@ export interface PilgrimageGroup {
 }
 
 /** A winner's way from the draw to their finance, in order. */
-export const WINNER_STEPS = ["awaiting_terms", "contract_pending", "transferring", "finance_pending", "finance_opened"] as const;
+/**
+ * A winner's way into EMAD SACCO, in order: their fees are paid, a draft
+ * contract is created in the SACCO, SACCO staff complete it and send it to
+ * Odoo, their savings move onto it, and from there the SACCO's own flow
+ * takes over.
+ */
+export const WINNER_STEPS = ["awaiting_fees", "contract_draft", "contract_pending", "transferring", "completed"] as const;
 export type WinnerStatus = (typeof WINNER_STEPS)[number];
 
 /** The participation as a winner record carries it (the stored row, not the full view). */
@@ -345,13 +333,11 @@ export interface PilgrimageWinner {
   group_id?: string | null;
   recognised_savings: number;
   package_cost: number;
-  finance_amount: number;
-  terms_set_at?: string | null;
   saving_contract_id?: string | null;
   transfer_payment_id?: string | null;
   transferred_at?: string | null;
-  loan_application_id?: string | null;
-  loan_application?: { id: string; finance_number: string; financed_amount: number; status: string; charges_amount?: number } | null;
+  saving_contract?: { id: string; contract_number?: string; status: string; requested_amount: number; contribution_amount: number; financed_amount: number } | null;
+  contract_drafted_at?: string | null;
   /** By when the winner must have paid their fees and had their contract opened. */
   contract_deadline?: string | null;
   /** Past the deadline and the contract is not opened yet. */

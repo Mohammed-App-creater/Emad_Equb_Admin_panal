@@ -109,7 +109,6 @@ export const usePilgrimageGroup = (id: string | null) =>
 // ---- Winners ----
 export const usePilgrimageWinners = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.winners(params), queryFn: () => pilgrimageApi.listWinners(params), placeholderData: keepPreviousData });
-export const useSetWinnerTerms = () => useModuleMutation((v: { id: string; financeAmount: number }) => pilgrimageApi.setWinnerTerms(v.id, v.financeAmount));
 export const useRetryWinner = () => useModuleMutation((id: string) => pilgrimageApi.retryWinner(id));
 
 // ---- Decisions ----
