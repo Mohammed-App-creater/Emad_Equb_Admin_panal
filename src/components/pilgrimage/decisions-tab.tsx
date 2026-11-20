@@ -48,6 +48,7 @@ export function DecisionsTab({ cycleId }: { cycleId?: string }) {
       <div className="text-sm">
         <p>{d.option ? to(d.option) : "—"}</p>
         {d.defaulted && <p className="text-xs text-warning">{t("defaulted")}</p>}
+        {d.option === "withdraw" && d.payout_method && <p className="text-xs text-muted-foreground"><PayoutSummary decision={d} /></p>}
       </div>
     ) },
     { id: "deadline", header: t("deadline"), mobile: "detail", cell: (d) => <span className="text-sm">{formatDate(d.deadline)}</span> },
@@ -134,7 +135,8 @@ function ReviewModal({ decision, onClose }: { decision: PilgrimageDecision | nul
             <Detail label={t("option")}>{decision.option ? to(decision.option) : "—"}</Detail>
             <Detail label={t("refundAmount")}>{participation ? formatCurrency(participation.balance) : "…"}</Detail>
           </div>
-          <p className="text-sm text-muted-foreground">{t("withdrawHint")}</p>
+          <PayoutDetails decision={decision} />
+          <p className="text-sm text-muted-foreground">{decision.payout_method ? t("withdrawHintPayout") : t("withdrawHint")}</p>
           <MethodFields value={payment} onChange={setPayment} />
           <Field label={`${t("note")} (${t("noteRequiredToReject")})`}>
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -143,13 +145,44 @@ function ReviewModal({ decision, onClose }: { decision: PilgrimageDecision | nul
             <Button variant="outline" disabled={review.isPending || note.trim().length < 3} onClick={() => submit(false)}>
               <XCircle size={15} className="mr-1" /> {tc("reject")}
             </Button>
-            <Button disabled={review.isPending || !payment.method} onClick={() => submit(true)}>
+            <Button disabled={review.isPending || !(payment.method || decision.payout_method)} onClick={() => submit(true)}>
               {review.isPending ? <Loader2 size={15} className="mr-1 animate-spin" /> : <CheckCircle2 size={15} className="mr-1" />} {tc("approve")}
             </Button>
           </div>
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Where the member asked a withdrawal to be paid, in one line. */
+function PayoutSummary({ decision: d }: { decision: PilgrimageDecision }) {
+  const tm = useTranslations("pilgrimage.payment");
+  if (!d.payout_method) return null;
+  const where = [d.payout_bank_name, d.payout_account_number].filter(Boolean).join(" ");
+  return <>{tm(`method_${d.payout_method}` as never)}{where ? ` · ${where}` : ""}</>;
+}
+
+/**
+ * The payout details the member gave with their withdrawal. Approving without
+ * choosing a method pays it this way; staff may still choose another.
+ */
+function PayoutDetails({ decision: d }: { decision: PilgrimageDecision }) {
+  const t = useTranslations("pilgrimage.decision");
+  const tm = useTranslations("pilgrimage.payment");
+  if (d.option !== "withdraw") return null;
+  if (!d.payout_method) {
+    return <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">{t("noPayout")}</p>;
+  }
+  const wallet = d.payout_method === "mobile_money";
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+      <p className="pb-1 text-xs font-medium uppercase tracking-wide text-primary">{t("payoutTitle")}</p>
+      <Detail label={tm("method")}>{tm(`method_${d.payout_method}` as never)}</Detail>
+      {d.payout_bank_name && <Detail label={wallet ? t("payoutProvider") : t("payoutBank")}>{d.payout_bank_name}</Detail>}
+      {d.payout_account_number && <Detail label={wallet ? t("payoutWallet") : t("payoutAccount")}><span className="font-mono">{d.payout_account_number}</span></Detail>}
+      {d.payout_account_name && <Detail label={t("payoutAccountName")}>{d.payout_account_name}</Detail>}
+    </div>
   );
 }
 

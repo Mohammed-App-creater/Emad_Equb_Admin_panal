@@ -23,6 +23,7 @@ export const pk = {
   participation: (id: string) => ["pilgrimage", "participation", id] as const,
   participationContributions: (id: string, page: number) => ["pilgrimage", "participation-contributions", id, page] as const,
   ledger: (p?: PilgrimageListParams) => ["pilgrimage", "ledger", p ?? {}] as const,
+  proofs: (contributionId: string) => ["pilgrimage", "proofs", contributionId] as const,
   groups: (p?: PilgrimageListParams) => ["pilgrimage", "groups", p ?? {}] as const,
   group: (id: string) => ["pilgrimage", "group", id] as const,
   winners: (p?: PilgrimageListParams) => ["pilgrimage", "winners", p ?? {}] as const,
@@ -95,6 +96,11 @@ export const useCancelParticipation = () => useModuleMutation((id: string) => pi
 export const useContributionLedger = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.ledger(params), queryFn: () => pilgrimageApi.contributionLedger(params), placeholderData: keepPreviousData });
 export const useContribute = () => useModuleMutation((v: { id: string; body: ContributeInput }) => pilgrimageApi.contribute(v.id, v.body));
+export const useContributionProofs = (id: string, contributionId: string, enabled = true) =>
+  useQuery({ queryKey: pk.proofs(contributionId), queryFn: () => pilgrimageApi.contributionProofs(id, contributionId), enabled: enabled && !!id && !!contributionId });
+export const useUploadContributionProof = () =>
+  useModuleMutation((v: { id: string; contributionId: string; file: File; description?: string }) =>
+    pilgrimageApi.uploadContributionProof(v.id, v.contributionId, v.file, v.description));
 export const useSetPaymentOutcome = () =>
   useModuleMutation((v: { paymentId: string; status: PaymentOutcome; reason?: string }) => pilgrimageApi.setPaymentOutcome(v.paymentId, v.status, v.reason));
 

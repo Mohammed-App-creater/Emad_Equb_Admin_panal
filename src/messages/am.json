@@ -1439,7 +1439,11 @@
       "includeFeesHint": "አንድ ጊዜ ይከፈላል፤ ውሉ ከመፈረሙ በፊት በማንኛውም ጊዜ። በኋላ ለመክፈል ይተዉት።",
       "savingsOptional": "ክፍያዎቹን ብቻ ሲከፍሉ አማራጭ ነው።",
       "feesRecorded": "የክፍያ ገቢ ተመዝግቧል",
-      "winnerFeesDue": "አባሉ የኢማድ ሳኮ ውሉ ከመከፈቱ በፊት የአገልግሎት ክፍያ እና ተካፉል ({amount}) መክፈል አለበት።"
+      "winnerFeesDue": "አባሉ የኢማድ ሳኮ ውሉ ከመከፈቱ በፊት የአገልግሎት ክፍያ እና ተካፉል ({amount}) መክፈል አለበት።",
+      "canStillSave": "እስከ {amount} ድረስ መቆጠብ ይቻላል።",
+      "pendingSavingsHint": "{amount} ማረጋገጫ እየጠበቀ ነው።",
+      "aboveCap": "ከጥቅሉ ዋጋ በላይ ነው፤ ቢበዛ {amount} ብቻ መቆጠብ ይቻላል።",
+      "balanceHintPending": "በዕቁቡ መዝገብ ላይ፤ ተጨማሪ {amount} ማረጋገጫ እየጠበቀ ነው"
     },
     "group": {
       "title": "የዕጣ ቡድን",
@@ -1516,7 +1520,15 @@
       "refundAmount": "ተመላሽ",
       "confirmRefund": "ተመላሽ ማረጋገጫ ይጠብቃል",
       "optionHint_carry_forward": "ቁጠባው ለቀጣዩ ዕጣ በመዝገቡ ላይ ይቆያል",
-      "optionHint_withdraw": "ከጸደቀ በኋላ ሙሉ ቀሪው ይመለሳል"
+      "optionHint_withdraw": "ከጸደቀ በኋላ ሙሉ ቀሪው ይመለሳል",
+      "withdrawHintPayout": "ማጽደቅ የአባሉን ሙሉ የዕቁብ ቀሪ ሂሳብ ተመላሽ ይጠይቃል፤ ከታች ሌላ ዘዴ ካልመረጡ አባሉ በጠየቁት መንገድ ይከፈላል። ሲከፈል ያረጋግጡ።",
+      "noPayout": "አባሉ የክፍያ መቀበያ ዝርዝር አልሰጡም፤ ከታች የክፍያ ዘዴ ይምረጡ።",
+      "payoutTitle": "የሚከፈልበት (አባሉ እንደጠየቁት)",
+      "payoutBank": "ባንክ",
+      "payoutProvider": "አገልግሎት ሰጪ",
+      "payoutAccount": "የሂሳብ ቁጥር",
+      "payoutWallet": "የዋሌት ስልክ ቁጥር",
+      "payoutAccountName": "የሂሳብ ባለቤት ስም"
     },
     "manage": "አስተዳድር",
     "manageTitle": "ሐጅ እና ዑምራ ማስተዳደሪያ",
@@ -1706,6 +1718,18 @@
       "editHint_approved": "ቀናቱ ተወስነዋል።",
       "editHint_closed": "ቀናቱ ተወስነዋል።",
       "editHint_cancelled": "ቀናቱ ተወስነዋል።"
+    },
+    "proof": {
+      "button": "ማስረጃ",
+      "title": "የክፍያ ማስረጃ",
+      "hint": "ከዚህ ክፍያ ጋር የቀረበው ደረሰኝ ወይም ቅጽበታዊ ገጽ እይታ። ክፍያውን ከማረጋገጥዎ በፊት ይመልከቱት።",
+      "none": "እስካሁን ምንም ማስረጃ አልቀረበም።",
+      "file": "ደረሰኝ ወይም ቅጽበታዊ ገጽ እይታ",
+      "fileHint": "ምስል ወይም PDF።",
+      "note": "ማስታወሻ (አማራጭ)",
+      "upload": "ስቀል",
+      "uploaded": "ማስረጃ ቀርቧል",
+      "full": "ይህ ክፍያ የሚፈቀደውን ከፍተኛ {max} ፋይሎች አሉት።"
     }
   }
 }

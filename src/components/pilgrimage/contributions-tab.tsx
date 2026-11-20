@@ -9,7 +9,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { StatCard } from "@/components/dashboard/shared";
 import { useContributionLedger } from "@/hooks/pilgrimage";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { PaymentOutcomeButtons, PStatus } from "@/components/pilgrimage/shared";
+import { ContributionOutcome } from "@/components/pilgrimage/proofs";
 import type { Contribution } from "@/types/pilgrimage";
 
 const STATUSES = ["pending", "paid", "failed"] as const;
@@ -42,7 +42,7 @@ export function ContributionsTab({ productId }: { productId?: string }) {
     { id: "takaful", header: t("takaful"), align: "right", mobile: "detail", cell: (c) => <span className="tabular-nums text-muted-foreground">{formatCurrency(c.takaful_fee)}</span> },
     { id: "total", header: t("paid"), align: "right", mobile: "detail", cell: (c) => <span className="font-medium tabular-nums">{formatCurrency(c.total_amount)}</span> },
     { id: "status", header: tc("status"), mobile: "badge", cell: (c) => (
-      c.status === "pending" && c.payment_id ? <PaymentOutcomeButtons paymentId={c.payment_id} /> : <PStatus status={c.status} />
+      <ContributionOutcome contribution={c} />
     ) },
   ];
 

@@ -8,6 +8,7 @@ import type {
   NonWinnerOption,
   Participation,
   PaymentAccount,
+  PaymentProof,
   PilgrimageCycle,
   PilgrimageDecision,
   PilgrimageGroup,
@@ -36,6 +37,7 @@ export const PILGRIMAGE_ENDPOINTS = {
   PARTICIPATIONS: "/pilgrimage/participations",
   PARTICIPATION: (id: string) => `/pilgrimage/participations/${id}`,
   PARTICIPATION_CONTRIBUTIONS: (id: string) => `/pilgrimage/participations/${id}/contributions`,
+  CONTRIBUTION_PROOFS: (id: string, contributionId: string) => `/pilgrimage/participations/${id}/contributions/${contributionId}/attachments`,
   PARTICIPATION_AGENT: (id: string) => `/pilgrimage/participations/${id}/agent`,
   CANCEL_PARTICIPATION: (id: string) => `/pilgrimage/participations/${id}/cancel`,
   CONTRIBUTIONS: "/pilgrimage/contributions",
@@ -125,6 +127,15 @@ export const pilgrimageApi = {
 
   // Contributions (the Equb ledger)
   contribute: (id: string, body: ContributeInput) => unwrap<Contribution>(api.post(E.PARTICIPATION_CONTRIBUTIONS(id), body)),
+  // Proof of a payment (receipt or screenshot), filed while it waits to be confirmed.
+  contributionProofs: (id: string, contributionId: string) =>
+    unwrap<PaymentProof[] | null>(api.get(E.CONTRIBUTION_PROOFS(id, contributionId))).then((r) => r ?? []),
+  uploadContributionProof: (id: string, contributionId: string, file: File, description?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (description) form.append("description", description);
+    return unwrap<PaymentProof>(api.post(E.CONTRIBUTION_PROOFS(id, contributionId), form, { headers: { "Content-Type": "multipart/form-data" } }));
+  },
   participationContributions: (id: string, params?: { page?: number; limit?: number }) =>
     page<Contribution>(api.get(E.PARTICIPATION_CONTRIBUTIONS(id), { params }), params),
   contributionLedger: (params?: PilgrimageListParams) => ledger(api.get(E.CONTRIBUTIONS, { params }), params),

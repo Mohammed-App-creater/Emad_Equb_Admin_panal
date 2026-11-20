@@ -1439,7 +1439,11 @@
       "includeFeesHint": "Paid once, any time before the contract is signed. Leave off to pay them later.",
       "savingsOptional": "Optional when paying only the fees.",
       "feesRecorded": "Fee payment recorded",
-      "winnerFeesDue": "The member must pay their admin fee and Takaful ({amount}) before their EMAD SACCO contract is opened."
+      "winnerFeesDue": "The member must pay their admin fee and Takaful ({amount}) before their EMAD SACCO contract is opened.",
+      "canStillSave": "Can still save up to {amount}.",
+      "pendingSavingsHint": "{amount} is waiting to be confirmed.",
+      "aboveCap": "More than the package: at most {amount} can still be saved.",
+      "balanceHintPending": "On the Equb ledger; {amount} more is waiting to be confirmed"
     },
     "group": {
       "title": "Lottery group",
@@ -1516,7 +1520,15 @@
       "refundAmount": "Refund",
       "confirmRefund": "Refund awaiting confirmation",
       "optionHint_carry_forward": "Savings stay on the ledger for the next draw",
-      "optionHint_withdraw": "The whole balance is paid back after approval"
+      "optionHint_withdraw": "The whole balance is paid back after approval",
+      "withdrawHintPayout": "Approving raises a refund of the member's whole Equb balance, paid as the member asked unless you choose another method below. Confirm it once paid.",
+      "noPayout": "The member gave no payout details: choose how to pay them below.",
+      "payoutTitle": "Pay to (as the member asked)",
+      "payoutBank": "Bank",
+      "payoutProvider": "Provider",
+      "payoutAccount": "Account number",
+      "payoutWallet": "Wallet phone number",
+      "payoutAccountName": "Account name"
     },
     "manage": "Manage",
     "manageTitle": "Manage Hajj & Umrah",
@@ -1706,6 +1718,18 @@
       "editHint_approved": "The dates are fixed.",
       "editHint_closed": "The dates are fixed.",
       "editHint_cancelled": "The dates are fixed."
+    },
+    "proof": {
+      "button": "Proof",
+      "title": "Proof of payment",
+      "hint": "The receipt or screenshot filed with this payment. Check it before confirming the payment.",
+      "none": "No proof filed yet.",
+      "file": "Receipt or screenshot",
+      "fileHint": "Image or PDF.",
+      "note": "Note (optional)",
+      "upload": "Upload",
+      "uploaded": "Proof filed",
+      "full": "This payment already has {max} files, the most it can take."
     }
   }
 }

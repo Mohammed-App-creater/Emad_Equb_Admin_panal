@@ -70,7 +70,9 @@ function ParticipationInner({ id }: { id: string }) {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label={t("balance")} value={formatCurrency(p.balance)} hint={t("balanceHint")} icon={Wallet} tone="primary" />
+        <StatCard label={t("balance")} value={formatCurrency(p.balance)}
+          hint={(p.pending_savings ?? 0) > 0 ? t("balanceHintPending", { amount: formatCurrency(p.pending_savings ?? 0) }) : t("balanceHint")}
+          icon={Wallet} tone="primary" />
         <StatCard label={t("required")} value={formatCurrency(s.required_contribution)} hint={t("ofPackage", { percent: s.eligibility_percent, amount: formatCurrency(s.package_cost) })} icon={Target} tone="info" />
         <StatCard label={t("eligibility")} value={s.eligible ? t("eligible") : formatCurrency(s.remaining_to_eligibility)} hint={s.eligible ? t("percentOfPackage", { percent: s.contribution_percent }) : t("toGo")} icon={UsersRound} tone={s.eligible ? "success" : "warning"} />
       </div>

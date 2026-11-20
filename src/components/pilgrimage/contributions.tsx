@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
-  emptyMethod, FeeBreakdown, Field, MethodFields, PaymentOutcomeButtons, PStatus, useErrorToast, type MethodChoice,
+  emptyMethod, FeeBreakdown, Field, MethodFields, useErrorToast, type MethodChoice,
 } from "@/components/pilgrimage/shared";
+import { ContributionOutcome } from "@/components/pilgrimage/proofs";
 import { useContribute, useContributions, useParticipation } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -42,7 +43,7 @@ export function ContributionHistory({ id, bare, pageSize = 10 }: { id: string; b
     { id: "fees", header: t("fees"), align: "right", mobile: "detail", cell: (c) => <span className="tabular-nums text-muted-foreground">{formatCurrency(c.admin_fee + c.takaful_fee)}</span> },
     { id: "total", header: t("paid"), align: "right", mobile: "detail", cell: (c) => <span className="font-medium tabular-nums">{formatCurrency(c.total_amount)}</span> },
     { id: "status", header: tc("status"), mobile: "badge", cell: (c) => (
-      c.status === "pending" && c.payment_id ? <PaymentOutcomeButtons paymentId={c.payment_id} /> : <PStatus status={c.status} />
+      <ContributionOutcome contribution={c} />
     ) },
   ];
   return (
@@ -94,9 +95,12 @@ function ContributeBody({ target, onClose }: { target: ContributeTarget; onClose
   // Fees default on when they are owed: most members pay them with their first contribution.
   const withFees = feesOwed && (feesOnly || (payFees ?? true));
   const savings = savingsAllowed ? Number(amount) || 0 : 0;
+  // Nobody saves more than the package: the backend refuses anything above this.
+  const room = p.max_contribution ?? null;
+  const overCap = room !== null && savings > room + 0.005;
   const adminFee = withFees ? Math.max(0, (p.fees?.admin_fee_due ?? 0) - (p.fees?.admin_fee_paid ?? 0)) : 0;
   const takaful = withFees ? Math.max(0, (p.fees?.takaful_fee_due ?? 0) - (p.fees?.takaful_fee_paid ?? 0)) : 0;
-  const valid = (savings > 0 || withFees) && !(Number(amount) < 0) && !!payment.method;
+  const valid = (savings > 0 || withFees) && !(Number(amount) < 0) && !overCap && !!payment.method;
 
   return (
     <div className="space-y-4">
@@ -104,8 +108,15 @@ function ContributeBody({ target, onClose }: { target: ContributeTarget; onClose
         {feesOnly ? t("payFeesHint", { amount: formatCurrency(p.fees?.outstanding ?? 0) }) : t("contributeHint", { remaining: formatCurrency(p.standing.remaining_to_eligibility) })}
       </p>
       {savingsAllowed && (
-        <Field label={t("savingsAmount")} hint={withFees ? t("savingsOptional") : undefined}>
-          <Input type="number" min={0} step="any" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+        <Field
+          label={t("savingsAmount")}
+          hint={[
+            room !== null ? t("canStillSave", { amount: formatCurrency(room) }) : null,
+            (p.pending_savings ?? 0) > 0 ? t("pendingSavingsHint", { amount: formatCurrency(p.pending_savings ?? 0) }) : null,
+            withFees ? t("savingsOptional") : null,
+          ].filter(Boolean).join(" ") || undefined}
+          error={overCap ? t("aboveCap", { amount: formatCurrency(room ?? 0) }) : undefined}>
+          <Input type="number" min={0} max={room ?? undefined} step="any" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus disabled={room === 0} />
         </Field>
       )}
       {!feesOnly && feesOwed && (

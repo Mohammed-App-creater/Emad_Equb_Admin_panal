@@ -163,6 +163,8 @@ export interface DrawEntry {
 
 export interface DrawResult {
   cycle: PilgrimageCycle;
+  /** Approved: members see the outcomes. Staff always get every entry. */
+  published?: boolean;
   entries: DrawEntry[];
 }
 
@@ -214,6 +216,13 @@ export interface Participation {
   contract_number?: string;
   contract_status?: string;
   accepts_contributions: boolean;
+  /** Savings of payments still waiting to be confirmed. */
+  pending_savings?: number;
+  /**
+   * The most the member may still save: the package cost less the balance
+   * and pending_savings (set while they accept contributions). More is refused.
+   */
+  max_contribution?: number | null;
   fees?: ParticipationFees | null;
   standing: ContributionStanding;
   current_cycle?: {
@@ -359,12 +368,35 @@ export interface PilgrimageDecision {
   deadline: string;
   option?: NonWinnerOption | "";
   defaulted: boolean;
+  /**
+   * Where the member asked a withdrawal to be paid (empty when they did not
+   * say). For mobile_money the bank name is the provider and the account
+   * number the wallet's phone number.
+   */
+  payout_method?: PayoutMethod | "";
+  payout_bank_name?: string;
+  payout_account_number?: string;
+  payout_account_name?: string;
   chosen_at?: string | null;
   review_note?: string;
   amount: number;
   payment_id?: string | null;
   failure_reason?: string;
   completed_at?: string | null;
+  created_at: string;
+}
+
+export type PayoutMethod = "cash" | "bank_transfer" | "mobile_money";
+
+/** A receipt or screenshot filed with a contribution's payment. */
+export interface PaymentProof {
+  id: string;
+  file_name: string;
+  /** Short-lived download link. */
+  file_url?: string;
+  file_size: number;
+  mime_type: string;
+  description?: string;
   created_at: string;
 }
 
