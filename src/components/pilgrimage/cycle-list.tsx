@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
-import { PStatus } from "@/components/pilgrimage/shared";
+import { KindIcon, PStatus, kindIconSrc } from "@/components/pilgrimage/shared";
 import { OpenCycleModal } from "@/components/pilgrimage/open-cycle-modal";
 import { cycleYear } from "@/components/pilgrimage/cycle-members";
 import { useAllPilgrimageCycles, usePilgrimageProducts, useProductsParticipations } from "@/hooks/pilgrimage";
@@ -197,7 +197,7 @@ export function CycleList({ kind }: { kind: PilgrimageKind }) {
           isLoading={isLoading}
           onRowClick={open}
           actions={actions}
-          avatar={(r) => ({ initials: String(r.year).slice(-2), colorClass: kind === "hajj" ? "bg-primary/15 text-primary" : "bg-info/15 text-info" })}
+          avatar={(r) => ({ initials: String(r.year).slice(-2), colorClass: kind === "hajj" ? "bg-primary/15 text-primary" : "bg-info/15 text-info", src: kindIconSrc(kind) })}
           defaultSort={{ id: "draw", dir: "desc" }}
           emptyTitle={tc("noData")}
           emptyMessage={t("empty", { kind: kindLabel })}
@@ -218,16 +218,15 @@ function CycleCard({ row: r, kind, actions, onOpen }: { row: Row; kind: Pilgrima
   // While open: share of registered members already eligible. Afterwards: packages filled.
   const [num, den] = c.status === "open" ? [r.eligible, r.registered ?? 0] : [c.winner_count, c.winners_per_cycle];
   const fill = den > 0 ? Math.min(100, Math.round((num / den) * 100)) : 0;
-  const tone = kind === "hajj" ? "bg-primary/15 text-primary" : "bg-info/15 text-info";
   return (
     <Card className="flex cursor-pointer flex-col transition hover:shadow-md" onClick={() => onOpen(r)}>
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <span className={`flex h-10 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold tabular-nums ${tone}`}>{r.year}</span>
+            <KindIcon kind={kind} size={44} />
             <div className="min-w-0">
               <h3 className="truncate font-bold text-foreground">{c.name}</h3>
-              <p className="truncate font-mono text-xs text-muted-foreground">{r.product?.code} · #{c.number}</p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{r.year} · {r.product?.code} · #{c.number}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1" onClick={(ev) => ev.stopPropagation()}>

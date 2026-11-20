@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -76,6 +76,8 @@ export interface DataTableAvatar {
   initials: string;
   /** Tailwind classes for the avatar fallback, e.g. "bg-primary/20 text-primary". */
   colorClass?: string;
+  /** Optional picture; the initials show while it loads or if it fails. */
+  src?: string;
 }
 
 export interface DataTableProps<T> {
@@ -379,7 +381,8 @@ export function DataTable<T>({
     const a = avatar?.(row);
     if (!a) return null;
     return (
-      <Avatar className="h-8 w-8 shrink-0">
+      <Avatar className={cn("h-8 w-8 shrink-0", a.src && "rounded-lg")}>
+        {a.src && <AvatarImage src={a.src} alt="" className="object-cover" />}
         <AvatarFallback
           className={cn(
             "text-xs font-semibold",

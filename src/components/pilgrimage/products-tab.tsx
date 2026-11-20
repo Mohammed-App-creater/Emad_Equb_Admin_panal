@@ -8,7 +8,7 @@ import { DataTable, type DataTableAction, type DataTableColumn } from "@/compone
 import { usePilgrimageProducts } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
-import { PStatus } from "@/components/pilgrimage/shared";
+import { KindIcon, PStatus } from "@/components/pilgrimage/shared";
 import { OpenCycleModal } from "@/components/pilgrimage/open-cycle-modal";
 import { ProductFormModal } from "@/components/pilgrimage/product-form-modal";
 import type { PilgrimageProduct } from "@/types/pilgrimage";
@@ -25,9 +25,12 @@ export function ProductsTab() {
 
   const columns: DataTableColumn<PilgrimageProduct>[] = [
     { id: "name", header: tc("name"), mobile: "title", sortValue: (p) => p.name, cell: (p) => (
-      <div>
-        <p className="font-medium text-foreground">{p.name}</p>
-        <p className="font-mono text-xs text-muted-foreground">{p.code} · {t(`kind_${p.kind}` as never)}</p>
+      <div className="flex items-center gap-3">
+        <KindIcon kind={p.kind} size={36} />
+        <div className="min-w-0">
+          <p className="font-medium text-foreground">{p.name}</p>
+          <p className="font-mono text-xs text-muted-foreground">{p.code} · {t(`kind_${p.kind}` as never)}</p>
+        </div>
       </div>
     ) },
     { id: "package", header: t("packageCost"), align: "right", mobile: "detail", sortValue: (p) => p.package_cost, cell: (p) => (

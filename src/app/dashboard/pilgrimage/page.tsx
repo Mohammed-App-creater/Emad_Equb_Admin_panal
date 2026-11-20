@@ -4,18 +4,18 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Hand, Landmark, Layers, MoonStar, PiggyBank, Settings2, UserRoundCheck } from "lucide-react";
+import { Hand, Layers, PiggyBank, Settings2, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { CycleList } from "@/components/pilgrimage/cycle-list";
+import { KindIcon } from "@/components/pilgrimage/shared";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import type { PilgrimageKind } from "@/types/pilgrimage";
 
 const KINDS: PilgrimageKind[] = ["hajj", "umrah"];
-const kindIcon = { hajj: Landmark, umrah: MoonStar } as const;
 
 /**
  * Hajj & Umrah Equb: one tab per pilgrimage, each listing its Equbs (one per
@@ -59,14 +59,11 @@ function PilgrimageInner() {
       />
       <Tabs value={kind} onValueChange={setKind}>
         <TabsList className="h-auto p-1">
-          {KINDS.map((k) => {
-            const Icon = kindIcon[k];
-            return (
-              <TabsTrigger key={k} value={k} className="gap-1.5 px-5 data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground!">
-                <Icon size={15} /> {t(`list.kind_${k}`)}
-              </TabsTrigger>
-            );
-          })}
+          {KINDS.map((k) => (
+            <TabsTrigger key={k} value={k} className="gap-2 px-5 data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground!">
+              <KindIcon kind={k} size={22} /> {t(`list.kind_${k}`)}
+            </TabsTrigger>
+          ))}
         </TabsList>
         {KINDS.map((k) => (
           <TabsContent key={k} value={k} className="mt-4">

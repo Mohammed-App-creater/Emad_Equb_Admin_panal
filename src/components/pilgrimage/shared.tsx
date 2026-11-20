@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { usePaymentAccounts } from "@/hooks/pilgrimage";
 import { cn, getErrorMessage } from "@/lib/utils";
+
+/** Artwork for each pilgrimage, the same tiles the member app shows. */
+export const KIND_ICON_SRC = {
+  hajj: "/images/hajj-icon.png",
+  umrah: "/images/umrah-icon.png",
+} as const;
+
+export function kindIconSrc(kind?: string | null): string {
+  return kind === "umrah" ? KIND_ICON_SRC.umrah : KIND_ICON_SRC.hajj;
+}
+
+/** Rounded Hajj / Umrah tile; decorative, so the label beside it names it. */
+export function KindIcon({ kind, size = 20, className }: { kind?: string | null; size?: number; className?: string }) {
+  return (
+    <Image
+      src={kindIconSrc(kind)}
+      alt=""
+      width={size}
+      height={size}
+      className={cn("shrink-0 rounded-[22%] object-cover", className)}
+    />
+  );
+}
 
 /** Tone of every Hajj & Umrah status value; unknown values fall back to muted. */
 const tones: Record<string, string> = {
