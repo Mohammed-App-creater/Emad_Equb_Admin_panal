@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useCreatePilgrimageProduct, usePaymentAccounts, useSavingTypeOptions, useUpdatePilgrimageProduct } from "@/hooks/pilgrimage";
 import { feeTotal, Field, useErrorToast } from "@/components/pilgrimage/shared";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { addDays, addMonths, addYears } from "date-fns";
 import {
   CHARGE_BASES,
   FEE_PARTIES,
@@ -38,7 +39,6 @@ interface Form {
   savingTypeId: string;
   packageCost: string;
   eligibilityPercent: string;
-  savingPeriodMonths: string;
   frequency: Frequency;
   winnersPerCycle: string;
   registrationCloseDays: string;
@@ -66,7 +66,7 @@ interface Form {
 
 const blank = (kind: PilgrimageKind = "hajj"): Form => ({
   code: kind === "hajj" ? "HAJJ" : "UMRAH", kind, name: kind === "hajj" ? "Hajj Equb" : "Umrah Equb", description: "", savingTypeId: "",
-  packageCost: "", eligibilityPercent: "50", savingPeriodMonths: kind === "hajj" ? "12" : "6",
+  packageCost: "", eligibilityPercent: "50",
   frequency: kind === "hajj" ? "annual" : "monthly", winnersPerCycle: "", registrationCloseDays: kind === "hajj" ? "7" : "3", autoOpenNextCycle: true,
   groupMin: "2", groupMax: "10",
   adminWeekly: "100", takafulWeekly: "70", feeWeeks: "52",
@@ -79,7 +79,7 @@ const blank = (kind: PilgrimageKind = "hajj"): Form => ({
 
 const fromProduct = (p: PilgrimageProduct): Form => ({
   code: p.code, kind: p.kind, name: p.name, description: p.description ?? "", savingTypeId: p.saving_type_id,
-  packageCost: String(p.package_cost), eligibilityPercent: String(p.eligibility_percent), savingPeriodMonths: String(p.saving_period_months),
+  packageCost: String(p.package_cost), eligibilityPercent: String(p.eligibility_percent),
   frequency: p.cycle_frequency, winnersPerCycle: String(p.winners_per_cycle), registrationCloseDays: String(p.registration_close_days),
   autoOpenNextCycle: p.auto_open_next_cycle, groupMin: String(p.group_min_members), groupMax: String(p.group_max_members),
   adminWeekly: String(p.admin_fee_weekly ?? 0), takafulWeekly: String(p.takaful_fee_weekly ?? 0), feeWeeks: String(p.fee_weeks || 52),
@@ -116,7 +116,7 @@ const splitTotal = (f: Form) => { const a = configuredAmounts(f); return cents(a
 
 const toInput = (f: Form): PilgrimageProductInput => ({
   code: f.code.trim().toUpperCase(), kind: f.kind, name: f.name.trim(), description: f.description.trim(), saving_type_id: f.savingTypeId,
-  package_cost: num(f.packageCost), eligibility_percent: num(f.eligibilityPercent), saving_period_months: num(f.savingPeriodMonths),
+  package_cost: num(f.packageCost), eligibility_percent: num(f.eligibilityPercent),
   cycle_frequency: f.frequency, winners_per_cycle: num(f.winnersPerCycle), registration_close_days: num(f.registrationCloseDays),
   auto_open_next_cycle: f.autoOpenNextCycle, group_min_members: num(f.groupMin), group_max_members: num(f.groupMax),
   admin_fee_weekly: num(f.adminWeekly) || 0, takaful_fee_weekly: num(f.takafulWeekly) || 0, fee_weeks: num(f.feeWeeks),
@@ -143,7 +143,7 @@ function problems(f: Form): Partial<Record<ProblemKey, string>> {
   if (f.code.trim().length < 2) p.code = "required";
   if (f.name.trim().length < 2) p.name = "required";
   if (!f.savingTypeId) p.savingTypeId = "required";
-  (["packageCost", "winnersPerCycle", "savingPeriodMonths", "financeMonths", "repaymentInterval", "decisionWindowDays", "contractDays"] as const).forEach(positive);
+  (["packageCost", "winnersPerCycle", "financeMonths", "repaymentInterval", "decisionWindowDays", "contractDays"] as const).forEach(positive);
   const pct = num(f.eligibilityPercent);
   if (!(pct > 0 && pct <= 100)) p.eligibilityPercent = "percent";
   if (!(num(f.groupMin) >= 2)) p.groupMin = "groupMin";
@@ -198,6 +198,9 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
   const adminFee = adminFeeOf(form);
   const amounts = configuredAmounts(form);
   const total = splitTotal(form);
+  // What the value of a loan charge means, for the way it is charged.
+  const valueHint = (basis: ChargeBasis | "") =>
+    !basis ? t("valueHintNone") : basis.startsWith("percent") ? t("valueHintPercent") : t("valueHintFixed");
   const valid = Object.keys(errs).length === 0;
 
   const save = () => {
@@ -212,9 +215,14 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
   );
   const amount = (k: keyof Form, props?: React.ComponentProps<typeof Input>) => text(k, { type: "number", min: 0, step: "any", inputMode: "decimal", ...props });
 
+  // A worked example of the default dates, from the next draw this product would hold.
+  const sampleDraw = nextDrawFrom(new Date(), form.frequency);
+  const days = (k: keyof Form) => Math.max(0, Math.round(num(form[k] as string) || 0));
+  const required = (num(form.packageCost) || 0) * (num(form.eligibilityPercent) || 0) / 100;
+
   return (
     <div className="max-h-[75vh] space-y-6 overflow-y-auto pr-1">
-      <Section title={t("sectionProduct")}>
+      <Section step={1} title={t("sectionProduct")} hint={t("sectionProductHint")}>
         <Field label={t("kind")}>
           <Select value={form.kind} disabled={!isNew} onValueChange={(k) => setForm(isNew ? { ...blank(k as PilgrimageKind), savingTypeId: form.savingTypeId, packageCost: form.packageCost } : form)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -224,45 +232,41 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t("code")} error={err("code")} hint={isNew ? undefined : t("codeFixed")}>
+        <Field label={t("name")} hint={t("nameHint")} error={err("name")}>{text("name", { maxLength: 255 })}</Field>
+        <Field label={t("code")} error={err("code")} hint={isNew ? t("codeHint") : t("codeFixed")}>
           {text("code", { disabled: !isNew, className: "font-mono", maxLength: 30 })}
         </Field>
-        <Field label={t("name")} error={err("name")}>{text("name", { maxLength: 255 })}</Field>
-        <Field label={t("savingType")} hint={t("savingTypeHint")} error={err("savingTypeId")}>
-          <Select value={form.savingTypeId} onValueChange={(v) => set("savingTypeId", v)}>
-            <SelectTrigger><SelectValue placeholder={t("selectSavingType")} /></SelectTrigger>
-            <SelectContent loading={typesLoading} empty={!typesLoading && !savingTypes?.length}>
-              {(savingTypes ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}{s.category && <span className="text-muted-foreground"> · {s.category}</span>}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={`${tc("description")} (${tc("optional")})`} className="sm:col-span-2">
+        <div />
+        <Field label={`${t("description")} (${tc("optional")})`} hint={t("descriptionHint")} className="sm:col-span-2">
           <Textarea value={form.description} rows={2} onChange={(e) => set("description", e.target.value)} />
         </Field>
       </Section>
 
-      <Section title={t("sectionSaving")}>
-        <Field label={t("packageCost")} error={err("packageCost")}>{amount("packageCost")}</Field>
-        <Field label={t("eligibilityPercent")} hint={t("eligibilityHint")} error={err("eligibilityPercent")}>{amount("eligibilityPercent")}</Field>
-        <Field label={t("savingPeriodMonths")} hint={t("savingPeriodHint")} error={err("savingPeriodMonths")}>{amount("savingPeriodMonths")}</Field>
+      <Section step={2} title={t("sectionSaving")} hint={t("sectionSavingHint")}>
+        <Field label={t("packageCost")} hint={t("packageCostHint")} error={err("packageCost")}>{amount("packageCost")}</Field>
+        <Field label={t("eligibilityPercent")} hint={t("eligibilityHint")} error={err("eligibilityPercent")}>{amount("eligibilityPercent", { max: 100 })}</Field>
+        {required > 0 && <Example className="sm:col-span-2">{t("eligibilityExample", { required: formatCurrency(required), percent: num(form.eligibilityPercent), cost: formatCurrency(num(form.packageCost)) })}</Example>}
       </Section>
 
-      <Section title={t("sectionFees")} hint={t("sectionFeesHint")}>
-        <Field label={t("adminFeeWeekly")} error={err("adminWeekly")}>{amount("adminWeekly")}</Field>
-        <Field label={t("takafulFeeWeekly")} error={err("takafulWeekly")}>{amount("takafulWeekly")}</Field>
+      <Section step={3} title={t("sectionFees")} hint={t("sectionFeesHint")}>
+        <Field label={t("adminFeeWeekly")} hint={t("adminFeeWeeklyHint")} error={err("adminWeekly")}>{amount("adminWeekly")}</Field>
+        <Field label={t("takafulFeeWeekly")} hint={t("takafulFeeWeeklyHint")} error={err("takafulWeekly")}>{amount("takafulWeekly")}</Field>
         <Field label={t("feeWeeks")} hint={t("feeWeeksHint")} error={err("feeWeeks")}>{amount("feeWeeks", { step: 1 })}</Field>
-        <div className="rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
+        <Example>
           <p>{t("adminFeeTotal", { amount: formatCurrency(adminFee) })}</p>
           <p>{t("takafulFeeTotal", { amount: formatCurrency(takafulOf(form)) })}</p>
           <p className="font-medium text-foreground">{t("feesTotal", { amount: formatCurrency(cents(adminFee + takafulOf(form))) })}</p>
-        </div>
+        </Example>
         <div className="sm:col-span-2">
-          <p className="text-xs font-medium text-foreground">{t("splitTitle")}</p>
-          <p className="mb-2 text-xs text-muted-foreground">{t("splitIntro")}</p>
+          <p className="text-sm font-medium text-foreground">{t("splitTitle")}</p>
+          <p className="mb-2 text-xs text-muted-foreground">{t("splitIntro", { fee: formatCurrency(adminFee) })}</p>
           <div className="overflow-hidden rounded-xl border border-border">
             {FEE_PARTIES.map((party) => (
-              <div key={party} className="grid grid-cols-[6rem_1fr_1fr_7rem] items-start gap-2 border-b border-border p-2 last:border-b-0 max-sm:grid-cols-2">
-                <span className="pt-2 text-sm font-medium text-foreground">{t(`party_${party}` as never)}</span>
+              <div key={party} className="grid grid-cols-[7rem_1fr_1fr_7rem] items-start gap-2 border-b border-border p-2 last:border-b-0 max-sm:grid-cols-2">
+                <span className="pt-1 text-sm font-medium text-foreground">
+                  {t(`party_${party}` as never)}
+                  <span className="block text-[11px] font-normal leading-4 text-muted-foreground">{t(`party_${party}_hint` as never)}</span>
+                </span>
                 <Select value={form.split[party].basis} onValueChange={(v) => setShare(party, { basis: v as FeeShareBasis })}>
                   <SelectTrigger aria-label={t("shareBasis")}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -294,13 +298,49 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
         </div>
       </Section>
 
-      <Section title={t("sectionHolding")} hint={t("sectionHoldingHint")}>
-        <Field label={t("holdingJournal")} hint={form.holdingBankId ? undefined : t("holdingMissing")} className="sm:col-span-2">
+      <Section step={4} title={t("sectionDraw")} hint={t("sectionDrawHint")}>
+        <Field label={t("frequency")} hint={t("frequencyHint")}>
+          <Select value={form.frequency} onValueChange={(v) => set("frequency", v as Frequency)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(["annual", "semi_annual", "quarterly", "monthly"] as const).map((f) => <SelectItem key={f} value={f}>{t(`frequency_${f}` as never)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("winnersPerCycle")} hint={t("winnersHint")} error={err("winnersPerCycle")}>{amount("winnersPerCycle", { step: 1 })}</Field>
+        <Toggle label={t("autoOpen")} hint={t("autoOpenHint")} checked={form.autoOpenNextCycle} onChange={(v) => set("autoOpenNextCycle", v)} />
+        <div />
+        <Field label={t("groupMin")} hint={t("groupMinHint")} error={err("groupMin")}>{amount("groupMin", { step: 1 })}</Field>
+        <Field label={t("groupMax")} hint={t("groupMaxHint")} error={err("groupMax")}>{amount("groupMax", { step: 1 })}</Field>
+      </Section>
+
+      <Section step={5} title={t("sectionDates")} hint={t("sectionDatesHint")}>
+        <Field label={t("registrationCloseDays")} hint={t("registrationCloseHint")}>{amount("registrationCloseDays", { step: 1 })}</Field>
+        <Field label={t("contractDays")} hint={t("contractDaysHint")} error={err("contractDays")}>{amount("contractDays", { step: 1 })}</Field>
+        <Field label={t("decisionWindowDays")} hint={t("decisionWindowHint")} error={err("decisionWindowDays")}>{amount("decisionWindowDays", { step: 1 })}</Field>
+        <Field label={t("defaultDecision")} hint={t("defaultDecisionHint")}>
+          <Select value={form.defaultDecision} onValueChange={(v) => set("defaultDecision", v as NonWinnerOption)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {NON_WINNER_OPTIONS.map((o) => <SelectItem key={o} value={o}>{to(o)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Example className="sm:col-span-2">
+          <p className="font-medium text-foreground">{t("datesExample", { draw: formatDate(sampleDraw.toISOString()) })}</p>
+          <p>{t("datesExampleRegistration", { date: formatDate(addDays(sampleDraw, -days("registrationCloseDays")).toISOString()) })}</p>
+          <p>{t("datesExampleContract", { date: formatDate(addDays(sampleDraw, days("contractDays")).toISOString()) })}</p>
+          <p>{t("datesExampleDecision", { date: formatDate(addDays(sampleDraw, days("decisionWindowDays")).toISOString()) })}</p>
+        </Example>
+      </Section>
+
+      <Section step={6} title={t("sectionHolding")} hint={t("sectionHoldingHint")}>
+        <Field label={t("holdingJournal")} error={form.holdingBankId ? undefined : t("holdingMissing")} className="sm:col-span-2">
           {journals.length > 0 ? (
             <Select value={form.holdingBankId || "none"} onValueChange={(v) => set("holdingBankId", v === "none" ? "" : v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">{tc("none")}</SelectItem>
+                <SelectItem value="none">{t("holdingNone")}</SelectItem>
                 {journals.map((j) => <SelectItem key={j.id} value={j.id!}>{j.name || j.code || j.id}{j.code && <span className="text-muted-foreground"> · {j.code}</span>}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -310,49 +350,25 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
         </Field>
       </Section>
 
-      <Section title={t("sectionDraw")}>
-        <Field label={t("frequency")}>
-          <Select value={form.frequency} onValueChange={(v) => set("frequency", v as Frequency)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {(["annual", "semi_annual", "quarterly", "monthly"] as const).map((f) => <SelectItem key={f} value={f}>{t(`frequency_${f}` as never)}</SelectItem>)}
+      <Section step={7} title={t("sectionFinance")} hint={t("sectionFinanceHint")}>
+        <Field label={t("savingType")} hint={t("savingTypeHint")} error={err("savingTypeId")} className="sm:col-span-2">
+          <Select value={form.savingTypeId} onValueChange={(v) => set("savingTypeId", v)}>
+            <SelectTrigger><SelectValue placeholder={t("selectSavingType")} /></SelectTrigger>
+            <SelectContent loading={typesLoading} empty={!typesLoading && !savingTypes?.length}>
+              {(savingTypes ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}{s.category && <span className="text-muted-foreground"> · {s.category}</span>}</SelectItem>)}
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t("winnersPerCycle")} hint={t("winnersHint")} error={err("winnersPerCycle")}>{amount("winnersPerCycle")}</Field>
-        <Field label={t("registrationCloseDays")} hint={t("registrationCloseHint")}>{amount("registrationCloseDays")}</Field>
-        <Toggle label={t("autoOpen")} hint={t("autoOpenHint")} checked={form.autoOpenNextCycle} onChange={(v) => set("autoOpenNextCycle", v)} />
-        <Field label={t("groupMin")} error={err("groupMin")}>{amount("groupMin")}</Field>
-        <Field label={t("groupMax")} hint={t("groupMaxHint")} error={err("groupMax")}>{amount("groupMax")}</Field>
-      </Section>
-
-      <Section title={t("sectionNonWinners")}>
-        <Field label={t("decisionWindowDays")} hint={t("decisionWindowHint")} error={err("decisionWindowDays")}>{amount("decisionWindowDays")}</Field>
-        <Field label={t("defaultDecision")} hint={t("defaultDecisionHint")}>
-          <Select value={form.defaultDecision} onValueChange={(v) => set("defaultDecision", v as NonWinnerOption)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {NON_WINNER_OPTIONS.map((o) => <SelectItem key={o} value={o}>{to(o)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </Field>
-      </Section>
-
-      <Section title={t("sectionWinners")} hint={t("sectionWinnersHint")}>
-        <Field label={t("contractDays")} hint={t("contractDaysHint")} error={err("contractDays")}>{amount("contractDays", { step: 1 })}</Field>
-      </Section>
-
-      <Section title={t("sectionFinance")} hint={t("sectionFinanceHint")}>
         <Field label={t("maxFinance")} hint={t("maxFinanceHint")} error={err("maxFinance")}>{amount("maxFinance", { placeholder: form.packageCost || undefined })}</Field>
-        <Field label={t("financeMonths")} error={err("financeMonths")}>{amount("financeMonths")}</Field>
-        <Field label={t("repaymentInterval")} hint={t("repaymentIntervalHint")} error={err("repaymentInterval")}>{amount("repaymentInterval")}</Field>
+        <Field label={t("financeMonths")} hint={t("financeMonthsHint")} error={err("financeMonths")}>{amount("financeMonths", { step: 1 })}</Field>
+        <Field label={t("repaymentInterval")} hint={t("repaymentIntervalHint")} error={err("repaymentInterval")}>{amount("repaymentInterval", { step: 1 })}</Field>
         <div />
-        <BasisSelect label={t("serviceBasis")} value={form.serviceBasis} onChange={(v) => set("serviceBasis", v)} error={err("serviceBasis")} tb={tb} none={tc("none")} />
-        <Field label={t("serviceValue")} hint={t("valueHint")}>{amount("serviceValue")}</Field>
-        <Field label={t("equbShare")} hint={t("equbShareHint")} error={err("equbShare")}>{amount("equbShare")}</Field>
+        <BasisSelect label={t("serviceBasis")} hint={t("serviceBasisHint")} value={form.serviceBasis} onChange={(v) => set("serviceBasis", v)} error={err("serviceBasis")} tb={tb} none={t("chargeNone")} />
+        <Field label={t("serviceValue")} hint={valueHint(form.serviceBasis)}>{amount("serviceValue")}</Field>
+        <Field label={t("equbShare")} hint={t("equbShareHint")} error={err("equbShare")}>{amount("equbShare", { max: 100 })}</Field>
         <div />
-        <BasisSelect label={t("takafulBasis")} value={form.takafulBasis} onChange={(v) => set("takafulBasis", v)} error={err("takafulBasis")} tb={tb} none={tc("none")} />
-        <Field label={t("takafulValue")} hint={t("valueHint")}>{amount("takafulValue")}</Field>
+        <BasisSelect label={t("takafulBasis")} hint={t("takafulBasisHint")} value={form.takafulBasis} onChange={(v) => set("takafulBasis", v)} error={err("takafulBasis")} tb={tb} none={t("chargeNone")} />
+        <Field label={t("takafulValue")} hint={valueHint(form.takafulBasis)}>{amount("takafulValue")}</Field>
       </Section>
 
       <Toggle label={t("active")} hint={t("activeHint")} checked={form.active} onChange={(v) => set("active", v)} />
@@ -367,11 +383,29 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+/** The date of the next draw a product held today would have: one period on. */
+function nextDrawFrom(d: Date, f: Frequency) {
+  switch (f) {
+    case "annual": return addYears(d, 1);
+    case "semi_annual": return addMonths(d, 6);
+    case "quarterly": return addMonths(d, 3);
+    default: return addMonths(d, 1);
+  }
+}
+
+/** A worked example of what the numbers above mean. */
+function Example({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <div className={cn("space-y-0.5 rounded-xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground", className)}>{children}</div>;
+}
+
+function Section({ step, title, hint, children }: { step?: number; title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          {step && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground">{step}</span>}
+          {title}
+        </h3>
         {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
@@ -391,12 +425,12 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint: strin
   );
 }
 
-function BasisSelect({ label, value, onChange, error, tb, none }: {
-  label: string; value: ChargeBasis | ""; onChange: (v: ChargeBasis | "") => void; error?: string;
+function BasisSelect({ label, hint, value, onChange, error, tb, none }: {
+  label: string; hint?: string; value: ChargeBasis | ""; onChange: (v: ChargeBasis | "") => void; error?: string;
   tb: ReturnType<typeof useTranslations>; none: string;
 }) {
   return (
-    <Field label={label} error={error}>
+    <Field label={label} hint={hint} error={error}>
       <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : (v as ChargeBasis))}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>
