@@ -2,8 +2,9 @@ import { api } from "@/lib/api/client";
 import type { ApiEnvelope, PaginationMeta } from "@/types/equb-api";
 import type {
   ContributeInput,
+  Contribution,
+  ContributionLedger,
   DrawResult,
-  MudarabahContract,
   NonWinnerOption,
   Participation,
   PaymentAccount,
@@ -32,18 +33,20 @@ export const PILGRIMAGE_ENDPOINTS = {
   CYCLE_ACTION: (id: string, action: "lock" | "draw" | "approve" | "cancel") => `/pilgrimage/cycles/${id}/${action}`,
   PARTICIPATIONS: "/pilgrimage/participations",
   PARTICIPATION: (id: string) => `/pilgrimage/participations/${id}`,
-  CONTRIBUTIONS: (id: string) => `/pilgrimage/participations/${id}/contributions`,
+  PARTICIPATION_CONTRIBUTIONS: (id: string) => `/pilgrimage/participations/${id}/contributions`,
+  PARTICIPATION_AGENT: (id: string) => `/pilgrimage/participations/${id}/agent`,
   CANCEL_PARTICIPATION: (id: string) => `/pilgrimage/participations/${id}/cancel`,
+  CONTRIBUTIONS: "/pilgrimage/contributions",
   GROUPS: "/pilgrimage/groups",
   GROUP: (id: string) => `/pilgrimage/groups/${id}`,
   WINNERS: "/pilgrimage/winners",
-  RETRY_FINANCE: (id: string) => `/pilgrimage/winners/${id}/retry-finance`,
+  WINNER_TERMS: (id: string) => `/pilgrimage/winners/${id}/terms`,
+  WINNER_RETRY: (id: string) => `/pilgrimage/winners/${id}/retry`,
   DECISIONS: "/pilgrimage/decisions",
   CHOOSE: (id: string) => `/pilgrimage/decisions/${id}/choose`,
   REVIEW: (id: string) => `/pilgrimage/decisions/${id}/review`,
-  MUDARABAH: "/pilgrimage/mudarabah",
-  MUDARABAH_PROFIT: (id: string) => `/pilgrimage/mudarabah/${id}/profit`,
-  // SACCO-wide lookups the forms need.
+  // SACCO-wide endpoints the module uses.
+  PAYMENT_STATUS: (id: string) => `/payments/${id}/status`,
   SAVING_TYPES: "/saving-types",
   PAYMENT_ACCOUNTS: "/payment-accounts",
 } as const;
@@ -58,6 +61,21 @@ const page = async <T>(p: Promise<{ data: ApiEnvelope<T[] | null> }>, params?: P
   const items = env.data ?? [];
   return { items, meta: env.meta ?? { page: params?.page ?? 1, per_page: params?.limit ?? items.length, total: items.length, total_pages: 1 } };
 };
+
+export interface LedgerPage extends ContributionLedger { meta: PaginationMeta }
+const emptyTotals = { count: 0, saved_amount: 0, admin_fee_charged: 0, admin_fee_collected: 0, takaful_fee_charged: 0, takaful_fee_collected: 0 };
+const ledger = async (p: Promise<{ data: ApiEnvelope<ContributionLedger | null> }>, params?: PilgrimageListParams): Promise<LedgerPage> => {
+  const env = (await p).data;
+  const contributions = env.data?.contributions ?? [];
+  return {
+    contributions,
+    totals: env.data?.totals ?? emptyTotals,
+    meta: env.meta ?? { page: params?.page ?? 1, per_page: params?.limit ?? contributions.length, total: contributions.length, total_pages: 1 },
+  };
+};
+
+/** The final statuses staff can give an Equb ledger payment (or a winner's transfer, locally). */
+export type PaymentOutcome = "completed" | "failed";
 
 export const pilgrimageApi = {
   // Products
@@ -82,14 +100,18 @@ export const pilgrimageApi = {
   // Registrations
   listParticipations: (params?: PilgrimageListParams) => page<Participation>(api.get(E.PARTICIPATIONS, { params }), params),
   getParticipation: (id: string) => unwrap<Participation>(api.get(E.PARTICIPATION(id))),
-  register: (body: { product_id: string; member_id: string }) => unwrap<Participation>(api.post(E.PARTICIPATIONS, body)),
-  contribute: (id: string, body: ContributeInput) => unwrap<{ id: string; amount: number; status: string }>(api.post(E.CONTRIBUTIONS(id), body)),
-  contributions: (id: string, params?: { page?: number; limit?: number }) =>
-    page<{ id: string; amount: number; status: string; payment_type: string; payment_method: string; reference_number?: string; created_at: string }>(
-      api.get(E.CONTRIBUTIONS(id), { params }),
-      params,
-    ),
+  register: (body: { product_id: string; member_id: string; agent_user_id?: string }) => unwrap<Participation>(api.post(E.PARTICIPATIONS, body)),
+  setAgent: (id: string, agentUserId: string) => unwrap<Participation>(api.put(E.PARTICIPATION_AGENT(id), { agent_user_id: agentUserId })),
   cancelParticipation: (id: string) => unwrap<Participation>(api.post(E.CANCEL_PARTICIPATION(id))),
+
+  // Contributions (the Equb ledger)
+  contribute: (id: string, body: ContributeInput) => unwrap<Contribution>(api.post(E.PARTICIPATION_CONTRIBUTIONS(id), body)),
+  participationContributions: (id: string, params?: { page?: number; limit?: number }) =>
+    page<Contribution>(api.get(E.PARTICIPATION_CONTRIBUTIONS(id), { params }), params),
+  contributionLedger: (params?: PilgrimageListParams) => ledger(api.get(E.CONTRIBUTIONS, { params }), params),
+  /** Confirms or fails a payment (an Equb ledger payment, or a winner's savings transfer). */
+  setPaymentOutcome: (paymentId: string, status: PaymentOutcome, reason?: string) =>
+    unwrap<unknown>(api.patch(E.PAYMENT_STATUS(paymentId), { status, failure_reason: status === "failed" ? reason || "Rejected by staff" : undefined })),
 
   // Groups
   listGroups: (params?: PilgrimageListParams) => page<PilgrimageGroup>(api.get(E.GROUPS, { params }), params),
@@ -97,17 +119,13 @@ export const pilgrimageApi = {
 
   // Winners
   listWinners: (params?: PilgrimageListParams) => page<PilgrimageWinner>(api.get(E.WINNERS, { params }), params),
-  retryWinnerFinance: (id: string) => unwrap<PilgrimageWinner>(api.post(E.RETRY_FINANCE(id))),
+  setWinnerTerms: (id: string, financeAmount: number) => unwrap<PilgrimageWinner>(api.post(E.WINNER_TERMS(id), { finance_amount: financeAmount })),
+  retryWinner: (id: string) => unwrap<PilgrimageWinner>(api.post(E.WINNER_RETRY(id))),
 
   // Non-winner decisions
   listDecisions: (params?: PilgrimageListParams) => page<PilgrimageDecision>(api.get(E.DECISIONS, { params }), params),
-  chooseOnBehalf: (id: string, body: { option: NonWinnerOption; mudarabah_duration_months?: number }) =>
-    unwrap<PilgrimageDecision>(api.post(E.CHOOSE(id), body)),
+  chooseOnBehalf: (id: string, option: NonWinnerOption) => unwrap<PilgrimageDecision>(api.post(E.CHOOSE(id), { option })),
   reviewDecision: (id: string, body: ReviewDecisionInput) => unwrap<PilgrimageDecision>(api.post(E.REVIEW(id), body)),
-
-  // Mudarabah
-  listMudarabah: (params?: PilgrimageListParams) => page<MudarabahContract>(api.get(E.MUDARABAH, { params }), params),
-  recordProfit: (id: string, body: { amount: number; reference: string }) => unwrap<MudarabahContract>(api.post(E.MUDARABAH_PROFIT(id), body)),
 
   // Lookups
   savingTypes: () => unwrap<SavingTypeOption[] | null>(api.get(E.SAVING_TYPES, { params: { per_page: 100, limit: 100 } })).then((r) => r ?? []),

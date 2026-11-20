@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CalendarClock, Hand, Layers, PiggyBank, Trophy, UsersRound, UserRoundCheck } from "lucide-react";
+import { CalendarClock, Hand, LayoutDashboard, Layers, PiggyBank, Trophy, UsersRound, UserRoundCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -13,30 +13,33 @@ import { ParticipationsTab } from "@/components/pilgrimage/participations-tab";
 import { CyclesTab } from "@/components/pilgrimage/cycles-tab";
 import { DecisionsTab } from "@/components/pilgrimage/decisions-tab";
 import { WinnersTab } from "@/components/pilgrimage/winners-tab";
-import { MudarabahTab } from "@/components/pilgrimage/mudarabah-tab";
+import { ContributionsTab } from "@/components/pilgrimage/contributions-tab";
+import { OverviewTab } from "@/components/pilgrimage/overview-tab";
 import { ProductsTab } from "@/components/pilgrimage/products-tab";
 import { usePilgrimageGroups, usePilgrimageProducts } from "@/hooks/pilgrimage";
 import { EKUB_PERMS } from "@/lib/auth/ekub-permissions";
 import type { PilgrimageGroup } from "@/types/pilgrimage";
 
-const TABS = ["registrations", "cycles", "decisions", "winners", "mudarabah", "groups", "products"] as const;
+const TABS = ["overview", "registrations", "contributions", "cycles", "winners", "decisions", "groups", "products"] as const;
 type Tab = (typeof TABS)[number];
 const tabIcon: Record<Tab, typeof Layers> = {
+  overview: LayoutDashboard,
   registrations: UserRoundCheck,
+  contributions: PiggyBank,
   cycles: CalendarClock,
   decisions: Hand,
   winners: Trophy,
-  mudarabah: PiggyBank,
   groups: UsersRound,
   products: Layers,
 };
 
 /**
  * Hajj & Umrah Equb: a savings-and-lottery product separate from the rotating
- * Equb. Members register individually and save on their own SACCO contract;
- * those who reach the eligibility threshold enter the draw, groups win
- * together, winners get Murabaha financing and the others decide what to do
- * with their savings.
+ * Equb. Members save on the Equb's own ledger (contributions plus admin fee
+ * and Takaful, shared with their agent); those who reach the eligibility
+ * threshold enter the draw, groups win together. A winner gets a saving
+ * contract for their savings plus an agreed Murabaha finance and repays it
+ * through EMAD SACCO; the others carry their savings forward or withdraw.
  */
 function PilgrimageInner() {
   const t = useTranslations("pilgrimage");
@@ -44,12 +47,12 @@ function PilgrimageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const requested = params.get("tab") as Tab | null;
-  const tab: Tab = requested && TABS.includes(requested) ? requested : "registrations";
+  const tab: Tab = requested && TABS.includes(requested) ? requested : "overview";
   const setTab = (next: string) => router.replace(`/dashboard/pilgrimage?tab=${next}`, { scroll: false });
   const { data: products } = usePilgrimageProducts();
   const [productId, setProductId] = useState("all");
   const product = productId === "all" ? undefined : productId;
-  const filtered = tab === "registrations" || tab === "cycles" || tab === "groups";
+  const filtered = tab === "overview" || tab === "registrations" || tab === "contributions" || tab === "cycles" || tab === "groups";
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -73,11 +76,12 @@ function PilgrimageInner() {
             return <TabsTrigger key={k} value={k}><Icon size={14} className="mr-1.5" />{t(`tabs.${k}`)}</TabsTrigger>;
           })}
         </TabsList>
+        <TabsContent value="overview"><OverviewTab key={productId} productId={product} onOpenTab={setTab} /></TabsContent>
         <TabsContent value="registrations"><ParticipationsTab key={productId} productId={product} /></TabsContent>
+        <TabsContent value="contributions"><ContributionsTab key={productId} productId={product} /></TabsContent>
         <TabsContent value="cycles"><CyclesTab key={productId} productId={product} /></TabsContent>
-        <TabsContent value="decisions"><DecisionsTab /></TabsContent>
         <TabsContent value="winners"><WinnersTab /></TabsContent>
-        <TabsContent value="mudarabah"><MudarabahTab /></TabsContent>
+        <TabsContent value="decisions"><DecisionsTab /></TabsContent>
         <TabsContent value="groups"><GroupsTab key={productId} productId={product} emptyLabel={tc("noData")} /></TabsContent>
         <TabsContent value="products"><ProductsTab /></TabsContent>
       </Tabs>

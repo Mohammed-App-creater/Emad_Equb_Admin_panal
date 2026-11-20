@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarPlus, Loader2, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, CalendarPlus, Loader2, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useOpenCycle, usePilgrimageProducts } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
-import { Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { feeTotal, Field, PStatus, splitAmounts, useErrorToast, useShareLabel } from "@/components/pilgrimage/shared";
 import { ProductFormModal } from "@/components/pilgrimage/product-form-modal";
 import type { PilgrimageProduct } from "@/types/pilgrimage";
 
@@ -36,12 +36,13 @@ export function ProductsTab() {
       <div className="text-right">
         <p className="tabular-nums">{formatCurrency(p.package_cost)}</p>
         <p className="text-xs text-muted-foreground">{t("eligibilityShort", { percent: p.eligibility_percent })}</p>
+        <p className="text-xs text-muted-foreground">{t("maxFinanceShort", { amount: formatCurrency(p.max_finance_amount) })}</p>
       </div>
     ) },
     { id: "draw", header: t("frequency"), mobile: "detail", cell: (p) => (
       <span className="text-sm">{t(`frequency_${p.cycle_frequency}` as never)} · {t("winnersShort", { count: p.winners_per_cycle })}</span>
     ) },
-    { id: "fees", header: t("fees"), mobile: "detail", cell: (p) => <FeesSummary product={p} /> },
+    { id: "fees", header: t("contributionFees"), mobile: "detail", cell: (p) => <FeesSummary product={p} /> },
     { id: "status", header: tc("status"), mobile: "badge", cell: (p) => <PStatus status={p.status} /> },
   ];
   const actions: DataTableAction<PilgrimageProduct>[] = canManage
@@ -76,13 +77,24 @@ export function ProductsTab() {
 
 function FeesSummary({ product: p }: { product: PilgrimageProduct }) {
   const t = useTranslations("pilgrimage.product");
-  const tb = useTranslations("pilgrimage.basis");
-  const fee = (value: number, basis?: string) =>
-    value > 0 && basis ? `${basis.startsWith("percent") ? `${value}%` : formatCurrency(value)} ${tb(`${basis}_short` as never)}` : "—";
+  const share = useShareLabel();
+  const admin = feeTotal(p.admin_fee_weekly, p.fee_weeks);
+  const takaful = feeTotal(p.takaful_fee_weekly, p.fee_weeks);
+  const split = splitAmounts(p.admin_fee_split, admin);
   return (
-    <div className="text-xs leading-5">
-      <p>{t("serviceShort")}: {fee(p.service_charge_value, p.service_charge_basis)}</p>
-      <p>{t("takafulShort")}: {fee(p.takaful_value, p.takaful_basis)}</p>
+    <div className="space-y-0.5 text-xs leading-5">
+      <p>{t("adminShort")}: {t("weeklyShort", { weekly: formatCurrency(p.admin_fee_weekly), weeks: p.fee_weeks, total: formatCurrency(admin) })}</p>
+      <p>{t("takafulShort")}: {t("weeklyShort", { weekly: formatCurrency(p.takaful_fee_weekly), weeks: p.fee_weeks, total: formatCurrency(takaful) })}</p>
+      <p className="text-muted-foreground">
+        {t("splitShort", {
+          agent: `${share(p.admin_fee_split?.agent)} (${formatCurrency(split.agent)})`,
+          broker: `${share(p.admin_fee_split?.broker)} (${formatCurrency(split.broker)})`,
+          sacco: `${share(p.admin_fee_split?.sacco)} (${formatCurrency(split.sacco)})`,
+        })}
+      </p>
+      {!p.holding_bank_id && !p.holding_payment_account_id && (
+        <p className="flex items-center gap-1 text-warning"><AlertTriangle size={12} /> {t("holdingMissingShort")}</p>
+      )}
     </div>
   );
 }

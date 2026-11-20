@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { pilgrimageApi } from "@/services/pilgrimage-api";
+import { pilgrimageApi, type PaymentOutcome } from "@/services/pilgrimage-api";
 import type {
   ContributeInput,
   NonWinnerOption,
@@ -10,7 +10,7 @@ import type {
   ReviewDecisionInput,
 } from "@/types/pilgrimage";
 
-/** Query keys of the Hajj & Umrah module; every mutation invalidates the whole module prefix it touches. */
+/** Query keys of the Hajj & Umrah module; every mutation invalidates the whole module prefix. */
 export const pk = {
   all: ["pilgrimage"] as const,
   products: () => ["pilgrimage", "products"] as const,
@@ -20,15 +20,15 @@ export const pk = {
   result: (id: string) => ["pilgrimage", "result", id] as const,
   participations: (p?: PilgrimageListParams) => ["pilgrimage", "participations", p ?? {}] as const,
   participation: (id: string) => ["pilgrimage", "participation", id] as const,
-  contributions: (id: string, page: number) => ["pilgrimage", "contributions", id, page] as const,
+  participationContributions: (id: string, page: number) => ["pilgrimage", "participation-contributions", id, page] as const,
+  ledger: (p?: PilgrimageListParams) => ["pilgrimage", "ledger", p ?? {}] as const,
   groups: (p?: PilgrimageListParams) => ["pilgrimage", "groups", p ?? {}] as const,
   group: (id: string) => ["pilgrimage", "group", id] as const,
   winners: (p?: PilgrimageListParams) => ["pilgrimage", "winners", p ?? {}] as const,
   decisions: (p?: PilgrimageListParams) => ["pilgrimage", "decisions", p ?? {}] as const,
-  mudarabah: (p?: PilgrimageListParams) => ["pilgrimage", "mudarabah", p ?? {}] as const,
 };
 
-/** Any change can move several screens at once (a draw approval creates winners, decisions and a cycle), so refresh the module. */
+/** Any change can move several screens at once (a confirmed contribution moves a balance, the ledger and eligibility), so refresh the module. */
 const useModuleMutation = <V, R>(fn: (v: V) => Promise<R>) => {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: pk.all }) });
@@ -67,12 +67,19 @@ export const useParticipations = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.participations(params), queryFn: () => pilgrimageApi.listParticipations(params), placeholderData: keepPreviousData });
 export const useParticipation = (id: string) =>
   useQuery({ queryKey: pk.participation(id), queryFn: () => pilgrimageApi.getParticipation(id), enabled: !!id });
-export const useContributions = (id: string, page = 1) =>
-  useQuery({ queryKey: pk.contributions(id, page), queryFn: () => pilgrimageApi.contributions(id, { page, limit: 10 }), enabled: !!id });
 export const useRegisterParticipant = () =>
-  useModuleMutation((b: { product_id: string; member_id: string }) => pilgrimageApi.register(b));
-export const useContribute = () => useModuleMutation((v: { id: string; body: ContributeInput }) => pilgrimageApi.contribute(v.id, v.body));
+  useModuleMutation((b: { product_id: string; member_id: string; agent_user_id?: string }) => pilgrimageApi.register(b));
+export const useSetParticipationAgent = () => useModuleMutation((v: { id: string; agentUserId: string }) => pilgrimageApi.setAgent(v.id, v.agentUserId));
 export const useCancelParticipation = () => useModuleMutation((id: string) => pilgrimageApi.cancelParticipation(id));
+
+// ---- Contributions (the Equb ledger) ----
+export const useParticipationContributions = (id: string, page = 1) =>
+  useQuery({ queryKey: pk.participationContributions(id, page), queryFn: () => pilgrimageApi.participationContributions(id, { page, limit: 10 }), enabled: !!id });
+export const useContributionLedger = (params?: PilgrimageListParams) =>
+  useQuery({ queryKey: pk.ledger(params), queryFn: () => pilgrimageApi.contributionLedger(params), placeholderData: keepPreviousData });
+export const useContribute = () => useModuleMutation((v: { id: string; body: ContributeInput }) => pilgrimageApi.contribute(v.id, v.body));
+export const useSetPaymentOutcome = () =>
+  useModuleMutation((v: { paymentId: string; status: PaymentOutcome; reason?: string }) => pilgrimageApi.setPaymentOutcome(v.paymentId, v.status, v.reason));
 
 // ---- Groups ----
 export const usePilgrimageGroups = (params?: PilgrimageListParams) =>
@@ -83,22 +90,14 @@ export const usePilgrimageGroup = (id: string | null) =>
 // ---- Winners ----
 export const usePilgrimageWinners = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.winners(params), queryFn: () => pilgrimageApi.listWinners(params), placeholderData: keepPreviousData });
-export const useRetryWinnerFinance = () => useModuleMutation((id: string) => pilgrimageApi.retryWinnerFinance(id));
+export const useSetWinnerTerms = () => useModuleMutation((v: { id: string; financeAmount: number }) => pilgrimageApi.setWinnerTerms(v.id, v.financeAmount));
+export const useRetryWinner = () => useModuleMutation((id: string) => pilgrimageApi.retryWinner(id));
 
 // ---- Decisions ----
 export const usePilgrimageDecisions = (params?: PilgrimageListParams) =>
   useQuery({ queryKey: pk.decisions(params), queryFn: () => pilgrimageApi.listDecisions(params), placeholderData: keepPreviousData });
-export const useChooseOnBehalf = () =>
-  useModuleMutation((v: { id: string; option: NonWinnerOption; mudarabah_duration_months?: number }) =>
-    pilgrimageApi.chooseOnBehalf(v.id, { option: v.option, mudarabah_duration_months: v.mudarabah_duration_months }),
-  );
+export const useChooseOnBehalf = () => useModuleMutation((v: { id: string; option: NonWinnerOption }) => pilgrimageApi.chooseOnBehalf(v.id, v.option));
 export const useReviewDecision = () => useModuleMutation((v: { id: string; body: ReviewDecisionInput }) => pilgrimageApi.reviewDecision(v.id, v.body));
-
-// ---- Mudarabah ----
-export const useMudarabahContracts = (params?: PilgrimageListParams) =>
-  useQuery({ queryKey: pk.mudarabah(params), queryFn: () => pilgrimageApi.listMudarabah(params), placeholderData: keepPreviousData });
-export const useRecordMudarabahProfit = () =>
-  useModuleMutation((v: { id: string; amount: number; reference: string }) => pilgrimageApi.recordProfit(v.id, { amount: v.amount, reference: v.reference }));
 
 // ---- Lookups ----
 export const useSavingTypeOptions = () =>

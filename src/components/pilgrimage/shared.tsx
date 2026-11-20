@@ -2,13 +2,17 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { Check, Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { usePaymentAccounts } from "@/hooks/pilgrimage";
-import { cn, getErrorMessage } from "@/lib/utils";
+import { useAgentsPage } from "@/hooks/ekub";
+import { useSetPaymentOutcome } from "@/hooks/pilgrimage";
+import { cn, formatCurrency, getErrorMessage } from "@/lib/utils";
+import type { AdminFeeAmounts, AdminFeeSplit, FeeShare, ParticipationFees } from "@/types/pilgrimage";
 
 /** Tone of every Hajj & Umrah status value; unknown values fall back to muted. */
 const tones: Record<string, string> = {
@@ -24,26 +28,27 @@ const tones: Record<string, string> = {
   deciding: "bg-warning/15 text-warning",
   won: "bg-primary/15 text-primary",
   withdrawn: "bg-muted text-muted-foreground",
-  invested: "bg-info/15 text-info",
   inactive: "bg-muted text-muted-foreground",
   // draw outcomes
-  pending: "bg-muted text-muted-foreground",
   ineligible: "bg-muted text-muted-foreground",
   group_win: "bg-primary/15 text-primary",
   group_ineligible: "bg-warning/15 text-warning",
   not_selected: "bg-muted text-muted-foreground",
+  // contributions and payments
+  pending: "bg-warning/15 text-warning",
+  paid: "bg-success/15 text-success",
+  failed: "bg-destructive/15 text-destructive",
   // winners
-  confirmed: "bg-info/15 text-info",
+  awaiting_terms: "bg-warning/15 text-warning",
+  contract_pending: "bg-info/15 text-info",
+  transferring: "bg-secondary/20 text-secondary-foreground",
+  finance_pending: "bg-warning/15 text-warning",
   finance_opened: "bg-success/15 text-success",
-  finance_failed: "bg-destructive/15 text-destructive",
   // decisions
   awaiting_choice: "bg-warning/15 text-warning",
   pending_approval: "bg-info/15 text-info",
   processing: "bg-secondary/20 text-secondary-foreground",
   completed: "bg-success/15 text-success",
-  // mudarabah
-  pending_funding: "bg-warning/15 text-warning",
-  matured: "bg-info/15 text-info",
 };
 
 /**
@@ -84,58 +89,167 @@ export function Detail({ label, children }: { label: string; children: React.Rea
   );
 }
 
+/** A small titled panel used across the module. */
+export function Panel({ title, action, className, children }: { title: React.ReactNode; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
+  return (
+    <section className={cn("rounded-2xl border border-border bg-card p-5", className)}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export const PAYMENT_METHODS = ["cash", "bank_transfer", "mobile_money", "cheque"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export interface PaymentChoice {
+export interface MethodChoice {
   method: PaymentMethod | "";
-  accountId: string;
   reference: string;
 }
-export const emptyPayment = (): PaymentChoice => ({ method: "", accountId: "", reference: "" });
+export const emptyMethod = (): MethodChoice => ({ method: "", reference: "" });
 
 /**
- * Method, receiving account and reference of a SACCO payment. The account is
- * one of the accounts synced from accounting for that method, sent as
- * payment_account_id (the backend derives the journal from it).
+ * How an Equb ledger payment is made: its method and reference. Equb
+ * payments touch no accounting account, so no receiving account is asked.
  */
-export function PaymentFields({ value, onChange, methods = PAYMENT_METHODS }: { value: PaymentChoice; onChange: (v: PaymentChoice) => void; methods?: readonly PaymentMethod[] }) {
+export function MethodFields({ value, onChange }: { value: MethodChoice; onChange: (v: MethodChoice) => void }) {
   const t = useTranslations("pilgrimage.payment");
-  const { data: accounts, isLoading } = usePaymentAccounts(value.method || undefined, !!value.method);
-  const active = (accounts ?? []).filter((a) => a.active);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Field label={t("method")}>
-        <Select value={value.method} onValueChange={(m) => onChange({ ...value, method: m as PaymentMethod, accountId: "" })}>
+        <Select value={value.method} onValueChange={(m) => onChange({ ...value, method: m as PaymentMethod })}>
           <SelectTrigger><SelectValue placeholder={t("selectMethod")} /></SelectTrigger>
           <SelectContent>
-            {methods.map((m) => <SelectItem key={m} value={m}>{t(`method_${m}` as never)}</SelectItem>)}
+            {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{t(`method_${m}` as never)}</SelectItem>)}
           </SelectContent>
         </Select>
       </Field>
-      <Field label={t("account")} hint={t("accountHint")}>
-        <Select value={value.accountId} onValueChange={(id) => onChange({ ...value, accountId: id })} disabled={!value.method}>
-          <SelectTrigger><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
-          <SelectContent loading={isLoading} empty={!isLoading && active.length === 0}>
-            {active.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.account.name || a.account.code || a.id}
-                {a.journal.name && <span className="text-muted-foreground"> · {a.journal.name}</span>}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field label={`${t("reference")} (${t("optional")})`} className="sm:col-span-2">
+      <Field label={`${t("reference")} (${t("optional")})`}>
         <Input value={value.reference} maxLength={100} onChange={(e) => onChange({ ...value, reference: e.target.value })} placeholder="FT2611170001" />
       </Field>
     </div>
   );
 }
 
-/** The payment_* fields of a request body for a PaymentChoice. */
-export const paymentBody = (p: PaymentChoice) => ({
-  payment_method: p.method || undefined,
-  payment_account_id: p.accountId || undefined,
-  transaction_id: p.reference.trim() || undefined,
-});
+/**
+ * Confirm / fail a pending payment. Equb ledger payments are confirmed by
+ * staff, as rotating Equb payments are; a winner's savings transfer is
+ * normally confirmed by accounting and can be confirmed here when testing.
+ */
+export function PaymentOutcomeButtons({ paymentId, onDone }: { paymentId: string; onDone?: () => void }) {
+  const t = useTranslations("pilgrimage.payment");
+  const { toast } = useToast();
+  const onError = useErrorToast();
+  const set = useSetPaymentOutcome();
+  const run = (status: "completed" | "failed") =>
+    set.mutate({ paymentId, status }, {
+      onSuccess: () => { toast({ title: status === "completed" ? t("confirmed") : t("markedFailed") }); onDone?.(); },
+      onError,
+    });
+  return (
+    <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <Button size="sm" disabled={set.isPending} onClick={() => run("completed")}>
+        {set.isPending ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Check size={14} className="mr-1" />} {t("confirm")}
+      </Button>
+      <Button size="sm" variant="outline" disabled={set.isPending} onClick={() => run("failed")}>
+        <X size={14} className="mr-1" /> {t("fail")}
+      </Button>
+    </div>
+  );
+}
+
+const cents = (v: number) => Math.round(v * 100) / 100;
+
+/** What a participant owes of a weekly fee over the fee term. */
+export const feeTotal = (weekly: number, weeks: number) => cents((weekly || 0) * (weeks || 0));
+
+/** One party's share of an admin fee of fee, as the backend works it out. */
+export const shareOf = (share: FeeShare | undefined, fee: number) => {
+  if (!share || !(share.value > 0)) return 0;
+  return cents(share.basis === "percent" ? (fee * share.value) / 100 : share.value);
+};
+
+/**
+ * An admin fee divided between the parties, as the backend divides it: the
+ * agent and broker take their share (never more than the fee) and the SACCO
+ * gets the rest, so the three always add up to the fee.
+ */
+export function splitAmounts(split: AdminFeeSplit | undefined, fee: number): AdminFeeAmounts {
+  fee = cents(fee);
+  if (!(fee > 0)) return { agent: 0, broker: 0, sacco: 0 };
+  const agent = Math.min(shareOf(split?.agent, fee), fee);
+  const broker = Math.min(shareOf(split?.broker, fee), cents(fee - agent));
+  return { agent, broker, sacco: cents(fee - agent - broker) };
+}
+
+/** How a share reads: "1,000.00 ETB" or "10%". */
+export function useShareLabel() {
+  const t = useTranslations("pilgrimage.fee");
+  return (share: FeeShare | undefined) =>
+    !share || !(share.value > 0) ? t("none") : share.basis === "percent" ? t("sharePercent", { value: share.value }) : t("shareFixed", { value: formatCurrency(share.value) });
+}
+
+/** A payment's savings, admin fee, Takaful and total, laid out as a receipt. */
+export function FeeBreakdown({ savings, adminFee, takaful }: { savings: number; adminFee: number; takaful: number }) {
+  const t = useTranslations("pilgrimage.fee");
+  return (
+    <div className="rounded-xl bg-muted/50 p-3 text-sm">
+      <Row label={t("savings")} value={formatCurrency(savings)} />
+      <Row label={t("adminFee")} value={formatCurrency(adminFee)} />
+      <Row label={t("takaful")} value={formatCurrency(takaful)} />
+      <div className="mt-1.5 border-t border-border pt-1.5">
+        <Row label={t("memberPays")} value={formatCurrency(cents(savings + adminFee + takaful))} strong />
+      </div>
+    </div>
+  );
+}
+
+/** A participant's fees: owed, paid, outstanding, and who gets the admin fee. */
+export function FeeStatus({ fees }: { fees: ParticipationFees | null | undefined }) {
+  const t = useTranslations("pilgrimage.fee");
+  if (!fees || fees.admin_fee_due + fees.takaful_fee_due === 0) return <span className="text-muted-foreground">{t("noneOwed")}</span>;
+  return (
+    <span className="block text-xs leading-5">
+      <span className="block">{t("adminFee")}: {formatCurrency(fees.admin_fee_paid)} / {formatCurrency(fees.admin_fee_due)}</span>
+      <span className="block">{t("takaful")}: {formatCurrency(fees.takaful_fee_paid)} / {formatCurrency(fees.takaful_fee_due)}</span>
+      {fees.settled
+        ? <span className="block text-success">{t("settled")}</span>
+        : <span className="block text-warning">{t("outstanding", { amount: formatCurrency(fees.outstanding) })}</span>}
+      <span className="block text-muted-foreground">
+        {t("splitAmounts", { agent: formatCurrency(fees.admin_fee_split.agent), broker: formatCurrency(fees.admin_fee_split.broker), sacco: formatCurrency(fees.admin_fee_split.sacco) })}
+      </span>
+    </span>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className={cn("flex justify-between py-0.5", strong ? "font-semibold text-foreground" : "text-muted-foreground")}>
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+/** Picks an agent (or none). */
+export function AgentSelect({ value, onChange, allowNone = true }: { value: string; onChange: (id: string) => void; allowNone?: boolean }) {
+  const t = useTranslations("pilgrimage.agent");
+  const { data, isLoading } = useAgentsPage({}, 1, 100);
+  const agents = (data?.items ?? []).filter((a) => a.active);
+  return (
+    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger><SelectValue placeholder={t("select")} /></SelectTrigger>
+      <SelectContent loading={isLoading}>
+        {allowNone && <SelectItem value="none">{t("none")}</SelectItem>}
+        {agents.map((a) => (
+          <SelectItem key={a.id} value={a.id}>
+            {a.name || a.email}{a.phone && <span className="text-muted-foreground"> · {a.phone}</span>}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

@@ -3,22 +3,29 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Ban, Loader2, Plus, Target, UsersRound, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, HandCoins, Loader2, Pencil, Plus, Receipt, Target, UsersRound, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { Detail, emptyPayment, Field, PaymentFields, paymentBody, PStatus, useErrorToast, type PaymentChoice } from "@/components/pilgrimage/shared";
+import {
+  AgentSelect, Detail, emptyMethod, FeeBreakdown, FeeStatus, Field, MethodFields, PaymentOutcomeButtons, PStatus, useErrorToast, type MethodChoice,
+} from "@/components/pilgrimage/shared";
 import { Progress } from "@/components/pilgrimage/participations-tab";
-import { useCancelParticipation, useContribute, useContributions, useParticipation, usePilgrimageGroup } from "@/hooks/pilgrimage";
+import { AgreeTermsModal, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
+import {
+  useCancelParticipation, useContribute, useParticipation, useParticipationContributions, usePilgrimageGroup, usePilgrimageWinners, useRetryWinner,
+  useSetParticipationAgent,
+} from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
-import type { GroupMemberView, Participation } from "@/types/pilgrimage";
+import type { Contribution, GroupMemberView, Participation, PilgrimageWinner } from "@/types/pilgrimage";
 
 function ParticipationInner({ id }: { id: string }) {
   const t = useTranslations("pilgrimage.participation");
@@ -28,13 +35,14 @@ function ParticipationInner({ id }: { id: string }) {
   const onError = useErrorToast();
   const { data: p, isLoading } = useParticipation(id);
   const cancel = useCancelParticipation();
-  const [contributing, setContributing] = useState(false);
+  /** The payment modal: a contribution (fees optional), or the fees alone. */
+  const [paying, setPaying] = useState<"contribution" | "fees" | null>(null);
 
   if (isLoading || !p) {
     return <div className="space-y-4 p-4 lg:p-6"><Skeleton className="h-10 w-64" /><Skeleton className="h-40 w-full" /></div>;
   }
   const s = p.standing;
-  const canCancel = p.status === "active" && s.balance === 0 && has(EKUB_PERMS.PILGRIMAGE_MANAGE);
+  const canCancel = p.status === "active" && p.balance === 0 && has(EKUB_PERMS.PILGRIMAGE_MANAGE);
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -47,9 +55,12 @@ function ParticipationInner({ id }: { id: string }) {
         actions={
           <>
             <PStatus status={p.status} />
-            {has(EKUB_PERMS.PILGRIMAGE_REGISTER) && (
-              <Button disabled={!p.accepts_contributions} title={p.accepts_contributions ? undefined : t("contractNotReady")} onClick={() => setContributing(true)}>
-                <Plus size={15} className="mr-1" /> {t("contribute")}
+            {has(EKUB_PERMS.PILGRIMAGE_REGISTER) && p.accepts_contributions && (
+              <Button onClick={() => setPaying("contribution")}><Plus size={15} className="mr-1" /> {t("contribute")}</Button>
+            )}
+            {has(EKUB_PERMS.PILGRIMAGE_REGISTER) && p.fees?.accepts_payment && (
+              <Button variant={p.accepts_contributions ? "outline" : "default"} onClick={() => setPaying("fees")}>
+                <Receipt size={15} className="mr-1" /> {t("payFees")}
               </Button>
             )}
             {canCancel && (
@@ -62,17 +73,29 @@ function ParticipationInner({ id }: { id: string }) {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label={t("balance")} value={formatCurrency(s.balance)} hint={t("percentOfPackage", { percent: s.contribution_percent })} icon={Wallet} tone="primary" />
+        <StatCard label={t("balance")} value={formatCurrency(p.balance)} hint={t("balanceHint")} icon={Wallet} tone="primary" />
         <StatCard label={t("required")} value={formatCurrency(s.required_contribution)} hint={t("ofPackage", { percent: s.eligibility_percent, amount: formatCurrency(s.package_cost) })} icon={Target} tone="info" />
-        <StatCard label={t("eligibility")} value={s.eligible ? t("eligible") : formatCurrency(s.remaining_to_eligibility)} hint={s.eligible ? undefined : t("toGo")} icon={UsersRound} tone={s.eligible ? "success" : "warning"} />
+        <StatCard label={t("eligibility")} value={s.eligible ? t("eligible") : formatCurrency(s.remaining_to_eligibility)} hint={s.eligible ? t("percentOfPackage", { percent: s.contribution_percent }) : t("toGo")} icon={UsersRound} tone={s.eligible ? "success" : "warning"} />
       </div>
+
+      {p.status === "won" && p.fees && !p.fees.settled && !p.saving_contract_id && (
+        <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>{t("winnerFeesDue", { amount: formatCurrency(p.fees.outstanding) })}</span>
+        </div>
+      )}
+      {p.status === "won" && <WinnerCard participation={p} />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-1 p-5">
           <h3 className="mb-2 text-sm font-semibold text-foreground">{t("registration")}</h3>
           <Progress participation={p} />
-          <Detail label={t("contract")}>{p.contract_number || "—"} {p.contract_status && <span className="text-xs text-muted-foreground">({p.contract_status})</span>}</Detail>
+          <AgentLine participation={p} />
           <Detail label={t("channel")}>{t(`channel_${p.channel}` as never)}</Detail>
+          <Detail label={t("fees")}><FeeStatus fees={p.fees} /></Detail>
+          <Detail label={t("contract")}>
+            {p.contract_number ? <>{p.contract_number} <span className="text-xs text-muted-foreground">({p.contract_status})</span></> : <span className="text-muted-foreground">{t("noContract")}</span>}
+          </Detail>
           <Detail label={t("registeredAt")}>{formatDate(p.created_at)}</Detail>
           <Detail label={t("cyclesEntered")}>{p.cycles_entered}</Detail>
           <Detail label={t("carriedForward")}>{p.carried_forward}</Detail>
@@ -82,14 +105,93 @@ function ParticipationInner({ id }: { id: string }) {
               <span className="text-xs text-muted-foreground">· {t("drawOn", { date: formatDate(p.current_cycle.draw_at) })}</span>
             </Detail>
           )}
-          {!p.accepts_contributions && p.status === "active" && <p className="pt-2 text-xs text-warning">{t("contractNotReady")}</p>}
         </Card>
         <GroupCard participation={p} />
       </div>
 
       <Contributions id={p.id} />
-      <ContributeModal participation={contributing ? p : null} onClose={() => setContributing(false)} />
+      <PaymentModal participation={paying ? p : null} feesOnly={paying === "fees"} onClose={() => setPaying(null)} />
     </div>
+  );
+}
+
+/** The participation's agent, who earns the agent share of its admin fees; staff can change it. */
+function AgentLine({ participation: p }: { participation: Participation }) {
+  const t = useTranslations("pilgrimage.agent");
+  const tc = useTranslations("common");
+  const { has } = useEkubAccess();
+  const { toast } = useToast();
+  const onError = useErrorToast();
+  const setAgent = useSetParticipationAgent();
+  const [editing, setEditing] = useState(false);
+  const [agentId, setAgentId] = useState(p.agent_user_id ?? "");
+  const open = p.status === "active" || p.status === "deciding" || p.status === "won";
+  return (
+    <>
+      <Detail label={t("label")}>
+        <span className="inline-flex items-center gap-1.5">
+          {p.agent_name || (p.agent_user_id ? t("unnamed") : <span className="text-muted-foreground">{t("none")}</span>)}
+          {open && has(EKUB_PERMS.PILGRIMAGE_MANAGE) && (
+            <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setEditing(true)} aria-label={t("change")}><Pencil size={12} /></button>
+          )}
+        </span>
+      </Detail>
+      <Modal open={editing} onOpenChange={setEditing} title={t("change")} className="max-w-md">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">{t("changeHint")}</p>
+          <AgentSelect value={agentId} onChange={setAgentId} />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditing(false)}>{tc("cancel")}</Button>
+            <Button disabled={setAgent.isPending} onClick={() => setAgent.mutate({ id: p.id, agentUserId: agentId }, {
+              onSuccess: () => { toast({ title: t("changed") }); setEditing(false); }, onError,
+            })}>
+              {setAgent.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {tc("save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+/** A winner's way from the draw to their finance, with the action due now. */
+function WinnerCard({ participation: p }: { participation: Participation }) {
+  const t = useTranslations("pilgrimage.winner");
+  const { has } = useEkubAccess();
+  const { toast } = useToast();
+  const onError = useErrorToast();
+  const retry = useRetryWinner();
+  const { data } = usePilgrimageWinners({ member_id: p.member_id, limit: 20 });
+  const w = data?.items.find((x) => x.participation_id === p.id);
+  const [agreeing, setAgreeing] = useState<PilgrimageWinner | null>(null);
+  if (!w) return <Skeleton className="h-40 w-full" />;
+  const canManage = has(EKUB_PERMS.PILGRIMAGE_MANAGE);
+  return (
+    <Card className="grid grid-cols-1 gap-6 border-primary/30 p-5 lg:grid-cols-[1fr_1fr]">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <HandCoins size={18} className="text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">{t("cardTitle")}</h3>
+        </div>
+        <Journey winner={w} vertical />
+      </div>
+      <div className="space-y-3">
+        <div className="rounded-xl border border-border p-3">
+          <Detail label={t("savingsMoved")}>{formatCurrency(w.recognised_savings)}</Detail>
+          <Detail label={t("financeAmount")}>{w.finance_amount > 0 ? formatCurrency(w.finance_amount) : "—"}</Detail>
+          <Detail label={t("contractTotal")}>{w.finance_amount > 0 ? formatCurrency(w.recognised_savings + w.finance_amount) : "—"}</Detail>
+          {w.loan_application && <Detail label={t("financeNumber")}>{w.loan_application.finance_number} · {w.loan_application.status}</Detail>}
+        </div>
+        <NextStep winner={w} canManage={canManage} onAgree={() => setAgreeing(w)} />
+        {canManage && w.status !== "awaiting_terms" && w.status !== "finance_opened" && (
+          <Button size="sm" variant="outline" disabled={retry.isPending}
+            onClick={() => retry.mutate(w.id, { onSuccess: (r) => toast({ title: r.failure_reason ? t("stillWaiting") : t("retried"), description: r.failure_reason }), onError })}>
+            {t("retry")}
+          </Button>
+        )}
+      </div>
+      <AgreeTermsModal winner={agreeing} onClose={() => setAgreeing(null)} />
+    </Card>
   );
 }
 
@@ -134,76 +236,97 @@ function GroupMemberRow({ member: m, current }: { member: GroupMemberView; curre
   );
 }
 
-type ContributionRow = { id: string; amount: number; status: string; payment_type: string; payment_method: string; reference_number?: string; created_at: string };
-
 function Contributions({ id }: { id: string }) {
-  const t = useTranslations("pilgrimage.participation");
+  const t = useTranslations("pilgrimage.ledger");
+  const tp = useTranslations("pilgrimage.participation");
   const tc = useTranslations("common");
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useContributions(id, page);
-  const columns: DataTableColumn<ContributionRow>[] = [
-    { id: "date", header: tc("date"), mobile: "title", cell: (r) => <span className="text-sm">{formatDateTime(r.created_at)}</span> },
-    { id: "type", header: t("type"), mobile: "detail", cell: (r) => <span className="text-sm">{t(`paymentType_${r.payment_type}` as never)}</span> },
-    { id: "method", header: t("method"), mobile: "detail", cell: (r) => <span className="text-sm">{r.payment_method?.replace(/_/g, " ")}</span> },
-    { id: "ref", header: t("reference"), mobile: "detail", cell: (r) => <span className="font-mono text-xs">{r.reference_number || "—"}</span> },
-    { id: "amount", header: tc("amount"), align: "right", mobile: "detail", cell: (r) => (
-      <span className={r.payment_type === "savings_deposit" ? "tabular-nums" : "tabular-nums text-destructive"}>
-        {r.payment_type === "savings_deposit" ? "" : "−"}{formatCurrency(r.amount)}
-      </span>
+  const { data, isLoading } = useParticipationContributions(id, page);
+  const columns: DataTableColumn<Contribution>[] = [
+    { id: "date", header: tc("date"), mobile: "title", cell: (c) => <span className="text-sm">{formatDateTime(c.created_at)}</span> },
+    { id: "savings", header: t("savings"), align: "right", mobile: "detail", cell: (c) => <span className="tabular-nums">{formatCurrency(c.amount)}</span> },
+    { id: "fees", header: t("fees"), align: "right", mobile: "detail", cell: (c) => <span className="tabular-nums text-muted-foreground">{formatCurrency(c.admin_fee + c.takaful_fee)}</span> },
+    { id: "total", header: t("paid"), align: "right", mobile: "detail", cell: (c) => <span className="font-medium tabular-nums">{formatCurrency(c.total_amount)}</span> },
+    { id: "status", header: tc("status"), mobile: "badge", cell: (c) => (
+      c.status === "pending" && c.payment_id ? <PaymentOutcomeButtons paymentId={c.payment_id} /> : <PStatus status={c.status} />
     ) },
-    { id: "status", header: tc("status"), mobile: "badge", cell: (r) => <span className="text-xs capitalize">{r.status}</span> },
   ];
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">{t("history")}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{tp("history")}</h3>
       <DataTable
         columns={columns}
         data={data?.items ?? []}
-        rowKey={(r) => r.id}
+        rowKey={(c) => c.id}
         isLoading={isLoading}
         emptyTitle={tc("noData")}
-        emptyMessage={t("noContributions")}
+        emptyMessage={tp("noContributions")}
         pagination={{ page, pageSize: 10, total: data?.meta.total ?? 0, onPageChange: setPage }}
       />
     </section>
   );
 }
 
-/** Records a contribution: a deposit on the member's own saving contract, credited when accounting confirms it. */
-function ContributeModal({ participation: p, onClose }: { participation: Participation | null; onClose: () => void }) {
+/**
+ * Records a payment in one Equb ledger payment confirmed by staff: savings,
+ * and (when owed and chosen) the whole of the outstanding admin fee and
+ * Takaful. The fees are paid once, whenever the member chooses; a winner pays
+ * them before their contract is opened. feesOnly opens it for the fees alone.
+ */
+function PaymentModal({ participation: p, feesOnly, onClose }: { participation: Participation | null; feesOnly: boolean; onClose: () => void }) {
   const t = useTranslations("pilgrimage.participation");
   const tc = useTranslations("common");
   const { toast } = useToast();
   const onError = useErrorToast();
   const contribute = useContribute();
   const [amount, setAmount] = useState("");
-  const [payment, setPayment] = useState<PaymentChoice>(emptyPayment());
-  const close = () => { setAmount(""); setPayment(emptyPayment()); onClose(); };
-  const valid = Number(amount) > 0 && !!payment.method && !!payment.accountId;
+  const [payFees, setPayFees] = useState<boolean | null>(null);
+  const [payment, setPayment] = useState<MethodChoice>(emptyMethod());
+  const close = () => { setAmount(""); setPayFees(null); setPayment(emptyMethod()); onClose(); };
+  if (!p) return null;
+
+  const feesOwed = !!p.fees?.accepts_payment;
+  const savingsAllowed = !feesOnly && p.accepts_contributions;
+  // Fees default on when they are owed: most members pay them with their first contribution.
+  const withFees = feesOwed && (feesOnly || (payFees ?? true));
+  const savings = savingsAllowed ? Number(amount) || 0 : 0;
+  const adminFee = withFees ? Math.max(0, (p.fees?.admin_fee_due ?? 0) - (p.fees?.admin_fee_paid ?? 0)) : 0;
+  const takaful = withFees ? Math.max(0, (p.fees?.takaful_fee_due ?? 0) - (p.fees?.takaful_fee_paid ?? 0)) : 0;
+  const valid = (savings > 0 || withFees) && !(Number(amount) < 0) && !!payment.method;
+
   return (
-    <Modal open={!!p} onOpenChange={(o) => !o && close()} title={t("contribute")} className="max-w-xl">
-      {p && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{t("contributeHint", { remaining: formatCurrency(p.standing.remaining_to_eligibility) })}</p>
-          <Field label={tc("amount")}>
+    <Modal open onOpenChange={(o) => !o && close()} title={feesOnly ? t("payFees") : t("contribute")} className="max-w-xl">
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {feesOnly ? t("payFeesHint", { amount: formatCurrency(p.fees?.outstanding ?? 0) }) : t("contributeHint", { remaining: formatCurrency(p.standing.remaining_to_eligibility) })}
+        </p>
+        {savingsAllowed && (
+          <Field label={t("savingsAmount")} hint={withFees ? t("savingsOptional") : undefined}>
             <Input type="number" min={0} step="any" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
           </Field>
-          <PaymentFields value={payment} onChange={setPayment} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
-            <Button disabled={!valid || contribute.isPending}
-              onClick={() => {
-                const pay = paymentBody(payment);
-                contribute.mutate(
-                  { id: p.id, body: { amount: Number(amount), payment_method: pay.payment_method!, payment_account_id: pay.payment_account_id, transaction_id: pay.transaction_id } },
-                  { onSuccess: () => { toast({ title: t("contributed"), description: t("awaitingConfirmation") }); close(); }, onError },
-                );
-              }}>
-              {contribute.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("contribute")}
-            </Button>
-          </div>
+        )}
+        {!feesOnly && feesOwed && (
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <span>
+              <span className="block text-sm font-medium text-foreground">{t("includeFees", { amount: formatCurrency(p.fees?.outstanding ?? 0) })}</span>
+              <span className="block text-xs text-muted-foreground">{t("includeFeesHint")}</span>
+            </span>
+            <Switch checked={withFees} onCheckedChange={setPayFees} />
+          </label>
+        )}
+        {(savings > 0 || withFees) && <FeeBreakdown savings={savings} adminFee={adminFee} takaful={takaful} />}
+        <MethodFields value={payment} onChange={setPayment} />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
+          <Button disabled={!valid || contribute.isPending}
+            onClick={() => contribute.mutate(
+              { id: p.id, body: { amount: savings, pay_fees: withFees || undefined, payment_method: payment.method, transaction_id: payment.reference.trim() || undefined } },
+              { onSuccess: () => { toast({ title: savings > 0 ? t("contributed") : t("feesRecorded"), description: t("awaitingConfirmation") }); close(); }, onError },
+            )}>
+            {contribute.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {feesOnly ? t("payFees") : t("contribute")}
+          </Button>
         </div>
-      )}
+      </div>
     </Modal>
   );
 }
