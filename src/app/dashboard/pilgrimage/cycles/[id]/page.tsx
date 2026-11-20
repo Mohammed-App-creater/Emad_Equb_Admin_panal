@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Ban, CheckCircle2, Dices, Lock, ShieldCheck, Target, Trophy, UsersRound } from "lucide-react";
+import { ArrowLeft, Ban, CalendarClock, CheckCircle2, Dices, Lock, ShieldCheck, Target, Trophy, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { PageHeader, StatCard } from "@/components/dashboard/shared";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { Detail, Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { WinnersTab } from "@/components/pilgrimage/winners-tab";
+import { CycleCalendar, editableDates, EditCycleDatesModal } from "@/components/pilgrimage/cycle-dates";
 import { DecisionsTab } from "@/components/pilgrimage/decisions-tab";
 import { useApproveDraw, useCancelCycle, useDrawResult, useLockCycle, useRunDraw } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
@@ -54,10 +55,13 @@ function CycleInner({ id }: { id: string }) {
         <StatCard label={t("required")} value={formatCurrency(cycle.required_contribution)} hint={t("ofPackage", { percent: cycle.eligibility_percent, amount: formatCurrency(cycle.package_cost) })} icon={Target} tone="info" />
         <StatCard label={t("entries")} value={cycle.status === "open" ? "—" : entries.length} hint={cycle.status === "open" ? t("notLocked") : t("eligibleCount", { count: cycle.eligible_count })} icon={UsersRound} tone="primary" />
         <StatCard label={t("winners")} value={cycle.drawn_at ? `${cycle.winner_count} / ${cycle.winners_per_cycle}` : `— / ${cycle.winners_per_cycle}`} hint={cycle.overflow > 0 ? t("overflowHint", { count: cycle.overflow }) : undefined} icon={Trophy} tone={cycle.overflow > 0 ? "warning" : "success"} />
-        <StatCard label={t("decisionDeadline")} value={cycle.decision_deadline ? formatDate(cycle.decision_deadline) : "—"} icon={CheckCircle2} tone="secondary" />
+        <StatCard label={t("decisionDeadline")} value={formatDate(cycle.decision_deadline || cycle.closes_at)} hint={cycle.decision_deadline ? undefined : t("planned")} icon={CheckCircle2} tone="secondary" />
       </div>
 
-      <FairnessCard cycle={cycle} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CalendarCard cycle={cycle} />
+        <FairnessCard cycle={cycle} />
+      </div>
 
       <Tabs defaultValue="entries">
         <TabsList>
@@ -177,6 +181,26 @@ function CancelModal({ cycle, onClose }: { cycle: PilgrimageCycle | null; onClos
         </div>
       )}
     </Modal>
+  );
+}
+
+/** The cycle's dates, with an edit button while they may still change. */
+function CalendarCard({ cycle }: { cycle: PilgrimageCycle }) {
+  const t = useTranslations("pilgrimage.cycleDates");
+  const { has } = useEkubAccess();
+  const [editing, setEditing] = useState(false);
+  const canEdit = has(EKUB_PERMS.PILGRIMAGE_MANAGE) && editableDates(cycle.status).length > 0;
+  return (
+    <Card className="space-y-3 p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+        {canEdit && (
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)}><CalendarClock size={14} className="mr-1" /> {t("edit")}</Button>
+        )}
+      </div>
+      <CycleCalendar cycle={cycle} />
+      <EditCycleDatesModal cycle={editing ? cycle : null} onClose={() => setEditing(false)} />
+    </Card>
   );
 }
 

@@ -13,6 +13,7 @@ import type { PilgrimageCycle } from "@/types/pilgrimage";
 export function CyclesTab({ productId }: { productId?: string }) {
   const t = useTranslations("pilgrimage.cycle");
   const tc = useTranslations("common");
+  const td = useTranslations("pilgrimage.cycleDates");
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
@@ -27,8 +28,11 @@ export function CyclesTab({ productId }: { productId?: string }) {
     ) },
     { id: "dates", header: t("schedule"), mobile: "detail", cell: (c) => (
       <div className="text-xs leading-5">
-        <p>{t("registrationCloses")}: {formatDate(c.registration_closes_at)}</p>
-        <p>{t("drawAt")}: {formatDate(c.draw_at)}</p>
+        <p className="text-muted-foreground">{td("opens_at")}: {formatDate(c.opens_at)}</p>
+        <p>{td("registration_closes_at")}: {formatDate(c.registration_closes_at)}</p>
+        <p className="font-medium text-foreground">{td("draw_at")}: {formatDate(c.draw_at)}</p>
+        <p>{td("contract_deadline")}: {formatDate(c.contract_deadline)}</p>
+        <p className="text-muted-foreground">{td("closes_at")}: {formatDate(c.closes_at)}</p>
       </div>
     ) },
     { id: "package", header: t("required"), align: "right", mobile: "detail", cell: (c) => (

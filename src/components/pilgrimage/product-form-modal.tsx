@@ -52,6 +52,7 @@ interface Form {
   holdingBankId: string;
   decisionWindowDays: string;
   defaultDecision: NonWinnerOption;
+  contractDays: string;
   financeMonths: string;
   repaymentInterval: string;
   maxFinance: string;
@@ -71,7 +72,7 @@ const blank = (kind: PilgrimageKind = "hajj"): Form => ({
   adminWeekly: "100", takafulWeekly: "70", feeWeeks: "52",
   split: { agent: { basis: "percent", value: "0" }, broker: { basis: "percent", value: "0" }, sacco: { basis: "percent", value: "100" } },
   holdingBankId: "",
-  decisionWindowDays: kind === "hajj" ? "14" : "7", defaultDecision: "carry_forward",
+  decisionWindowDays: kind === "hajj" ? "14" : "7", defaultDecision: "carry_forward", contractDays: "30",
   financeMonths: "12", repaymentInterval: "1", maxFinance: "",
   serviceBasis: "percent_of_financed", serviceValue: "2", equbShare: "50", takafulBasis: "percent_of_installment", takafulValue: "1", active: true,
 });
@@ -88,7 +89,7 @@ const fromProduct = (p: PilgrimageProduct): Form => ({
     sacco: { basis: p.admin_fee_split?.sacco?.basis || "percent", value: String(p.admin_fee_split?.sacco?.value ?? 100) },
   },
   holdingBankId: p.holding_bank_id ?? "",
-  decisionWindowDays: String(p.decision_window_days), defaultDecision: p.default_decision,
+  decisionWindowDays: String(p.decision_window_days), defaultDecision: p.default_decision, contractDays: String(p.winner_contract_days || 30),
   financeMonths: String(p.finance_duration_months), repaymentInterval: String(p.repayment_interval_months), maxFinance: String(p.max_finance_amount || ""),
   serviceBasis: p.service_charge_basis || "", serviceValue: String(p.service_charge_value), equbShare: String(p.equb_service_charge_share),
   takafulBasis: p.takaful_basis || "", takafulValue: String(p.takaful_value), active: p.status === "active",
@@ -125,7 +126,7 @@ const toInput = (f: Form): PilgrimageProductInput => ({
     sacco: { basis: f.split.sacco.basis, value: num(f.split.sacco.value) || 0 },
   },
   holding_bank_id: f.holdingBankId.trim(),
-  decision_window_days: num(f.decisionWindowDays), default_decision: f.defaultDecision,
+  decision_window_days: num(f.decisionWindowDays), default_decision: f.defaultDecision, winner_contract_days: num(f.contractDays),
   finance_duration_months: num(f.financeMonths), repayment_interval_months: num(f.repaymentInterval),
   max_finance_amount: num(f.maxFinance) > 0 ? num(f.maxFinance) : undefined,
   service_charge_basis: f.serviceBasis || undefined, service_charge_value: num(f.serviceValue) || 0, equb_service_charge_share: num(f.equbShare),
@@ -142,7 +143,7 @@ function problems(f: Form): Partial<Record<ProblemKey, string>> {
   if (f.code.trim().length < 2) p.code = "required";
   if (f.name.trim().length < 2) p.name = "required";
   if (!f.savingTypeId) p.savingTypeId = "required";
-  (["packageCost", "winnersPerCycle", "savingPeriodMonths", "financeMonths", "repaymentInterval", "decisionWindowDays"] as const).forEach(positive);
+  (["packageCost", "winnersPerCycle", "savingPeriodMonths", "financeMonths", "repaymentInterval", "decisionWindowDays", "contractDays"] as const).forEach(positive);
   const pct = num(f.eligibilityPercent);
   if (!(pct > 0 && pct <= 100)) p.eligibilityPercent = "percent";
   if (!(num(f.groupMin) >= 2)) p.groupMin = "groupMin";
@@ -326,7 +327,7 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
       </Section>
 
       <Section title={t("sectionNonWinners")}>
-        <Field label={t("decisionWindowDays")} error={err("decisionWindowDays")}>{amount("decisionWindowDays")}</Field>
+        <Field label={t("decisionWindowDays")} hint={t("decisionWindowHint")} error={err("decisionWindowDays")}>{amount("decisionWindowDays")}</Field>
         <Field label={t("defaultDecision")} hint={t("defaultDecisionHint")}>
           <Select value={form.defaultDecision} onValueChange={(v) => set("defaultDecision", v as NonWinnerOption)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -335,6 +336,10 @@ function Body({ product, onClose }: { product: PilgrimageProduct | "new"; onClos
             </SelectContent>
           </Select>
         </Field>
+      </Section>
+
+      <Section title={t("sectionWinners")} hint={t("sectionWinnersHint")}>
+        <Field label={t("contractDays")} hint={t("contractDaysHint")} error={err("contractDays")}>{amount("contractDays", { step: 1 })}</Field>
       </Section>
 
       <Section title={t("sectionFinance")} hint={t("sectionFinanceHint")}>

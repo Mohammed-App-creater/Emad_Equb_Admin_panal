@@ -17,6 +17,7 @@ import type {
   PilgrimageWinner,
   ReviewDecisionInput,
   SavingTypeOption,
+  CycleDatesInput,
 } from "@/types/pilgrimage";
 
 /**
@@ -30,6 +31,7 @@ export const PILGRIMAGE_ENDPOINTS = {
   CYCLES: "/pilgrimage/cycles",
   CYCLE: (id: string) => `/pilgrimage/cycles/${id}`,
   CYCLE_RESULT: (id: string) => `/pilgrimage/cycles/${id}/result`,
+  CYCLE_DATES: (id: string) => `/pilgrimage/cycles/${id}/dates`,
   CYCLE_ACTION: (id: string, action: "lock" | "draw" | "approve" | "cancel") => `/pilgrimage/cycles/${id}/${action}`,
   PARTICIPATIONS: "/pilgrimage/participations",
   PARTICIPATION: (id: string) => `/pilgrimage/participations/${id}`,
@@ -86,8 +88,9 @@ export const pilgrimageApi = {
   updateProduct: (id: string, body: Partial<PilgrimageProductInput>) => unwrap<PilgrimageProduct>(api.put(E.PRODUCT(id), body)),
 
   // Cycles and draws
-  openCycle: (productId: string, body: { name?: string; opens_at?: string; draw_at?: string }) =>
+  openCycle: (productId: string, body: { name?: string } & CycleDatesInput) =>
     unwrap<PilgrimageCycle>(api.post(E.OPEN_CYCLE(productId), body)),
+  updateCycleDates: (id: string, body: CycleDatesInput) => unwrap<PilgrimageCycle>(api.put(E.CYCLE_DATES(id), body)),
   listCycles: (params?: PilgrimageListParams) => page<PilgrimageCycle>(api.get(E.CYCLES, { params }), params),
   getCycle: (id: string) => unwrap<PilgrimageCycle>(api.get(E.CYCLE(id))),
   drawResult: (id: string) => unwrap<DrawResult>(api.get(E.CYCLE_RESULT(id))),

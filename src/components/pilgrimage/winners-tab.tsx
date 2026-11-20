@@ -11,7 +11,8 @@ import { DataTable, type DataTableAction, type DataTableColumn } from "@/compone
 import { useToast } from "@/hooks/use-toast";
 import { usePilgrimageCycle, usePilgrimageWinners, useRetryWinner, useSetWinnerTerms } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Detail, Field, PaymentOutcomeButtons, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { WINNER_STEPS, type PilgrimageWinner } from "@/types/pilgrimage";
 
@@ -49,6 +50,7 @@ export function WinnersTab({ cycleId }: { cycleId?: string }) {
         {w.loan_application && <p className="font-mono text-muted-foreground">{w.loan_application.finance_number} · {w.loan_application.status}</p>}
       </div>
     ) },
+    { id: "deadline", header: t("contractDeadline"), mobile: "detail", cell: (w) => <DeadlineCell winner={w} /> },
     { id: "journey", header: t("journey"), mobile: "detail", cell: (w) => <Journey winner={w} /> },
     { id: "next", header: t("next"), mobile: "badge", cell: (w) => <NextStep winner={w} canManage={canManage} onAgree={() => setAgreeing(w)} /> },
   ];
@@ -162,6 +164,19 @@ export function NextStep({ winner: w, canManage, onAgree }: { winner: Pilgrimage
       <PStatus status={w.status} />
       {w.failure_reason && <p className="mt-1 max-w-xs text-xs text-destructive">{w.failure_reason}</p>}
     </div>
+  );
+}
+
+/** A winner's contract deadline, flagged once it has passed without a contract. */
+export function DeadlineCell({ winner: w }: { winner: PilgrimageWinner }) {
+  const t = useTranslations("pilgrimage.winner");
+  if (!w.contract_deadline) return <span className="text-muted-foreground">—</span>;
+  if (w.status !== "awaiting_terms") return <span className="text-xs text-muted-foreground">{formatDate(w.contract_deadline)}</span>;
+  return (
+    <span className="flex flex-col gap-0.5 text-sm">
+      <span className={cn("tabular-nums", w.contract_overdue && "font-medium text-destructive")}>{formatDate(w.contract_deadline)}</span>
+      {w.contract_overdue && <Badge className="w-fit bg-destructive/15 text-destructive">{t("overdue")}</Badge>}
+    </span>
   );
 }
 

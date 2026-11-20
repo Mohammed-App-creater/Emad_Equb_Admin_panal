@@ -1307,13 +1307,18 @@
       "shareBasis_percent": "መቶኛ",
       "splitTotalLabel": "የክፍፍሉ ድምር",
       "splitMismatch": "የሦስቱ ድርሻዎች ድምር {total} ነው፤ ከአገልግሎት ክፍያው {fee} ጋር በትክክል እኩል መሆን አለበት።",
-      "weeklyShort": "{weekly}/ሳምንት × {weeks} = {total}"
+      "weeklyShort": "{weekly}/ሳምንት × {weeks} = {total}",
+      "sectionWinners": "አሸናፊዎች",
+      "sectionWinnersHint": "እያንዳንዱ ዕጣ ከእነዚህ ቀናት የውል ማብቂያ ያስቀምጣል፤ ለእያንዳንዱ ዕጣ ሊቀየር ይችላል።",
+      "contractDays": "አሸናፊዎች የሚፈርሙበት ቀናት (ከዕጣው በኋላ)",
+      "contractDaysHint": "አሸናፊዎች በዚህ ጊዜ ውስጥ የአገልግሎት ክፍያ እና ተካፉል ከፍለው ውላቸውን ይፈርማሉ። ካለፈ ለሰራተኞች ምልክት ብቻ ይደረጋል።",
+      "decisionWindowHint": "ያላሸነፉ አባላት የሚመርጡበት ከዕጣው በኋላ ያሉ ቀናት፤ የዙሩ መዝጊያ ቀን።"
     },
     "cycle": {
       "empty": "እስካሁን ዕጣ የለም። ከምርት ላይ ይክፈቱ።",
       "back": "ወደ ዕጣዎች ተመለስ",
       "openTitle": "ቀጣዩን የ{product} ዕጣ ክፈት",
-      "openHint": "መክፈት የዕጣውን ዘር ማረጋገጫ ያሳትማል። ቀኖቹን ባዶ ከተዉ ከምርቱ ይወሰናሉ።",
+      "openHint": "እያንዳንዱ ቀን ከምርቱ ቅንብር ተሞልቷል፤ ማንኛውንም መቀየር ይችላሉ። በቅደም ተከተል መሆን አለባቸው።",
       "namePlaceholder": "ለምሳሌ ሐጅ 2027",
       "opensAt": "የሚከፈትበት ቀን",
       "drawAt": "የዕጣ ቀን",
@@ -1368,7 +1373,8 @@
       "balance": "ሲዘጋ የነበረ ቀሪ",
       "eligible": "ብቁ",
       "pick": "ተራ",
-      "outcome": "ውጤት"
+      "outcome": "ውጤት",
+      "planned": "የታቀደ"
     },
     "participation": {
       "empty": "ምዝገባ የለም።",
@@ -1477,7 +1483,9 @@
       "stepHint_finance_pending": "ለተስማሙበት መጠን ረቂቅ የሙራባሓ ፋይናንስ",
       "stepHint_finance_opened": "አባሉ ገምግሞ ይፈርማል፤ በኢማድ ሳኮ በኩል ይመልሳል",
       "feesDue": "ክፍያዎች አልተከፈሉም ({amount})፤ ውሉ የሚከፈተው ከተከፈሉ በኋላ ነው።",
-      "collectFees": "ክፍያዎችን ሰብስብ"
+      "collectFees": "ክፍያዎችን ሰብስብ",
+      "contractDeadline": "የውል ማብቂያ ቀን",
+      "overdue": "ጊዜው አልፏል"
     },
     "decision": {
       "hint": "ያላሸነፈ እያንዳንዱ አባል ለብቻው ይወስናል፤ ቁጠባውን ያሸጋግራል ወይም ያወጣል። ወጪዎች እዚህ ይጸድቃሉ፤ ከዕቁቡ መዝገብ ይመለሳሉ።",
@@ -1568,6 +1576,33 @@
       "drawLine": "ምዝገባ የሚዘጋው {closes} · ዕጣ {draw}",
       "requiredLine": "ብቁ ለመሆን {amount} · {slots} ፓኬጅ(ዎች)",
       "awaitingTerms": "የፋይናንስ ስምምነት የሚጠብቁ"
+    },
+    "cycleDates": {
+      "title": "የጊዜ ሰሌዳ",
+      "edit": "ቀናትን አስተካክል",
+      "editTitle": "የ{name} ቀናት",
+      "saved": "ቀናቱ ተቀምጠዋል",
+      "opens_at": "የመክፈቻ ቀን",
+      "opens_at_hint": "ለዚህ ዕጣ ምዝገባ ይከፈታል።",
+      "registration_closes_at": "የምዝገባ መዝጊያ ቀን",
+      "registration_closes_at_hint": "ተሳታፊዎች፣ ብቁነት እና ቡድኖች ይቆለፋሉ፤ ዕጣው ይዘጋጃል።",
+      "draw_at": "የዕጣ ቀን",
+      "draw_at_hint": "ብቁ በሆኑ አባላት መካከል ዕጣ ይወጣል።",
+      "contract_deadline": "የአሸናፊዎች የውል ማብቂያ ቀን",
+      "contract_deadline_hint": "አሸናፊዎች የአገልግሎት ክፍያ እና ተካፉል ከፍለው የኢማድ ሳኮ ውላቸውን ይፈርማሉ። ከዚያ በፊት ማስታወሻ ይላካል፤ የዘገዩ አሸናፊዎች ምልክት ይደረግባቸዋል።",
+      "closes_at": "የመዝጊያ ቀን",
+      "closes_at_hint": "ያላሸነፉ አባላት ቁጠባቸውን ማውጣት ወይም ማስተላለፍ ይመርጣሉ፤ ዙሩ ይዘጋል።",
+      "rule_required": "ያስፈልጋል",
+      "rule_regBeforeOpen": "ከመክፈቻው ቀን በፊት መሆን አይችልም",
+      "rule_drawAfterOpen": "ከመክፈቻው ቀን በኋላ መሆን አለበት",
+      "rule_drawBeforeReg": "ምዝገባ ከመዘጋቱ በፊት መሆን አይችልም",
+      "rule_afterDraw": "ከዕጣው ቀን በኋላ መሆን አለበት",
+      "editHint_open": "ሁሉም ቀናት አሁንም ሊቀየሩ ይችላሉ።",
+      "editHint_locked": "ተሳታፊዎች ተቆልፈዋል፤ የዕጣው ቀን፣ የውል ማብቂያ እና የመዝጊያ ቀን አሁንም ሊቀየሩ ይችላሉ።",
+      "editHint_drawn": "ዕጣው ወጥቷል፤ እስኪጸድቅ ድረስ የውል ማብቂያ እና የመዝጊያ ቀን ሊቀየሩ ይችላሉ።",
+      "editHint_approved": "ቀናቱ ተወስነዋል።",
+      "editHint_closed": "ቀናቱ ተወስነዋል።",
+      "editHint_cancelled": "ቀናቱ ተወስነዋል።"
     }
   }
 }

@@ -1307,13 +1307,18 @@
       "shareBasis_percent": "Percentage",
       "splitTotalLabel": "Total of the split",
       "splitMismatch": "The three shares add up to {total}; they must add up to exactly the admin fee of {fee}.",
-      "weeklyShort": "{weekly}/week × {weeks} = {total}"
+      "weeklyShort": "{weekly}/week × {weeks} = {total}",
+      "sectionWinners": "Winners",
+      "sectionWinnersHint": "Each draw sets a contract deadline from these days; it can be changed per draw.",
+      "contractDays": "Days for winners to sign (after the draw)",
+      "contractDaysHint": "Winners pay the admin fee and Takaful and sign their contract within this time. Missing it only flags them for staff.",
+      "decisionWindowHint": "Days after the draw for non-winners to choose; the draw's closing date."
     },
     "cycle": {
       "empty": "No draws yet. Open one from a product.",
       "back": "Back to draws",
       "openTitle": "Open the next {product} draw",
-      "openHint": "Opening publishes the draw seed's commitment. Leave the dates empty to schedule from the product.",
+      "openHint": "Each date is filled in from the product's settings; change any of them. They must follow each other in order.",
       "namePlaceholder": "e.g. Hajj 2027",
       "opensAt": "Opens on",
       "drawAt": "Draw on",
@@ -1368,7 +1373,8 @@
       "balance": "Balance at close",
       "eligible": "Eligible",
       "pick": "Pick",
-      "outcome": "Outcome"
+      "outcome": "Outcome",
+      "planned": "planned"
     },
     "participation": {
       "empty": "No registrations.",
@@ -1477,7 +1483,9 @@
       "stepHint_finance_pending": "Draft Murabaha finance for the agreed amount",
       "stepHint_finance_opened": "The member reviews, signs and repays through EMAD SACCO",
       "feesDue": "Fees not paid ({amount}); the contract opens once they are.",
-      "collectFees": "Collect fees"
+      "collectFees": "Collect fees",
+      "contractDeadline": "Contract deadline",
+      "overdue": "Overdue"
     },
     "decision": {
       "hint": "Each non-winner decides alone: carry the savings forward or withdraw them. Withdrawals are approved here and paid back from the Equb ledger.",
@@ -1568,6 +1576,33 @@
       "drawLine": "Registration closes {closes} · draw {draw}",
       "requiredLine": "{amount} to be eligible · {slots} package(s)",
       "awaitingTerms": "Awaiting finance terms"
+    },
+    "cycleDates": {
+      "title": "Calendar",
+      "edit": "Edit dates",
+      "editTitle": "Dates of {name}",
+      "saved": "Dates saved",
+      "opens_at": "Opening date",
+      "opens_at_hint": "Registration for this draw opens.",
+      "registration_closes_at": "Registration closing date",
+      "registration_closes_at_hint": "Entries, eligibility and groups freeze; the draw is locked.",
+      "draw_at": "Draw date",
+      "draw_at_hint": "The draw is held among the eligible members.",
+      "contract_deadline": "Winners' contract deadline",
+      "contract_deadline_hint": "Winners have paid the admin fee and Takaful and signed their EMAD SACCO contract. Reminders are sent before; late winners are flagged.",
+      "closes_at": "Closing date",
+      "closes_at_hint": "Non-winners have chosen to withdraw or carry forward; the cycle closes.",
+      "rule_required": "Required",
+      "rule_regBeforeOpen": "Cannot be before the opening date",
+      "rule_drawAfterOpen": "Must be after the opening date",
+      "rule_drawBeforeReg": "Cannot be before registration closes",
+      "rule_afterDraw": "Must be after the draw date",
+      "editHint_open": "Every date can still change.",
+      "editHint_locked": "Entries are frozen: the draw date, contract deadline and closing date can still change.",
+      "editHint_drawn": "The draw has run: the contract deadline and closing date can still change until it is approved.",
+      "editHint_approved": "The dates are fixed.",
+      "editHint_closed": "The dates are fixed.",
+      "editHint_cancelled": "The dates are fixed."
     }
   }
 }

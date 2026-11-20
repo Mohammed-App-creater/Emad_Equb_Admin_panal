@@ -8,6 +8,7 @@ import type {
   PilgrimageListParams,
   PilgrimageProductInput,
   ReviewDecisionInput,
+  CycleDatesInput,
 } from "@/types/pilgrimage";
 
 /** Query keys of the Hajj & Umrah module; every mutation invalidates the whole module prefix. */
@@ -51,9 +52,11 @@ export const usePilgrimageCycle = (id: string) =>
 export const useDrawResult = (id: string) =>
   useQuery({ queryKey: pk.result(id), queryFn: () => pilgrimageApi.drawResult(id), enabled: !!id });
 export const useOpenCycle = () =>
-  useModuleMutation((v: { productId: string; name?: string; opens_at?: string; draw_at?: string }) =>
-    pilgrimageApi.openCycle(v.productId, { name: v.name, opens_at: v.opens_at, draw_at: v.draw_at }),
+  useModuleMutation((v: { productId: string; name?: string; dates: CycleDatesInput }) =>
+    pilgrimageApi.openCycle(v.productId, { name: v.name, ...v.dates }),
   );
+export const useUpdateCycleDates = () =>
+  useModuleMutation((v: { id: string; dates: CycleDatesInput }) => pilgrimageApi.updateCycleDates(v.id, v.dates));
 export const useLockCycle = () => useModuleMutation((id: string) => pilgrimageApi.lockCycle(id));
 export const useRunDraw = () => useModuleMutation((id: string) => pilgrimageApi.draw(id));
 export const useApproveDraw = () =>

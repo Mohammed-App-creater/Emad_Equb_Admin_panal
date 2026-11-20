@@ -68,6 +68,8 @@ export interface PilgrimageProduct {
   holding_payment_account_id?: string;
   decision_window_days: number;
   default_decision: NonWinnerOption;
+  /** Default time from the draw for winners to pay their fees and have their contract opened. */
+  winner_contract_days: number;
   finance_duration_months: number;
   repayment_interval_months: number;
   max_finance_amount: number;
@@ -104,6 +106,7 @@ export interface PilgrimageProductInput {
   holding_payment_account_id?: string;
   decision_window_days?: number;
   default_decision?: NonWinnerOption;
+  winner_contract_days?: number;
   finance_duration_months?: number;
   repayment_interval_months?: number;
   max_finance_amount?: number;
@@ -123,9 +126,12 @@ export interface PilgrimageCycle {
   product?: PilgrimageProduct | null;
   number: number;
   name: string;
+  /** The cycle's calendar, in order (see CYCLE_DATES). */
   opens_at: string;
   registration_closes_at: string;
   draw_at: string;
+  contract_deadline: string;
+  closes_at: string;
   decision_deadline?: string | null;
   package_cost: number;
   eligibility_percent: number;
@@ -149,6 +155,12 @@ export interface PilgrimageCycle {
   /** Once the seed is revealed: whether it matches the published commitment. */
   verified?: boolean;
 }
+
+/** A cycle's dates, in calendar order. */
+export const CYCLE_DATES = ["opens_at", "registration_closes_at", "draw_at", "contract_deadline", "closes_at"] as const;
+export type CycleDateKey = (typeof CYCLE_DATES)[number];
+/** A cycle's dates as YYYY-MM-DD; those left out default (opening) or keep their value (editing). */
+export type CycleDatesInput = Partial<Record<CycleDateKey, string>>;
 
 export type EntryOutcome = "pending" | "ineligible" | "drawn" | "group_win" | "group_ineligible" | "not_selected";
 
@@ -222,7 +234,10 @@ export interface Participation {
   accepts_contributions: boolean;
   fees?: ParticipationFees | null;
   standing: ContributionStanding;
-  current_cycle?: { id: string; number: number; name: string; status: CycleStatus; registration_closes_at: string; draw_at: string } | null;
+  current_cycle?: {
+    id: string; number: number; name: string; status: CycleStatus;
+    opens_at: string; registration_closes_at: string; draw_at: string; contract_deadline: string; closes_at: string;
+  } | null;
   group?: { id: string; number: string; name: string; role?: "admin" | "member" } | null;
   cycles_entered: number;
   carried_forward: number;
@@ -337,6 +352,10 @@ export interface PilgrimageWinner {
   transferred_at?: string | null;
   loan_application_id?: string | null;
   loan_application?: { id: string; finance_number: string; financed_amount: number; status: string; charges_amount?: number } | null;
+  /** By when the winner must have paid their fees and had their contract opened. */
+  contract_deadline?: string | null;
+  /** Past the deadline and the contract is not opened yet. */
+  contract_overdue?: boolean;
   status: WinnerStatus;
   failure_reason?: string;
   created_at: string;

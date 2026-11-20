@@ -13,6 +13,7 @@ import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { formatCurrency } from "@/lib/utils";
 import { feeTotal, Field, PStatus, splitAmounts, useErrorToast, useShareLabel } from "@/components/pilgrimage/shared";
 import { ProductFormModal } from "@/components/pilgrimage/product-form-modal";
+import { cycleDateProblems, CycleDatesFields, defaultCycleDates, type CycleDates } from "@/components/pilgrimage/cycle-dates";
 import type { PilgrimageProduct } from "@/types/pilgrimage";
 
 /** Hajj and Umrah products: their terms, and opening each product's next cycle. */
@@ -99,48 +100,50 @@ function FeesSummary({ product: p }: { product: PilgrimageProduct }) {
   );
 }
 
-/** Opens a product's next cycle; dates default from the product when left empty. */
+/**
+ * Opens a product's next cycle. Every date is shown prefilled with the
+ * product's default; changing the opening or draw date moves the dates that
+ * follow from it, unless they were set by hand.
+ */
 function OpenCycleModal({ product, onClose }: { product: PilgrimageProduct | null; onClose: () => void }) {
+  const t = useTranslations("pilgrimage.cycle");
+  return (
+    <Modal open={!!product} onOpenChange={(o) => !o && onClose()} title={t("openTitle", { product: product?.name ?? "" })} className="max-w-lg">
+      {product && <OpenCycleBody key={product.id} product={product} onClose={onClose} />}
+    </Modal>
+  );
+}
+
+function OpenCycleBody({ product, onClose }: { product: PilgrimageProduct; onClose: () => void }) {
   const t = useTranslations("pilgrimage.cycle");
   const tc = useTranslations("common");
   const { toast } = useToast();
   const onError = useErrorToast();
   const open = useOpenCycle();
   const [name, setName] = useState("");
-  const [opensAt, setOpensAt] = useState("");
-  const [drawAt, setDrawAt] = useState("");
-  const close = () => { setName(""); setOpensAt(""); setDrawAt(""); onClose(); };
-  const badDates = !!opensAt && !!drawAt && drawAt <= opensAt;
+  const [given, setGiven] = useState<Partial<CycleDates>>({});
+  const dates = defaultCycleDates(product, given);
+  const valid = Object.keys(cycleDateProblems(dates)).length === 0;
 
   const submit = () =>
-    product &&
     open.mutate(
-      { productId: product.id, name: name.trim() || undefined, opens_at: opensAt || undefined, draw_at: drawAt || undefined },
-      { onSuccess: (c) => { toast({ title: t("opened"), description: c.name }); close(); }, onError },
+      { productId: product.id, name: name.trim() || undefined, dates },
+      { onSuccess: (c) => { toast({ title: t("opened"), description: c.name }); onClose(); }, onError },
     );
 
   return (
-    <Modal open={!!product} onOpenChange={(o) => !o && close()} title={t("openTitle", { product: product?.name ?? "" })} className="max-w-lg">
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{t("openHint")}</p>
-        <Field label={`${tc("name")} (${tc("optional")})`}>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePlaceholder")} />
-        </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={`${t("opensAt")} (${tc("optional")})`}>
-            <Input type="date" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} />
-          </Field>
-          <Field label={`${t("drawAt")} (${tc("optional")})`} error={badDates ? t("drawAfterOpen") : undefined}>
-            <Input type="date" value={drawAt} onChange={(e) => setDrawAt(e.target.value)} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
-          <Button onClick={submit} disabled={open.isPending || badDates}>
-            {open.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("open")}
-          </Button>
-        </div>
+    <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
+      <p className="text-sm text-muted-foreground">{t("openHint")}</p>
+      <Field label={`${tc("name")} (${tc("optional")})`}>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePlaceholder")} />
+      </Field>
+      <CycleDatesFields value={dates} onChange={(k, v) => setGiven((g) => ({ ...g, [k]: v || undefined }))} />
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>{tc("cancel")}</Button>
+        <Button onClick={submit} disabled={open.isPending || !valid}>
+          {open.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("open")}
+        </Button>
       </div>
-    </Modal>
+    </div>
   );
 }

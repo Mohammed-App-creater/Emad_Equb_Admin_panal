@@ -17,7 +17,8 @@ import {
   AgentSelect, Detail, emptyMethod, FeeBreakdown, FeeStatus, Field, MethodFields, PaymentOutcomeButtons, PStatus, useErrorToast, type MethodChoice,
 } from "@/components/pilgrimage/shared";
 import { Progress } from "@/components/pilgrimage/participations-tab";
-import { AgreeTermsModal, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
+import { AgreeTermsModal, DeadlineCell, Journey, NextStep } from "@/components/pilgrimage/winners-tab";
+import { CycleCalendar } from "@/components/pilgrimage/cycle-dates";
 import {
   useCancelParticipation, useContribute, useParticipation, useParticipationContributions, usePilgrimageGroup, usePilgrimageWinners, useRetryWinner,
   useSetParticipationAgent,
@@ -100,10 +101,13 @@ function ParticipationInner({ id }: { id: string }) {
           <Detail label={t("cyclesEntered")}>{p.cycles_entered}</Detail>
           <Detail label={t("carriedForward")}>{p.carried_forward}</Detail>
           {p.current_cycle && (
-            <Detail label={t("currentCycle")}>
-              <Link href={`/dashboard/pilgrimage/cycles/${p.current_cycle.id}`} className="text-primary hover:underline">{p.current_cycle.name}</Link>{" "}
-              <span className="text-xs text-muted-foreground">· {t("drawOn", { date: formatDate(p.current_cycle.draw_at) })}</span>
-            </Detail>
+            <>
+              <Detail label={t("currentCycle")}>
+                <Link href={`/dashboard/pilgrimage/cycles/${p.current_cycle.id}`} className="text-primary hover:underline">{p.current_cycle.name}</Link>{" "}
+                <span className="text-xs text-muted-foreground">· {t("drawOn", { date: formatDate(p.current_cycle.draw_at) })}</span>
+              </Detail>
+              <div className="pt-2"><CycleCalendar cycle={p.current_cycle} /></div>
+            </>
           )}
         </Card>
         <GroupCard participation={p} />
@@ -178,6 +182,7 @@ function WinnerCard({ participation: p }: { participation: Participation }) {
       <div className="space-y-3">
         <div className="rounded-xl border border-border p-3">
           <Detail label={t("savingsMoved")}>{formatCurrency(w.recognised_savings)}</Detail>
+          <Detail label={t("contractDeadline")}><DeadlineCell winner={w} /></Detail>
           <Detail label={t("financeAmount")}>{w.finance_amount > 0 ? formatCurrency(w.finance_amount) : "—"}</Detail>
           <Detail label={t("contractTotal")}>{w.finance_amount > 0 ? formatCurrency(w.recognised_savings + w.finance_amount) : "—"}</Detail>
           {w.loan_application && <Detail label={t("financeNumber")}>{w.loan_application.finance_number} · {w.loan_application.status}</Detail>}
