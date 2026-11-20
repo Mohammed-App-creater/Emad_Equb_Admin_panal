@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   useTransition,
-  type ReactNode,
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -25,18 +24,8 @@ import {
   PiggyBank,
   Users,
   Trophy,
-  BadgeCheck,
   Languages,
   Download,
-  Bell,
-  Home,
-  Receipt,
-  BarChart3,
-  User,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Hand,
   ChevronDown,
   HandCoins,
   Scale,
@@ -49,23 +38,22 @@ import {
   SectionHeading,
   TrustMarquee,
   MetricsBar,
-  TierPricing,
   PaymentRails,
   SecuritySection,
   ComparisonSection,
   FaqSection,
 } from "./fintech";
+import { AppShot, Chassis, GOLD, GREEN, shots } from "./device";
+import { EqubShowcase } from "./equb-showcase";
 
 // ============================================================================
 // Public marketing landing page — /landingpage (bilingual EN/AM)
-// Genuine CSS 3D (transform-style: preserve-3d) phones: mouse-parallax hero
-// device with a cycling screen, plus three tilted member-app devices. Ambient
-// aurora + particles, scroll reveals, count-up stats, animated borders.
+// Genuine CSS 3D (transform-style: preserve-3d) phones showing the real member
+// app: a mouse-parallax hero device cycling through its screens, then the three
+// Equbs and their join → contribute → draw → after journey (equb-showcase.tsx).
+// Ambient aurora + particles, scroll reveals, count-up stats, animated borders.
 // ============================================================================
 
-const GOLD = "hsl(38 94% 56%)";
-const GREEN = "hsl(149 74% 45%)";
-const GREEN_DEEP = "hsl(149 74% 16%)";
 // Replace with the real Play Store / APK URL when available.
 const APP_DOWNLOAD_URL = "#";
 
@@ -138,22 +126,6 @@ function Aurora() {
   );
 }
 
-/* Diagonal reflection that sweeps across a phone screen every few seconds. */
-function Shine({ delay = 0 }: { delay?: number }) {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-y-[-20%] w-[45%] rotate-12"
-      style={{
-        background:
-          "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.08) 55%, transparent 100%)",
-      }}
-      initial={{ x: "-160%" }}
-      animate={{ x: ["-160%", "320%"] }}
-      transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 4.5, delay, ease: "easeInOut" }}
-    />
-  );
-}
-
 /* Count-up number for the hero stats. */
 function CountUp({ to, suffix = "", decimals = 0 }: { to: number; suffix?: string; decimals?: number }) {
   const mv = useMotionValue(0);
@@ -212,208 +184,13 @@ function DarkLocaleToggle() {
   );
 }
 
-/* ============================================================================
-   Hero phone — cycling admin screens
-============================================================================ */
-function ScreenDashboard() {
-  const t = useTranslations("landing");
-  return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[10px] text-white/50">{t("greeting")}</p>
-          <p className="text-sm font-bold text-white">{t("appName")}</p>
-        </div>
-        <div className="grid h-9 w-9 place-items-center rounded-full bg-white/95 p-1 shadow">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/emad-small-logo.png" alt="Emad" className="h-full w-full object-contain" />
-        </div>
-      </div>
-      <div className="rounded-2xl bg-gradient-to-br from-[hsl(149_74%_25%)] to-[hsl(149_74%_16%)] p-4 text-white shadow-lg">
-        <p className="text-[10px] text-white/60">{t("nextPayout")}</p>
-        <p className="mt-1 text-2xl font-extrabold tracking-tight">200,000 Br</p>
-        <div className="mt-3 h-1.5 w-full rounded-full bg-white/20">
-          <motion.div
-            className="h-full rounded-full bg-[hsl(38_94%_56%)]"
-            initial={{ width: 0 }}
-            animate={{ width: "66%" }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
-          />
-        </div>
-        <p className="mt-1.5 text-[9px] text-white/60">{t("progress")}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { label: t("screenMembers"), value: "200", icon: Users },
-          { label: t("screenCollected"), value: "3.8M", icon: PiggyBank },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl bg-white/5 p-3">
-            <s.icon size={14} className="text-[hsl(38_94%_56%)]" />
-            <p className="mt-1.5 text-base font-bold text-white">{s.value}</p>
-            <p className="text-[9px] text-white/50">{s.label}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ScreenDraw() {
-  const t = useTranslations("landing");
-  return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-white">{t("liveDraw")}</p>
-        <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[8px] font-bold text-red-400">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> LIVE
-        </span>
-      </div>
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[hsl(149_74%_20%)] to-[hsl(149_74%_12%)] py-4">
-        {[0, 1].map((r) => (
-          <motion.div
-            key={r}
-            className="absolute h-24 w-24 rounded-full border border-[hsl(38_94%_56%)]/30"
-            animate={{ scale: [1, 2.2], opacity: [0.5, 0] }}
-            transition={{ duration: 2.4, repeat: Infinity, delay: r * 1.2, ease: "easeOut" }}
-          />
-        ))}
-        <motion.div
-          className="z-10 grid h-16 w-16 place-items-center rounded-full border-2 border-[hsl(38_94%_56%)]/70 bg-[#0a120d]/40"
-          animate={{ scale: [1, 1.08, 1] }}
-          transition={{ duration: 1.8, repeat: Infinity }}
-        >
-          <Trophy size={26} className="text-[hsl(38_94%_56%)]" />
-        </motion.div>
-        <div className="z-10 flex gap-1">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="grid h-7 w-6 place-items-center rounded-md bg-white/10 text-[11px] font-bold text-[hsl(38_94%_56%)]"
-              animate={{ opacity: [0.35, 1, 0.35] }}
-              transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.12 }}
-            >
-              <motion.span animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.1 }}>
-                {(i * 3 + 1) % 10}
-              </motion.span>
-            </motion.div>
-          ))}
-        </div>
-        <p className="z-10 text-[10px] text-white/70">{t("selecting")}</p>
-      </div>
-      <div className="space-y-1.5">
-        {["EK-000201", "EK-000144", "EK-000342"].map((n, i) => (
-          <motion.div
-            key={n}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + i * 0.25 }}
-            className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
-          >
-            <span className="text-[11px] font-medium text-white">{n}</span>
-            <BadgeCheck size={13} className="text-[hsl(149_74%_45%)]" />
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ScreenTakaful() {
-  const t = useTranslations("landing");
-  return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <p className="text-sm font-bold text-white">{t("takaful")}</p>
-      <div className="rounded-2xl border border-[hsl(38_94%_56%)]/30 bg-white/5 p-4">
-        <p className="text-[10px] text-white/50">{t("mutualBalance")}</p>
-        <p className="mt-1 text-2xl font-extrabold text-[hsl(38_94%_56%)]">3,820,000</p>
-        <p className="text-[9px] text-white/50">{t("tabarruNote")}</p>
-      </div>
-      <div className="space-y-2">
-        {[
-          [t("jualah"), t("jualahV")],
-          [t("equalSadaqah"), t("equalV")],
-        ].map(([a, b]) => (
-          <div key={a} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2.5">
-            <span className="text-[11px] text-white">{a}</span>
-            <span className="text-[10px] text-white/50">{b}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-auto flex items-center gap-2 rounded-lg bg-[hsl(149_74%_25%)]/40 px-3 py-2">
-        <ShieldCheck size={14} className="text-[hsl(149_74%_45%)]" />
-        <span className="text-[10px] text-white/70">{t("zeroInterestAmanah")}</span>
-      </div>
-    </div>
-  );
-}
-
-const SCREENS = [ScreenDashboard, ScreenDraw, ScreenTakaful];
-
-/* Shared device chassis — metallic gradient shell, gold rim, side keys, recessed
-   glass screen with a passing reflection. Used by the hero and how-to phones. */
-function Chassis({
-  children,
-  width,
-  height,
-  radius = "3rem",
-  shineDelay = 0,
-  statusRight = "Emad",
-}: {
-  children: ReactNode;
-  width: number;
-  height: number;
-  radius?: string;
-  shineDelay?: number;
-  statusRight?: string;
-}) {
-  return (
-    <div
-      className="relative p-3"
-      style={{
-        width,
-        height,
-        borderRadius: radius,
-        transformStyle: "preserve-3d",
-        background: "linear-gradient(150deg, #24382d 0%, #16241c 40%, #0b120e 100%)",
-        boxShadow: `0 50px 90px -24px ${GREEN_DEEP}, 0 0 0 1.5px rgba(255,255,255,0.08), 0 0 60px -10px hsl(149 74% 30% / 0.35)`,
-      }}
-    >
-      {/* metallic edge highlight + gold hairline */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          borderRadius: radius,
-          boxShadow: `inset 0 1px 0 ${GOLD}66, inset 0 -1px 0 rgba(255,255,255,0.05), inset 1px 0 0 rgba(255,255,255,0.05), inset 0 0 44px rgba(0,0,0,0.65)`,
-        }}
-      />
-      {/* side keys */}
-      <div className="absolute -right-1 top-[22%] h-16 w-1 rounded-r bg-[#2f4438]" style={{ transform: "translateZ(-6px)" }} />
-      <div className="absolute -left-1 top-[19%] h-10 w-1 rounded-l bg-[#2f4438]" style={{ transform: "translateZ(-6px)" }} />
-      <div className="absolute -left-1 top-[28%] h-16 w-1 rounded-l bg-[#2f4438]" style={{ transform: "translateZ(-6px)" }} />
-
-      {/* screen */}
-      <div
-        className="relative h-full w-full overflow-hidden bg-[#0a120d]"
-        style={{ borderRadius: `calc(${radius} - 0.7rem)`, transform: "translateZ(4px)", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.9)" }}
-      >
-        <div className="absolute left-1/2 top-2 z-10 h-6 w-28 -translate-x-1/2 rounded-full bg-black/85" />
-        <div className="flex items-center justify-between px-5 pt-3 text-[9px] font-medium text-white/70">
-          <span>9:41</span>
-          <span>{statusRight}</span>
-        </div>
-        <div className="mt-2 h-[calc(100%-2.25rem)]">{children}</div>
-        {/* glass */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-white/[0.09]" />
-        <Shine delay={shineDelay} />
-      </div>
-    </div>
-  );
-}
-
 function Phone3D() {
   const t = useTranslations("landing");
+  const locale = useLocale();
   const [screen, setScreen] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  // the real app: home, my Equbs, the live draw wheel, a winner's Equb
+  const screens = [shots.home(), shots.myEqubs(locale), shots.drawLive(), shots.won(locale)];
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -424,9 +201,9 @@ function Phone3D() {
   const glowY = useSpring(useTransform(my, [-0.5, 0.5], [-30, 30]), { stiffness: 80, damping: 20 });
 
   useEffect(() => {
-    const id = setInterval(() => setScreen((s) => (s + 1) % SCREENS.length), 3800);
+    const id = setInterval(() => setScreen((s) => (s + 1) % screens.length), 3800);
     return () => clearInterval(id);
-  }, []);
+  }, [screens.length]);
 
   const onMove = (e: React.MouseEvent) => {
     const el = ref.current;
@@ -440,7 +217,7 @@ function Phone3D() {
     my.set(0);
   };
 
-  const Screen = SCREENS[screen];
+  const shot = screens[screen];
 
   return (
     <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} className="relative grid place-items-center py-6" style={{ perspective: 1200 }}>
@@ -473,17 +250,17 @@ function Phone3D() {
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         className="relative z-10"
       >
-        <Chassis width={284} height={576}>
-          <AnimatePresence mode="wait">
+        <Chassis width={284} height={624} lightStatus={shot.light}>
+          <AnimatePresence initial={false}>
             <motion.div
               key={screen}
-              initial={{ opacity: 0, scale: 0.96, filter: "blur(6px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 1.02, filter: "blur(6px)" }}
-              transition={{ duration: 0.5 }}
-              className="h-full"
+              initial={{ opacity: 0, scale: 1.04 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              className="absolute inset-0"
             >
-              <Screen />
+              <AppShot shot={shot} alt={t("appName")} eager />
             </motion.div>
           </AnimatePresence>
         </Chassis>
@@ -529,7 +306,7 @@ function Phone3D() {
       />
 
       <div className="relative z-10 mt-6 flex gap-2">
-        {SCREENS.map((_, i) => (
+        {screens.map((_, i) => (
           <button
             key={i}
             onClick={() => setScreen(i)}
@@ -539,201 +316,6 @@ function Phone3D() {
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-/* ============================================================================
-   Member-app screens (recreated from the real app) + tilted how-to phones
-============================================================================ */
-function MemberNav({ active }: { active: "home" | "pay" | "draws" | "takaful" | "profile" }) {
-  const items = [
-    ["home", Home, "Home"],
-    ["pay", Receipt, "Payments"],
-    ["draws", BarChart3, "Draws"],
-    ["takaful", ShieldCheck, "Takaful"],
-    ["profile", User, "Profile"],
-  ] as const;
-  return (
-    <div className="absolute inset-x-0 bottom-0 flex items-center justify-around border-t border-white/10 bg-[#0c140f]/95 px-1 py-2">
-      {items.map(([key, Icon, label]) => {
-        const on = key === active;
-        return (
-          <div key={key} className="flex flex-col items-center gap-0.5">
-            <Icon size={15} className={on ? "text-[hsl(38_94%_56%)]" : "text-white/40"} />
-            <span className={`text-[7px] ${on ? "text-[hsl(38_94%_56%)]" : "text-white/40"}`}>{label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ScreenHomeMember() {
-  return (
-    <div className="h-full overflow-hidden pb-14">
-      <div className="flex items-center justify-between px-4 pt-2">
-        <p className="text-base font-extrabold text-white">Digital Equb</p>
-        <div className="relative">
-          <Bell size={16} className="text-white/70" />
-          <span className="absolute -right-1 -top-1 grid h-3 w-3 place-items-center rounded-full bg-red-500 text-[6px] text-white">2</span>
-        </div>
-      </div>
-      <div className="mx-3 mt-3 rounded-2xl border border-white/10 bg-gradient-to-br from-[hsl(149_74%_16%)] to-[#0c140f] p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-white/60">Total Ekub Savings</p>
-          <span className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[7px] text-white/80">
-            <ShieldCheck size={9} /> Sharia Audited
-          </span>
-        </div>
-        <p className="mt-1 text-2xl font-extrabold text-white">
-          12,500<span className="text-sm font-semibold text-white/60"> ETB</span>
-        </p>
-        <div className="mt-3 flex gap-6">
-          <div>
-            <p className="text-[8px] text-white/50">Next Draw</p>
-            <p className="text-xs font-bold text-white">Sept 12</p>
-          </div>
-          <div>
-            <p className="text-[8px] text-white/50">At Risk</p>
-            <p className="text-xs font-bold text-white">0</p>
-          </div>
-        </div>
-      </div>
-      <div className="mx-3 mt-3 flex items-center gap-2 rounded-xl border border-[hsl(38_94%_56%)]/40 bg-[hsl(38_94%_56%)]/10 px-3 py-2">
-        <Trophy size={14} className="shrink-0 text-[hsl(38_94%_56%)]" />
-        <p className="text-[9px] text-white/90">
-          <b className="text-[hsl(38_94%_56%)]">Latest Winner</b> · #EK-8829 won 200,000 ETB!
-        </p>
-      </div>
-      <p className="mt-4 px-4 text-[11px] font-bold text-white">My Active Equbs</p>
-      <div className="mx-3 mt-2 flex items-center gap-2 rounded-xl bg-white/5 p-3">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-[hsl(149_74%_25%)]/40 text-[hsl(149_74%_55%)]">
-          <PiggyBank size={15} />
-        </div>
-        <div className="flex-1">
-          <p className="text-[11px] font-semibold text-white">Medium Tier · Round 6</p>
-          <p className="text-[8px] text-white/50">1,090 ETB · Daily</p>
-        </div>
-        <span className="text-[11px] font-bold text-[hsl(149_74%_55%)]">45%</span>
-      </div>
-      <MemberNav active="home" />
-    </div>
-  );
-}
-
-function ScreenPaymentsMember() {
-  const rows = [
-    ["Aug 24", "Due", "warning"],
-    ["Aug 23", "Paid", "ok"],
-    ["Aug 22", "Paid", "ok"],
-    ["Aug 20", "Missed", "bad"],
-    ["Aug 19", "Paid", "ok"],
-  ] as const;
-  const tone = { ok: "text-[hsl(149_74%_55%)]", bad: "text-red-400", warning: "text-[hsl(38_94%_56%)]" };
-  const icon = { ok: CheckCircle2, bad: XCircle, warning: Clock };
-  return (
-    <div className="h-full overflow-hidden pb-14">
-      <p className="px-4 pt-2 text-base font-extrabold text-white">Payments</p>
-      <div className="mt-2 flex border-b border-white/10 px-4 text-[10px]">
-        <span className="border-b-2 border-[hsl(149_74%_55%)] pb-1.5 font-semibold text-[hsl(149_74%_55%)]">Schedule</span>
-        <span className="ml-5 pb-1.5 text-white/40">Ledger</span>
-      </div>
-      <div className="mx-3 mt-3 flex items-center justify-between rounded-2xl bg-gradient-to-br from-[hsl(149_74%_16%)] to-[#0c140f] p-3.5">
-        <div>
-          <p className="text-[9px] text-white/60">Due Today</p>
-          <p className="text-lg font-extrabold text-white">1,110 ETB</p>
-          <p className="text-[8px] text-white/50">Medium Tier · Round 6</p>
-        </div>
-        <span className="rounded-lg bg-[hsl(38_94%_56%)] px-3 py-1.5 text-[10px] font-bold text-[#0a120d]">Pay Now</span>
-      </div>
-      <div className="mt-3 space-y-1.5 px-3">
-        {rows.map(([d, s, k]) => {
-          const Icon = icon[k];
-          return (
-            <div key={d} className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2">
-              <Icon size={15} className={tone[k]} />
-              <div className="flex-1">
-                <p className="text-[10px] font-semibold text-white">{d}</p>
-                <p className="text-[8px] text-white/50">1,110 ETB</p>
-              </div>
-              <span className={`text-[9px] font-semibold ${tone[k]}`}>{s}</span>
-            </div>
-          );
-        })}
-      </div>
-      <MemberNav active="pay" />
-    </div>
-  );
-}
-
-function ScreenDrawMember() {
-  return (
-    <div className="h-full overflow-hidden pb-14">
-      <p className="px-4 pt-2 text-base font-extrabold text-white">Weekly Draw Event</p>
-      <div className="mx-3 mt-3 rounded-2xl border border-white/10 bg-gradient-to-br from-[hsl(149_74%_16%)] to-[#0c140f] p-3.5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[8px] uppercase tracking-wide text-white/50">Live session</p>
-            <p className="text-sm font-bold text-white">Medium Tier · Round 6</p>
-          </div>
-          <span className="flex items-center gap-1 rounded-full bg-red-500/80 px-2 py-0.5 text-[8px] font-bold text-white">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> LIVE
-          </span>
-        </div>
-        <div className="mt-3 flex justify-between border-t border-white/10 pt-2 text-center">
-          <div>
-            <p className="text-[8px] text-white/50">Draw Pool</p>
-            <p className="text-xs font-bold text-white">200k</p>
-          </div>
-          <div>
-            <p className="text-[8px] text-white/50">Winners</p>
-            <p className="text-xs font-bold text-white">7/200</p>
-          </div>
-          <div>
-            <p className="text-[8px] text-white/50">Status</p>
-            <p className="text-xs font-bold text-[hsl(149_74%_55%)]">Active</p>
-          </div>
-        </div>
-      </div>
-      <div className="mx-3 mt-3 grid place-items-center rounded-2xl bg-white/5 p-5 text-center">
-        <motion.div
-          className="grid h-14 w-14 place-items-center rounded-full bg-[hsl(149_74%_25%)]/40"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 1.6, repeat: Infinity }}
-        >
-          <Hand size={24} className="text-[hsl(149_74%_55%)]" />
-        </motion.div>
-        <p className="mt-3 text-xs font-bold text-white">Attendance Required</p>
-        <p className="mt-1 text-[9px] leading-relaxed text-white/50">Confirm your active presence to be eligible for this round.</p>
-        <div className="mt-3 w-full rounded-xl bg-[hsl(149_74%_45%)] py-2 text-[11px] font-bold text-[#0a120d]">Check-in to Draw</div>
-      </div>
-      <MemberNav active="draws" />
-    </div>
-  );
-}
-
-function MiniPhone({ children, tilt = -14, shineDelay = 0 }: { children: ReactNode; tilt?: number; shineDelay?: number }) {
-  return (
-    <div style={{ perspective: 1000 }} className="relative grid place-items-center">
-      {/* colour glow behind */}
-      <div
-        className="pointer-events-none absolute h-[420px] w-[420px] rounded-full blur-[80px]"
-        style={{ background: "radial-gradient(circle, hsl(149 74% 40% / 0.4) 0%, hsl(38 94% 56% / 0.12) 50%, transparent 70%)" }}
-      />
-      <motion.div
-        initial={{ rotateY: tilt, rotateX: 6 }}
-        whileHover={{ rotateY: 0, rotateX: 0, y: -8, scale: 1.02 }}
-        animate={{ y: [0, -10, 0] }}
-        transition={{ y: { duration: 6, repeat: Infinity, ease: "easeInOut" }, default: { duration: 0.5 } }}
-        style={{ transformStyle: "preserve-3d" }}
-        className="relative z-10"
-      >
-        <Chassis width={256} height={520} radius="2.9rem" shineDelay={shineDelay} statusRight="4G⁺ ▮▮▮">
-          {children}
-        </Chassis>
-      </motion.div>
-      <div className="pointer-events-none absolute bottom-0 h-8 w-44 rounded-full bg-black/60 blur-2xl" />
     </div>
   );
 }
@@ -765,12 +347,6 @@ export default function LandingPage() {
     { icon: Landmark, title: t("pAmanah"), body: t("pAmanahBody") },
   ];
 
-  const steps = [
-    { title: t("s1Title"), body: t("s1Body"), screen: <ScreenHomeMember /> },
-    { title: t("s2Title"), body: t("s2Body"), screen: <ScreenPaymentsMember /> },
-    { title: t("s3Title"), body: t("s3Body"), screen: <ScreenDrawMember /> },
-  ];
-
   const titleWords = t("title1").split(" ");
 
   return (
@@ -796,7 +372,8 @@ export default function LandingPage() {
           {/* in-page product nav */}
           <nav className="hidden items-center gap-7 text-sm font-medium text-white/60 lg:flex">
             <a href="#features" className="transition hover:text-white">{t("eyebrowFeatures")}</a>
-            <a href="#pricing" className="transition hover:text-white">{t("tiersEyebrow")}</a>
+            <a href="#equbs" className="transition hover:text-white">{t("eqNav")}</a>
+            <a href="#journey" className="transition hover:text-white">{t("howTitle")}</a>
             <a href="#download" className="transition hover:text-white">{t("downloadApp")}</a>
           </nav>
 
@@ -881,13 +458,6 @@ export default function LandingPage() {
               <Download size={18} className="transition group-hover:translate-y-0.5" />
               {t("downloadApp")}
             </a>
-            <Link
-              href="/login"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 font-semibold text-white backdrop-blur transition hover:border-white/30 hover:bg-white/10"
-            >
-              {t("ctaOpen")}
-              <ArrowRight size={18} className="transition group-hover:translate-x-1" />
-            </Link>
           </motion.div>
 
           <motion.div
@@ -997,40 +567,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it works — three member-app phones */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20">
-        <SectionHeading eyebrow={t("eyebrowHow")} title={t("howTitle")} subtitle={t("howSubtitle")} />
-        <div className="relative mt-20">
-          {/* connector line behind the phones */}
-          <div className="pointer-events-none absolute left-[16%] right-[16%] top-[240px] hidden h-px bg-gradient-to-r from-transparent via-[hsl(38_94%_56%)]/50 to-transparent md:block" />
-          <div className="grid gap-20 md:grid-cols-3 md:gap-6">
-            {steps.map((s, i) => (
-              <motion.div
-                key={s.title}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: i * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col items-center text-center"
-              >
-                <MiniPhone tilt={i === 1 ? 0 : i === 0 ? -16 : 16} shineDelay={i * 1.4}>
-                  {s.screen}
-                </MiniPhone>
-                <div className="mt-10 max-w-xs">
-                  <span className="inline-grid h-10 w-10 place-items-center rounded-full bg-[hsl(38_94%_56%)] text-base font-extrabold text-[#0a120d] shadow-[0_0_30px_-6px_hsl(38_94%_56%)]">
-                    {i + 1}
-                  </span>
-                  <h3 className="mt-4 text-xl font-bold">{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">{s.body}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* The three Equbs + their join → contribute → draw → after journey */}
+      <EqubShowcase />
 
-      {/* Fintech core: pricing, rails, compliance, comparison, FAQ */}
-      <TierPricing />
+      {/* Fintech core: rails, compliance, comparison, FAQ */}
       <PaymentRails />
       <SecuritySection />
       <ComparisonSection />
@@ -1117,6 +657,7 @@ export default function LandingPage() {
             <span className="rounded-full border border-white/10 px-2.5 py-1">{t("cardRng")}</span>
           </div>
         </div>
+        <div className="border-t border-white/5 py-4 text-center text-xs text-white/35">{t("poweredBy")}</div>
       </footer>
     </main>
   );
