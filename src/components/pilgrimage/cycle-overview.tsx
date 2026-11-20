@@ -5,7 +5,7 @@ import { Check, CheckCircle2, Clock, Info, Target, Trophy, UsersRound, Wallet, X
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/dashboard/shared";
-import { PStatus } from "@/components/pilgrimage/shared";
+import { feeTotal, PStatus } from "@/components/pilgrimage/shared";
 import { cycleYear, summarizeMembers, type CycleMember } from "@/components/pilgrimage/cycle-members";
 import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type { CycleStatus, PilgrimageCycle, PilgrimageProduct } from "@/types/pilgrimage";
@@ -26,6 +26,7 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
 }) {
   const t = useTranslations("pilgrimage.overview");
   const tcy = useTranslations("pilgrimage.cycle");
+  const td = useTranslations("pilgrimage.cycleDates");
   const tp = useTranslations("pilgrimage.product");
   const to = useTranslations("pilgrimage.option");
   const tb = useTranslations("pilgrimage.basis");
@@ -66,6 +67,8 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
               <Row label={tcy("opensAt")} value={formatDate(cycle.opens_at)} />
               <Row label={tcy("registrationCloses")} value={formatDate(cycle.registration_closes_at)} />
               <Row label={tcy("drawAt")} value={formatDate(cycle.draw_at)} />
+              <Row label={td("contract_deadline")} value={formatDate(cycle.contract_deadline)} />
+              <Row label={td("closes_at")} value={formatDate(cycle.closes_at)} />
               <Row label={tcy("decisionDeadline")} value={cycle.decision_deadline ? formatDate(cycle.decision_deadline) : "—"} />
               {cycle.locked_at && <Row label={t("lockedAt")} value={formatDateTime(cycle.locked_at)} />}
               {cycle.drawn_at && <Row label={tcy("drawnAt")} value={formatDateTime(cycle.drawn_at)} />}
@@ -90,6 +93,9 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
                   <Row label={tp("savingPeriodMonths")} value={p.saving_period_months} />
                   <Row label={t("groupSize")} value={`${p.group_min_members}–${p.group_max_members}`} />
                   <Row label={tp("decisionWindowDays")} value={p.decision_window_days} />
+                  <Row label={tp("contractDays")} value={p.winner_contract_days} />
+                  <Row label={tp("adminShort")} value={tp("weeklyShort", { weekly: formatCurrency(p.admin_fee_weekly), weeks: p.fee_weeks, total: formatCurrency(feeTotal(p.admin_fee_weekly, p.fee_weeks)) })} />
+                  <Row label={tp("takafulShort")} value={tp("weeklyShort", { weekly: formatCurrency(p.takaful_fee_weekly), weeks: p.fee_weeks, total: formatCurrency(feeTotal(p.takaful_fee_weekly, p.fee_weeks)) })} />
                   <Row label={tp("defaultDecision")} value={to(p.default_decision)} />
                   <Row label={tp("savingType")} value={p.saving_type?.name ?? "—"} />
                 </>
@@ -104,7 +110,7 @@ export function CycleOverview({ cycle, product, members, membersLoading, live }:
                   <Row label={tp("serviceBasis")} value={fee(p.service_charge_value, p.service_charge_basis)} />
                   <Row label={tp("takafulBasis")} value={fee(p.takaful_value, p.takaful_basis)} />
                   <Row label={t("equbShare")} value={`${p.equb_service_charge_share}%`} />
-                  {p.mudarabah_terms && <Row label={t("mudarabah")} value={t("mudarabahLine", { months: p.mudarabah_terms.durations_months.join(", "), share: p.mudarabah_terms.member_profit_share_percent })} />}
+
                 </dl>
               </div>
             )}

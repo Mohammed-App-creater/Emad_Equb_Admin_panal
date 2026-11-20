@@ -41,6 +41,7 @@ interface Row {
 export function CycleList({ kind }: { kind: PilgrimageKind }) {
   const t = useTranslations("pilgrimage.list");
   const tcy = useTranslations("pilgrimage.cycle");
+  const td = useTranslations("pilgrimage.cycleDates");
   const ts = useTranslations("pilgrimage.status");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -118,6 +119,8 @@ export function CycleList({ kind }: { kind: PilgrimageKind }) {
     ) },
     { id: "registration", header: tcy("registrationCloses"), mobile: "detail", sortValue: (r) => r.cycle.registration_closes_at, cell: (r) => <span className="text-sm">{formatDate(r.cycle.registration_closes_at)}</span> },
     { id: "draw", header: tcy("drawAt"), mobile: "detail", sortValue: (r) => r.cycle.draw_at, cell: (r) => <span className="text-sm">{formatDate(r.cycle.draw_at)}</span> },
+    { id: "contract", header: td("contract_deadline"), mobile: "detail", sortValue: (r) => r.cycle.contract_deadline, cell: (r) => <span className="text-sm">{formatDate(r.cycle.contract_deadline)}</span> },
+    { id: "closes", header: td("closes_at"), mobile: "detail", sortValue: (r) => r.cycle.closes_at, cell: (r) => <span className="text-sm">{formatDate(r.cycle.closes_at)}</span> },
     { id: "winners", header: tcy("winners"), mobile: "detail", align: "right", sortValue: (r) => r.cycle.winner_count, cell: (r) => (
       <span className="text-sm tabular-nums">{r.cycle.drawn_at ? r.cycle.winner_count : "—"} / {r.cycle.winners_per_cycle}</span>
     ) },
@@ -213,6 +216,7 @@ export function CycleList({ kind }: { kind: PilgrimageKind }) {
 function CycleCard({ row: r, kind, actions, onOpen }: { row: Row; kind: PilgrimageKind; actions: DataTableAction<Row>[]; onOpen: (r: Row) => void }) {
   const t = useTranslations("pilgrimage.list");
   const tcy = useTranslations("pilgrimage.cycle");
+  const td = useTranslations("pilgrimage.cycleDates");
   const tc = useTranslations("common");
   const c = r.cycle;
   // While open: share of registered members already eligible. Afterwards: packages filled.
@@ -251,6 +255,8 @@ function CycleCard({ row: r, kind, actions, onOpen }: { row: Row; kind: Pilgrima
           <Fact label={tcy("required")} value={formatCurrency(c.required_contribution)} />
           <Fact label={tcy("registrationCloses")} value={formatDate(c.registration_closes_at)} />
           <Fact label={tcy("drawAt")} value={formatDate(c.draw_at)} />
+          <Fact label={td("contract_deadline")} value={formatDate(c.contract_deadline)} />
+          <Fact label={td("closes_at")} value={formatDate(c.closes_at)} />
           {r.saved !== undefined && <Fact label={t("saved")} value={formatCurrency(r.saved)} />}
         </dl>
 

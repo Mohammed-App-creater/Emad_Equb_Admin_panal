@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field, useErrorToast } from "@/components/pilgrimage/shared";
+import { cycleDateProblems, CycleDatesFields, defaultCycleDates, type CycleDates } from "@/components/pilgrimage/cycle-dates";
 import { useOpenCycle } from "@/hooks/pilgrimage";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
@@ -15,8 +16,9 @@ import type { PilgrimageCycle, PilgrimageProduct } from "@/types/pilgrimage";
 
 /**
  * Opens a product's next cycle (a new Hajj/Umrah Equb). Given one product it
- * opens that product's; given a list it asks which. Dates default from the
- * product when left empty.
+ * opens that product's; given a list it asks which. Every date is shown
+ * prefilled with the product's default; changing the opening or draw date
+ * moves the dates that follow from it, unless they were set by hand.
  */
 export function OpenCycleModal({ open, product, products, title, onClose, onOpened }: {
   open: boolean;
@@ -35,22 +37,22 @@ export function OpenCycleModal({ open, product, products, title, onClose, onOpen
   const choices = (products ?? []).filter((p) => p.status === "active");
   const [chosenId, setChosenId] = useState("");
   const [name, setName] = useState("");
-  const [opensAt, setOpensAt] = useState("");
-  const [drawAt, setDrawAt] = useState("");
+  const [given, setGiven] = useState<Partial<CycleDates>>({});
   const selected = product ?? choices.find((p) => p.id === chosenId) ?? (choices.length === 1 ? choices[0] : undefined);
-  const close = () => { setChosenId(""); setName(""); setOpensAt(""); setDrawAt(""); onClose(); };
-  const badDates = !!opensAt && !!drawAt && drawAt <= opensAt;
+  const close = () => { setChosenId(""); setName(""); setGiven({}); onClose(); };
+  const dates = selected ? defaultCycleDates(selected, given) : null;
+  const badDates = !dates || Object.keys(cycleDateProblems(dates)).length > 0;
 
   const submit = () =>
     selected &&
     openCycle.mutate(
-      { productId: selected.id, name: name.trim() || undefined, opens_at: opensAt || undefined, draw_at: drawAt || undefined },
+      { productId: selected.id, name: name.trim() || undefined, dates: dates ?? {} },
       { onSuccess: (c) => { toast({ title: t("opened"), description: c.name }); close(); onOpened?.(c); }, onError },
     );
 
   return (
     <Modal open={open} onOpenChange={(o) => !o && close()} title={title ?? t("openTitle", { product: selected?.name ?? "" })} className="max-w-lg">
-      <div className="space-y-4">
+      <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
         <p className="text-sm text-muted-foreground">{t("openHint")}</p>
         {!product && (
           <Field label={tp("sectionProduct")} hint={choices.length === 0 ? t("noActiveProduct") : undefined}>
@@ -69,14 +71,7 @@ export function OpenCycleModal({ open, product, products, title, onClose, onOpen
         <Field label={`${tc("name")} (${tc("optional")})`}>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePlaceholder")} />
         </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={`${t("opensAt")} (${tc("optional")})`}>
-            <Input type="date" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} />
-          </Field>
-          <Field label={`${t("drawAt")} (${tc("optional")})`} error={badDates ? t("drawAfterOpen") : undefined}>
-            <Input type="date" value={drawAt} onChange={(e) => setDrawAt(e.target.value)} />
-          </Field>
-        </div>
+        {dates && <CycleDatesFields value={dates} onChange={(k, v) => setGiven((g) => ({ ...g, [k]: v || undefined }))} />}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
           <Button onClick={submit} disabled={!selected || openCycle.isPending || badDates}>

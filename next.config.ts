@@ -7,6 +7,9 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // A second dev server (e.g. one pointed at a local backend) needs its own
+  // build folder: Next locks the one a running server uses.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Multiple lockfiles exist above this folder; pin the workspace root so
   // Next infers this project (not a parent) as the root.
   turbopack: { root: __dirname },

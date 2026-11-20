@@ -23,8 +23,8 @@ type Filter = "all" | "eligible" | "behind" | "none";
 
 /**
  * Money in one cycle: totals against the eligibility target, then every
- * member's savings, expandable into the payments on their saving contract.
- * Each member saves on their own contract, so there is no shared pot; the
+ * member's savings, expandable into their payments on the Equb ledger.
+ * Each member's savings are their own, so there is no shared pot; the
  * cycle's figures are the sum of its members'.
  */
 export function CyclePaymentsTab({ cycle, members, isLoading, live }: { cycle: PilgrimageCycle; members: CycleMember[]; isLoading: boolean; live: boolean }) {

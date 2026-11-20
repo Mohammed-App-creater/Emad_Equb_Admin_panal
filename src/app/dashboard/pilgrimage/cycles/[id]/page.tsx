@@ -4,7 +4,7 @@ import { Suspense, use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Ban, Dices, Hand, LayoutDashboard, Lock, ShieldCheck, Trophy, UserRoundCog, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeft, Ban, CalendarClock, Dices, Hand, LayoutDashboard, Lock, ShieldCheck, Trophy, UserRoundCog, UsersRound, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { Detail, Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import { WinnersTab } from "@/components/pilgrimage/winners-tab";
+import { CycleCalendar, editableDates, EditCycleDatesModal } from "@/components/pilgrimage/cycle-dates";
 import { DecisionsTab } from "@/components/pilgrimage/decisions-tab";
 import { CycleGroupsTab } from "@/components/pilgrimage/groups-tab";
 import { CycleOverview } from "@/components/pilgrimage/cycle-overview";
@@ -121,7 +122,8 @@ function CycleInner({ id }: { id: string }) {
             );
           })}
         </TabsList>
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-4">
+          <CalendarCard cycle={cycle} />
           <CycleOverview cycle={cycle} product={product} members={members} membersLoading={membersLoading} live={live} />
         </TabsContent>
         <TabsContent value="members" className="mt-4"><CycleMembersTab cycle={cycle} members={members} isLoading={membersLoading} live={live} /></TabsContent>
@@ -135,6 +137,26 @@ function CycleInner({ id }: { id: string }) {
         <TabsContent value="decisions" className="mt-4"><DecisionsTab cycleId={cycle.id} /></TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/** The cycle's dates as a timeline, with an edit button while they may still change. */
+function CalendarCard({ cycle }: { cycle: PilgrimageCycle }) {
+  const t = useTranslations("pilgrimage.cycleDates");
+  const { has } = useEkubAccess();
+  const [editing, setEditing] = useState(false);
+  const canEdit = has(EKUB_PERMS.PILGRIMAGE_MANAGE) && editableDates(cycle.status).length > 0;
+  return (
+    <Card className="space-y-3 p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+        {canEdit && (
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)}><CalendarClock size={14} className="mr-1" /> {t("edit")}</Button>
+        )}
+      </div>
+      <CycleCalendar cycle={cycle} />
+      <EditCycleDatesModal cycle={editing ? cycle : null} onClose={() => setEditing(false)} />
+    </Card>
   );
 }
 

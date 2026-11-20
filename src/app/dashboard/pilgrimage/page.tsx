@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Hand, Layers, PiggyBank, Settings2, UserRoundCheck } from "lucide-react";
+import { Hand, LayoutDashboard, Layers, PiggyBank, Settings2, Trophy, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +20,7 @@ const KINDS: PilgrimageKind[] = ["hajj", "umrah"];
 /**
  * Hajj & Umrah Equb: one tab per pilgrimage, each listing its Equbs (one per
  * product per year) like the Equbs page. Tools that span every cycle —
- * products, all registrations, the decision queue, Mudarabah — sit under
+ * products, all registrations, the Equb ledger, winners, the decision queue — sit under
  * "Manage".
  */
 function PilgrimageInner() {
@@ -31,9 +31,11 @@ function PilgrimageInner() {
   const kind: PilgrimageKind = requested && KINDS.includes(requested) ? requested : "hajj";
   const setKind = (next: string) => router.replace(`/dashboard/pilgrimage?kind=${next}`, { scroll: false });
   const manage = [
+    { tab: "overview", icon: LayoutDashboard },
     { tab: "registrations", icon: UserRoundCheck },
+    { tab: "contributions", icon: PiggyBank },
+    { tab: "winners", icon: Trophy },
     { tab: "decisions", icon: Hand },
-    { tab: "mudarabah", icon: PiggyBank },
     { tab: "products", icon: Layers },
   ] as const;
 

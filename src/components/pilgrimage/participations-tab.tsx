@@ -15,13 +15,13 @@ import { useMemberSearch } from "@/hooks/ekub";
 import { useParticipations, usePilgrimageProducts, useRegisterParticipant } from "@/hooks/pilgrimage";
 import { EKUB_PERMS, useEkubAccess } from "@/lib/auth/ekub-permissions";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
+import { AgentSelect, Field, PStatus, useErrorToast } from "@/components/pilgrimage/shared";
 import type { Participation } from "@/types/pilgrimage";
 import type { MemberSummary } from "@/types/ekub";
 
-const STATUSES = ["active", "deciding", "won", "withdrawn", "invested", "cancelled"] as const;
+const STATUSES = ["active", "deciding", "won", "withdrawn", "cancelled"] as const;
 
-/** Individual registrations, each with its own contract and contribution progress. */
+/** Individual registrations: their Equb savings, eligibility, group and agent. */
 export function ParticipationsTab({ productId }: { productId?: string }) {
   const t = useTranslations("pilgrimage.participation");
   const tc = useTranslations("common");
@@ -43,7 +43,8 @@ export function ParticipationsTab({ productId }: { productId?: string }) {
     ) },
     { id: "product", header: t("product"), mobile: "detail", cell: (p) => <span className="text-sm">{p.product?.name ?? "—"}</span> },
     { id: "progress", header: t("progress"), mobile: "detail", cell: (p) => <Progress participation={p} /> },
-    { id: "group", header: t("group"), mobile: "detail", cell: (p) => <span className="text-sm">{p.group ? `${p.group.name}` : "—"}</span> },
+    { id: "agent", header: t("agent"), mobile: "detail", cell: (p) => <span className="text-sm">{p.agent_name || (p.agent_user_id ? t("agentUnnamed") : "—")}</span> },
+    { id: "group", header: t("group"), mobile: "detail", cell: (p) => <span className="text-sm">{p.group ? p.group.name : "—"}</span> },
     { id: "status", header: tc("status"), mobile: "badge", cell: (p) => <PStatus status={p.status} /> },
   ];
 
@@ -76,7 +77,7 @@ export function ParticipationsTab({ productId }: { productId?: string }) {
   );
 }
 
-/** Balance against the eligibility threshold of the current cycle. */
+/** Equb savings against the eligibility threshold of the current draw. */
 export function Progress({ participation: p }: { participation: Participation }) {
   const t = useTranslations("pilgrimage.participation");
   const s = p.standing;
@@ -97,9 +98,9 @@ export function Progress({ participation: p }: { participation: Participation })
 }
 
 /**
- * Registers a SACCO member for a product on their behalf (staff or agent; the
- * backend records which). The backend validates SACCO membership and opens
- * the member's saving contract.
+ * Registers a SACCO member for a product on their behalf. No contract is
+ * opened: the member saves on the Equb ledger until they win. An agent
+ * registering is linked automatically; staff may name the agent.
  */
 export function RegisterModal({ open, defaultProductId, onClose, onRegistered }: {
   open: boolean; defaultProductId?: string; onClose: () => void; onRegistered: (p: Participation) => void;
@@ -111,11 +112,12 @@ export function RegisterModal({ open, defaultProductId, onClose, onRegistered }:
   const { data: products } = usePilgrimageProducts(true);
   const register = useRegisterParticipant();
   const [productId, setProductId] = useState(defaultProductId ?? "");
+  const [agentId, setAgentId] = useState("");
   const [query, setQuery] = useState("");
   const [member, setMember] = useState<MemberSummary | null>(null);
   const debounced = useDebounce(query, 300);
   const { data: results, isFetching } = useMemberSearch(open && !member ? debounced : "");
-  const close = () => { setQuery(""); setMember(null); onClose(); };
+  const close = () => { setQuery(""); setMember(null); setAgentId(""); onClose(); };
 
   return (
     <Modal open={open} onOpenChange={(o) => !o && close()} title={t("register")} className="max-w-lg">
@@ -159,10 +161,13 @@ export function RegisterModal({ open, defaultProductId, onClose, onRegistered }:
             </div>
           )}
         </Field>
+        <Field label={`${t("agent")} (${tc("optional")})`} hint={t("agentHint")}>
+          <AgentSelect value={agentId} onChange={setAgentId} />
+        </Field>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={close}>{tc("cancel")}</Button>
           <Button disabled={!productId || !member || register.isPending}
-            onClick={() => member && register.mutate({ product_id: productId, member_id: member.id }, {
+            onClick={() => member && register.mutate({ product_id: productId, member_id: member.id, agent_user_id: agentId || undefined }, {
               onSuccess: (p) => { toast({ title: t("registered"), description: p.number }); close(); onRegistered(p); }, onError,
             })}>
             {register.isPending && <Loader2 size={15} className="mr-1 animate-spin" />} {t("register")}
