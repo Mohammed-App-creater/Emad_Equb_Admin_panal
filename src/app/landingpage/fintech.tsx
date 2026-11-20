@@ -13,18 +13,15 @@ import {
   Scale,
   Fingerprint,
   FileClock,
-  ArrowRight,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
-// Fintech-style sections: transparent tier pricing, trust metrics, payment
+// Fintech-style sections: trust metrics, payment
 // rails, security/compliance, a comparison table and an FAQ. Every figure here
 // is a product parameter from the Ekub guideline — no invented traction claims.
 // ============================================================================
-
-const money = (n: number) => n.toLocaleString("en-US");
 
 /* ---- Shared section heading (also used by the hero page) ---- */
 export function SectionHeading({
@@ -116,124 +113,6 @@ export function MetricsBar() {
             <p className="mt-1.5 text-xs leading-snug text-white/45">{m.l}</p>
           </motion.div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-/* ---- Transparent tier pricing ---- */
-type TierRow = {
-  key: string;
-  name: string;
-  contribution: number;
-  ujrah: number;
-  takaful: number;
-  payout: number;
-  featured?: boolean;
-};
-
-export function TierPricing() {
-  const t = useTranslations("landing");
-  const tiers: TierRow[] = [
-    { key: "t1", name: t("t1"), contribution: 1000, ujrah: 50, takaful: 40, payout: 200000, featured: true },
-    { key: "t2", name: t("t2"), contribution: 10000, ujrah: 500, takaful: 400, payout: 2000000 },
-    { key: "t3", name: t("t3"), contribution: 50000, ujrah: 2500, takaful: 1500, payout: 10000000 },
-  ];
-
-  return (
-    <section id="pricing" className="relative z-10 mx-auto max-w-7xl scroll-mt-24 px-6 py-20">
-      <SectionHeading eyebrow={t("tiersEyebrow")} title={t("tiersTitle")} subtitle={t("tiersSub")} />
-      <div className="mt-14 grid gap-6 lg:grid-cols-3">
-        {tiers.map((tier, i) => {
-          const total = tier.contribution + tier.ujrah + tier.takaful;
-          return (
-            <motion.div
-              key={tier.key}
-              initial={{ opacity: 0, y: 26 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ delay: i * 0.1, duration: 0.6 }}
-              className={cn("relative rounded-3xl p-px", tier.featured && "lg:-mt-4 lg:mb-4")}
-            >
-              <div
-                className={cn(
-                  "absolute inset-0 rounded-3xl",
-                  tier.featured
-                    ? "bg-gradient-to-b from-[hsl(38_94%_56%)] via-[hsl(38_94%_56%)]/30 to-transparent"
-                    : "bg-gradient-to-b from-white/12 to-transparent"
-                )}
-              />
-              <div className="relative flex h-full flex-col rounded-[calc(1.5rem-1px)] bg-[#0d1712]/95 p-7 backdrop-blur">
-                {tier.featured && (
-                  <span className="absolute -top-3 left-7 rounded-full bg-[hsl(38_94%_56%)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#0a120d]">
-                    {t("popular")}
-                  </span>
-                )}
-
-                <p className="text-sm font-semibold uppercase tracking-wider text-white/50">{tier.name}</p>
-
-                <div className="mt-4 flex items-end gap-1.5">
-                  <span className="text-4xl font-extrabold tracking-tight">{money(total)}</span>
-                  <span className="pb-1 text-sm text-white/50">Br {t("perDay")}</span>
-                </div>
-
-                {/* itemised fee breakdown */}
-                <dl className="mt-6 space-y-2.5 border-y border-white/10 py-5 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-white/55">{t("contribution")}</dt>
-                    <dd className="font-medium tabular-nums">{money(tier.contribution)} Br</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-white/55">{t("adminFee")}</dt>
-                    <dd className="font-medium tabular-nums">{money(tier.ujrah)} Br</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-white/55">{t("takafulFee")}</dt>
-                    <dd className="font-medium tabular-nums">{money(tier.takaful)} Br</dd>
-                  </div>
-                  <div className="flex justify-between pt-2 text-[hsl(38_94%_56%)]">
-                    <dt className="font-semibold">{t("totalDaily")}</dt>
-                    <dd className="font-bold tabular-nums">{money(total)} Br</dd>
-                  </div>
-                </dl>
-
-                <div className="mt-6 rounded-2xl bg-[hsl(149_74%_25%)]/25 p-4 text-center">
-                  <p className="text-[11px] uppercase tracking-wider text-white/50">{t("payoutLabel")}</p>
-                  <p className="mt-1 text-2xl font-extrabold text-[hsl(149_74%_60%)]">{money(tier.payout)} Br</p>
-                </div>
-
-                <ul className="mt-6 space-y-2.5 text-sm text-white/60">
-                  {[
-                    [t("groupLabel"), "200"],
-                    [t("winnersLabel"), "7"],
-                    [t("cycleLabel"), "29 " + t("weeks")],
-                  ].map(([k, v]) => (
-                    <li key={k} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Check size={14} className="text-[hsl(149_74%_55%)]" />
-                        {k}
-                      </span>
-                      <span className="font-medium text-white/80">{v}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <a
-                  href="#download"
-                  className={cn(
-                    "group mt-7 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition",
-                    tier.featured
-                      ? "bg-[hsl(38_94%_56%)] text-[#0a120d] shadow-[0_12px_40px_-12px_hsl(38_94%_56%)] hover:brightness-110"
-                      : "border border-white/15 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
-                  )}
-                >
-                  {t("tierCta")}
-                  <ArrowRight size={16} className="transition group-hover:translate-x-1" />
-                </a>
-              </div>
-            </motion.div>
-          );
-        })}
       </div>
     </section>
   );
