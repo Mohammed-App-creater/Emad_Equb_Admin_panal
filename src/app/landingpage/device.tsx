@@ -18,7 +18,7 @@ export const GREEN_DEEP = "hsl(149 74% 16%)";
 export type Shot = { src: string; bg: string; light?: boolean };
 
 const DARK = "#08140e";
-const DRAW = "#101418";
+const DRAW = "#08140e";
 const LIGHT = "#f6f8f7";
 
 /** Screens that exist per language fall back to English for other locales. */
@@ -30,7 +30,7 @@ export const shots = {
   payments: (): Shot => ({ src: "payments", bg: LIGHT, light: true }),
   drawLive: (): Shot => ({ src: "draw-live", bg: DRAW }),
   drawWinners: (): Shot => ({ src: "draw-winners", bg: DRAW }),
-  drawContract: (): Shot => ({ src: "draw-contract", bg: "#07090b" }),
+  drawContract: (): Shot => ({ src: "draw-contract", bg: "#040906" }),
   myEqubs: (l: string): Shot => ({ src: `my-equbs-${lang(l)}`, bg: DARK }),
   hajj: (l: string): Shot => ({ src: `hajj-${lang(l)}`, bg: DARK }),
   umrah: (l: string): Shot => ({ src: `umrah-${lang(l)}`, bg: DARK }),
