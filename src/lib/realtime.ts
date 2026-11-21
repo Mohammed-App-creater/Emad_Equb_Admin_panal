@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useToast } from "@/hooks/use-toast";
@@ -184,6 +184,11 @@ export function useRealtimeConnection() {
  */
 export function useLiveUpdates(equbId: string | null | undefined, onEvent?: (e: LiveEvent) => void) {
   const qc = useQueryClient();
+  // Always call the caller's latest closure: the socket listener is set up once
+  // per Equb, but handlers read render-time state (e.g. the draw page's wheel
+  // entries, which are empty on the first render while the round loads).
+  const handler = useRef(onEvent);
+  useEffect(() => { handler.current = onEvent; });
 
   useEffect(() => {
     if (!equbId) return;
@@ -217,10 +222,8 @@ export function useLiveUpdates(equbId: string | null | undefined, onEvent?: (e: 
         default:
           break;
       }
-      onEvent?.(e);
+      handler.current?.(e);
     });
     return () => { unlisten(); unsubscribe(); };
-    // onEvent is intentionally not a dependency: callers pass fresh closures.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [equbId, qc]);
 }
